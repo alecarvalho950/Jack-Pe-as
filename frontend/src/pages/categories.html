@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Categorias | Jack Peças</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { theme: { extend: { colors: { primary: '#0A0F1E', accent: '#FACC15' } } } }</script>
+</head>
+<body class="bg-primary text-white min-h-screen flex">
+    <aside class="w-64 bg-[#111827] border-r border-gray-800 p-6 flex flex-col">
+        <h2 class="text-2xl font-bold text-accent mb-10 text-center uppercase tracking-tighter">Jack Peças</h2>
+        <nav class="flex-1 space-y-2">
+            <a href="dashboard.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">📊 Dashboard</a>
+            <a href="products.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">📦 Produtos</a>
+            <a href="categories.html" class="flex items-center p-3 rounded-lg bg-accent text-black font-bold">📂 Categorias</a>
+            <a href="attributes.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">⚙️ Atributos</a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 p-8">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold mb-8 text-accent uppercase tracking-widest">Gestão de Categorias</h1>
+
+            <section class="bg-[#111827] p-8 rounded-2xl border border-gray-700 mb-10 shadow-xl">
+                <h2 id="cat-form-title" class="text-xl font-bold mb-6 text-white uppercase tracking-tight">Nova Categoria</h2>
+                
+                <div class="mb-6">
+                    <label class="text-xs text-gray-400 uppercase font-bold">Nome da Categoria</label>
+                    <input type="text" id="cat-name" placeholder="Ex: Telas Displays" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                </div>
+
+                <div class="mb-6">
+                    <label class="text-xs text-gray-400 uppercase font-bold">Subcategoria</label>
+                    <div class="flex gap-2 mt-1">
+                        <input type="text" id="sub-input" placeholder="Samsung" class="flex-1 p-3 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                        <button onclick="addSubToList()" class="bg-gray-700 hover:bg-gray-600 px-6 rounded-lg font-bold transition">Adicionar</button>
+                    </div>
+                    <div id="sub-tags" class="flex flex-wrap gap-2 mt-4 min-h-[40px]"></div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button id="cat-cancel-btn" onclick="cancelCatEdit()" class="hidden flex-1 bg-gray-700 text-white font-black py-4 rounded-xl uppercase tracking-widest hover:bg-gray-600 transition">
+                        Cancelar
+                    </button>
+                    <button id="cat-save-btn" onclick="saveFullCategory()" class="flex-[2] bg-accent text-black font-black py-4 rounded-xl uppercase tracking-widest hover:scale-[1.01] transition active:scale-95">
+                        Gravar Categoria no Sistema
+                    </button>
+                </div>
+            </section>
+
+            <div id="categories-list-display" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        </div>
+
+        <div id="custom-confirm" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] items-center justify-center p-4">
+            <div class="bg-[#111827] border border-gray-800 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
+                <div class="text-red-500 text-5xl mb-4">⚠️</div>
+                <h3 class="text-xl font-bold mb-2">Confirmar Exclusão</h3>
+                <p id="confirm-msg" class="text-gray-400 text-sm mb-6"></p>
+                <div class="flex gap-3">
+                    <button onclick="closeConfirm(false)" class="flex-1 py-3 rounded-xl bg-gray-800 font-bold hover:bg-gray-700 transition">Não</button>
+                    <button id="confirm-yes" class="flex-1 py-3 rounded-xl bg-red-600 font-bold hover:bg-red-500 transition">Sim, excluir</button>
+                </div>
+            </div>
+        </div>
+        <div id="alert-modal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-[110] items-center justify-center p-4">
+    <div class="bg-[#111827] border-2 border-red-500/50 p-8 rounded-2xl max-w-sm w-full text-center shadow-[0_0_50px_-12px_rgba(239,68,68,0.5)]">
+        <div class="text-red-500 text-6xl mb-4 animate-bounce">🚫</div>
+        <h3 class="text-2xl font-bold mb-2 text-white">Ação Bloqueada</h3>
+        <p id="alert-msg" class="text-gray-300 text-sm mb-6"></p>
+        <button onclick="closeAlert()" class="w-full py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition uppercase tracking-widest">Entendido</button>
+    </div>
+</div>
+    </main>
+    <script src="../js/categories.js"></script>
+</body>
+</html>

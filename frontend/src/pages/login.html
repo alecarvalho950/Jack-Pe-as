@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login ADM | Jack Peças</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#0A0F1E',
+            accent: '#FACC15',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-primary min-h-screen flex items-center justify-center text-white">
+
+  <div class="w-full max-w-lg bg-[#111827] p-10 rounded-2xl shadow-2xl">
+    <h1 class="text-2xl font-bold text-accent mb-2 text-center">
+      Painel Administrativo
+    </h1>
+    <p class="text-center text-sm opacity-70 mb-8">
+      Acesso restrito – Jack Peças
+    </p>
+
+    <form id="login-form" class="space-y-5">
+
+      <!-- EMAIL -->
+      <div>
+        <label class="text-sm">E-mail do administrador</label>
+        <input
+          type="email"
+          id="email"
+          class="w-full mt-1 p-3 rounded-lg bg-[#1f2937] border border-transparent focus:border-accent outline-none"
+          placeholder="admin@teste.com"
+          required
+        />
+      </div>
+
+      <!-- SENHA -->
+      <div>
+        <label class="text-sm">Senha</label>
+        <input
+          type="password"
+          id="password"
+          class="w-full mt-1 p-3 rounded-lg bg-[#1f2937] border border-transparent focus:border-accent outline-none"
+          placeholder="Digite sua senha"
+          required
+        />
+      </div>
+
+      <!-- REGRAS -->
+      <ul id="rules" class="text-xs space-y-1 opacity-80">
+        <li id="rule-length">• Mínimo 8 caracteres</li>
+        <li id="rule-upper">• 1 letra maiúscula</li>
+        <li id="rule-number">• 1 número</li>
+        <li id="rule-special">• 1 caractere especial</li>
+      </ul>
+      <p id="password-success" class="text-green-400 text-xs font-bold hidden">✓ Senha atende a todos os requisitos</p>
+
+      <p id="error" class="text-red-400 text-sm hidden"></p>
+
+      <button
+        type="submit"
+        class="w-full bg-accent text-black font-semibold py-3 rounded-lg hover:opacity-90 transition"
+      >
+        Entrar no Painel
+      </button>
+    </form>
+  </div>
+
+  <script src="../js/auth.js"></script>
+</body>
+</html>

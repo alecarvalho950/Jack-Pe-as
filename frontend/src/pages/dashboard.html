@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Jack Peças</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Proteção de rota
+    if (!localStorage.getItem('admin_token')) window.location.href = 'login.html';
+    
+    tailwind.config = {
+      theme: { extend: { colors: { primary: '#0A0F1E', accent: '#FACC15' } } }
+    }
+  </script>
+</head>
+<body class="bg-primary text-white min-h-screen flex">
+
+  <aside class="w-64 bg-[#111827] border-r border-gray-800 p-6 flex flex-col">
+    <h2 class="text-2xl font-bold text-accent mb-10 text-center">Jack Peças</h2>
+    <nav class="flex-1 space-y-2">
+  <a href="dashboard.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">📊 Dashboard</a>
+  <a href="products.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">📦 Produtos</a>
+  <a href="categories.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">📂 Categorias</a>
+  <a href="attributes.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">⚙️ Atributos</a>
+</nav>
+    <button onclick="logout()" class="p-3 text-red-400 hover:bg-red-900/20 rounded-lg text-left">
+      🚪 Sair
+    </button>
+  </aside>
+
+  <main class="flex-1 p-8">
+    <header class="mb-10">
+      <h1 class="text-3xl font-bold">Resumo do Estoque</h1>
+      <p class="opacity-60 text-sm">Visão geral por categorias fixas</p>
+    </header>
+
+    <div class="mb-10">
+      <div class="bg-gradient-to-r from-accent to-yellow-600 p-6 rounded-2xl w-full md:w-72 shadow-lg shadow-yellow-900/20">
+        <p class="text-black font-bold uppercase text-xs opacity-80">Total de Produtos</p>
+        <h2 id="total-count" class="text-5xl font-black text-black">0</h2>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      </div>
+  </main>
+  <script src="../js/dashboard.js"></script>
+</body>
+</html>

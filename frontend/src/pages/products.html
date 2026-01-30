@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Produtos | Jack Peças</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { 
+            theme: { 
+                extend: { 
+                    colors: { primary: '#0A0F1E', accent: '#FACC15' } 
+                } 
+            } 
+        }
+    </script>
+</head>
+<body class="bg-primary text-white min-h-screen flex">
+
+    <aside class="w-64 bg-[#111827] border-r border-gray-800 p-6 flex flex-col fixed h-full z-10">
+        <h2 class="text-2xl font-bold text-accent mb-10 text-center uppercase tracking-tighter">Jack Peças</h2>
+        <nav class="flex-1 space-y-2">
+            <a href="dashboard.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">📊 Dashboard</a>
+            <a href="products.html" class="flex items-center p-3 rounded-lg bg-accent text-black font-bold">📦 Produtos</a>
+            <a href="categories.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">📂 Categorias</a>
+            <a href="attributes.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">⚙️ Atributos</a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 ml-64 p-8">
+        <div class="max-w-7xl mx-auto">
+            
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-3xl font-bold text-accent uppercase tracking-widest">Gestão de Produtos</h1>
+                <button onclick="openForm()" id="btn-open-form" class="bg-accent text-black font-bold px-6 py-3 rounded-xl hover:bg-yellow-500 transition shadow-lg active:scale-95">
+                    + Novo Produto
+                </button>
+            </div>
+
+            <section id="product-form-container" class="hidden bg-[#111827] p-8 rounded-2xl border border-gray-700 mb-10 shadow-xl">
+                <h2 id="form-title" class="text-xl font-bold mb-6 text-white uppercase tracking-tight">Cadastro de Produto</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="bg-gray-900/50 p-6 rounded-xl border border-gray-800 flex flex-col items-center gap-4">
+                        <label class="text-[10px] text-gray-400 uppercase font-bold tracking-widest self-start">Foto do Produto</label>
+                        <div id="image-preview" class="w-48 h-48 bg-gray-800 rounded-xl border-2 border-gray-700 overflow-hidden flex items-center justify-center">
+                            <span class="text-gray-600 text-xs italic">Sem foto</span>
+                        </div>
+                        <label class="w-full flex flex-col items-center justify-center py-4 border-2 border-gray-700 border-dashed rounded-xl cursor-pointer bg-gray-800/50 hover:bg-gray-800 hover:border-accent transition">
+                            <span class="text-xl">📸</span>
+                            <span class="text-[10px] text-gray-400 uppercase font-bold mt-1">Alterar Imagem</span>
+                            <input type="file" id="prod-file" class="hidden" accept="image/*" onchange="previewImage(this)" />
+                        </label>
+                    </div>
+
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="text-[10px] text-gray-400 uppercase font-bold">Nome do Produto</label>
+                                <input type="text" id="p-name" placeholder="Ex: Tela iPhone 13" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase font-bold">SKU</label>
+                                <input type="text" id="p-sku" placeholder="SKU-123" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase font-bold">Preço (R$)</label>
+                                <input type="number" id="p-price" step="0.01" placeholder="0,00" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase font-bold">Categoria</label>
+                                <select id="p-category" onchange="updateSubcategories()" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                                    <option value="">Selecione...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase font-bold">Subcategoria</label>
+                                <select id="p-subcategory" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                                    <option value="">Selecione a categoria...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-400 uppercase font-bold">Estoque Inicial</label>
+                                <input type="number" id="p-stock" placeholder="0" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            </div>
+                        </div>
+
+                        <div id="dynamic-attributes-container" class="mt-4 pt-4 border-t border-gray-800 hidden">
+                            <h3 class="text-[10px] text-accent uppercase mb-3 font-bold tracking-widest">Atributos Técnicos</h3>
+                            <div id="attributes-fields" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-end gap-4 border-t border-gray-800 pt-6">
+                    <button onclick="closeForm()" class="text-gray-400 hover:text-white font-bold px-6 py-3 uppercase tracking-widest transition text-xs">Cancelar</button>
+                    <button onclick="saveProduct()" id="btn-save-product" class="bg-accent text-black font-black px-10 py-4 rounded-xl uppercase tracking-widest hover:scale-105 transition shadow-lg text-xs">Salvar Produto</button>
+                </div>
+            </section>
+
+            <div class="flex flex-col md:flex-row gap-4 mb-8">
+                <div class="flex-1 relative">
+                    <input type="text" id="search-input" oninput="filterProducts()" placeholder="Buscar por nome ou SKU..." class="w-full bg-[#111827] border border-gray-800 p-4 rounded-xl outline-none focus:border-accent transition pl-12 text-sm">
+                    <span class="absolute left-4 top-4.5 opacity-40">🔍</span>
+                </div>
+                <select id="filter-category" onchange="updateFilterSubcategories()" class="bg-[#111827] border border-gray-800 p-4 rounded-xl outline-none focus:border-accent text-sm text-gray-300 min-w-[200px]">
+                    <option value="">Todas as Categorias</option>
+                </select>
+                <select id="filter-subcategory" onchange="filterProducts()" class="bg-[#111827] border border-gray-800 p-4 rounded-xl outline-none focus:border-accent text-sm text-gray-300 min-w-[200px]">
+                    <option value="">Todas as Subcategorias</option>
+                </select>
+            </div>
+
+            <div class="bg-[#111827] rounded-2xl border border-gray-800 overflow-hidden shadow-2xl">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-800/50 text-[10px] uppercase tracking-widest text-gray-400">
+                            <th class="p-4 font-bold">Produto</th>
+                            <th class="p-4 text-center font-bold">SKU</th>
+                            <th class="p-4 text-center font-bold">Estoque</th>
+                            <th class="p-4 text-center font-bold">Preço</th>
+                            <th class="p-4 text-right font-bold">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-list-body" class="divide-y divide-gray-800/50">
+                        </tbody>
+                </table>
+                
+                <div class="p-4 border-t border-gray-800 flex justify-between items-center bg-gray-900/50">
+                    <span id="pagination-info" class="text-[10px] text-gray-500 font-bold uppercase tracking-tighter"></span>
+                    <div id="pagination-controls" class="flex gap-2"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="delete-modal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-[#111827] border border-gray-800 p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl">
+            <div class="text-4xl mb-4">⚠️</div>
+            <h3 class="text-xl font-bold text-white mb-2 uppercase">Excluir Produto?</h3>
+            <p id="delete-modal-msg" class="text-gray-400 text-sm mb-6"></p>
+            <div class="flex gap-4">
+                <button onclick="closeDeleteModal()" class="flex-1 p-3 rounded-xl bg-gray-800 text-white font-bold hover:bg-gray-700 transition">Não</button>
+                <button id="confirm-delete-btn" onclick="confirmDelete()" class="flex-1 p-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition">Sim, Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 right-10 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <div id="toast-content" class="px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 font-bold border">
+            <span id="toast-icon"></span>
+            <span id="toast-message" class="text-sm"></span>
+        </div>
+    </div>
+
+    <script src="../js/products.js"></script>
+</body>
+</html>
