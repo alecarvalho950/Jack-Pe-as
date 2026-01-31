@@ -37,7 +37,7 @@ async function loadCategoriesList() {
                                 <span class="text-[10px] bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded-full">${totalInCat} itens</span>
                             </h3>
                         </div>
-                        <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div class="flex gap-2">
                             <button onclick="editCategory('${data}')" class="p-2 hover:bg-blue-500/10 rounded-lg text-blue-400 transition">✏️</button>
                             <button onclick="askDeleteCat('${cat._id}', '${cat.name}')" class="p-2 hover:bg-red-500/10 rounded-lg text-red-500 transition">🗑️</button>
                         </div>
@@ -109,19 +109,32 @@ function askDeleteCat(id, name) {
         return;
     }
 
-    deleteCatId = id; // ID String do Mongo
+    deleteCatId = id; // Armazena o ID do MongoDB
+    subToRemove = null; // Garante que não vai remover uma subcategoria por engano
+    
     document.getElementById('confirm-msg').innerHTML = `Tem certeza que deseja excluir a categoria <strong>${name}</strong>?`;
-    document.getElementById('custom-confirm').classList.replace('hidden', 'flex');
+    
+    // Abre o modal
+    const modal = document.getElementById('custom-confirm');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
 }
 
 async function closeConfirm(confirmado) {
     if (confirmado) {
         if (deleteCatId) {
             try {
-                const res = await fetch(`http://localhost:3000/api/categories/${deleteCatId}`, { method: 'DELETE' });
-                if (res.ok) loadCategoriesList();
+                const res = await fetch(`http://localhost:3000/api/categories/${deleteCatId}`, { 
+                    method: 'DELETE' 
+                });
+                
+                if (res.ok) {
+                    await loadCategoriesList(); // Recarrega a lista após deletar
+                } else {
+                    console.error("Erro na resposta do servidor ao deletar");
+                }
             } catch (err) {
-                console.error("Erro ao deletar categoria:", err);
+                console.error("Erro ao conectar com a API para deletar:", err);
             }
         } 
         else if (subToRemove) {
@@ -130,7 +143,11 @@ async function closeConfirm(confirmado) {
         }
     }
     
-    document.getElementById('custom-confirm').classList.replace('flex', 'hidden');
+    // Fecha o modal e limpa os IDs
+    const modal = document.getElementById('custom-confirm');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    
     deleteCatId = null;
     subToRemove = null;
 }
@@ -146,6 +163,41 @@ function addSubToList() {
         input.value = '';
         input.focus();
     }
+}
+
+function openCatForm() {
+    const container = document.getElementById('cat-form-container');
+    const btnOpen = document.getElementById('btn-open-cat-form');
+    
+    container.classList.remove('hidden');
+    btnOpen.classList.add('hidden');
+    
+    // Se não estiver editando, garante que o título esteja como "Nova"
+    if (!editingCatId) {
+        document.getElementById('cat-form-title').innerText = "Nova Categoria";
+    }
+}
+
+function closeCatForm() {
+    const container = document.getElementById('cat-form-container');
+    const btnOpen = document.getElementById('btn-open-cat-form');
+    
+    container.classList.add('hidden');
+    btnOpen.classList.remove('hidden');
+    
+    // Reset completo do estado de edição ao fechar
+    editingCatId = null;
+    currentSubcategories = [];
+    document.getElementById('cat-name').value = '';
+    document.getElementById('sub-input').value = '';
+    
+    // Restaura o botão de salvar para o padrão original
+    const saveBtn = document.getElementById('cat-save-btn');
+    saveBtn.innerText = "Salvar Categoria";
+    saveBtn.classList.remove('bg-blue-600', 'text-white');
+    saveBtn.classList.add('bg-accent', 'text-black');
+    
+    renderSubTags();
 }
 
 async function saveFullCategory() {
@@ -166,7 +218,8 @@ async function saveFullCategory() {
             body: JSON.stringify(payload)
         });
         if (res.ok) {
-            cancelCatEdit();
+            // Se salvou com sucesso, fechamos o formulário e recarregamos a lista
+            closeCatForm(); 
             loadCategoriesList();
         }
     } catch (err) { 
@@ -176,14 +229,18 @@ async function saveFullCategory() {
 
 function editCategory(catJson) {
     const cat = JSON.parse(decodeURIComponent(catJson));
-    editingCatId = cat._id; // AJUSTE: Usando _id do Mongo
+    editingCatId = cat._id; 
+
+    // Abre o formulário antes de preencher
+    openCatForm();
 
     document.getElementById('cat-form-title').innerText = "Editar Categoria";
     const saveBtn = document.getElementById('cat-save-btn');
     saveBtn.innerText = "Atualizar Categoria";
-    saveBtn.classList.replace('bg-accent', 'bg-blue-600');
-    saveBtn.classList.replace('text-black', 'text-white');
-    document.getElementById('cat-cancel-btn').classList.remove('hidden');
+    
+    // Estilo visual de edição (Azul)
+    saveBtn.classList.remove('bg-accent', 'text-black');
+    saveBtn.classList.add('bg-blue-600', 'text-white');
 
     document.getElementById('cat-name').value = cat.name;
     currentSubcategories = [...cat.subcategories];
@@ -193,17 +250,7 @@ function editCategory(catJson) {
 }
 
 function cancelCatEdit() {
-    editingCatId = null;
-    currentSubcategories = [];
-    document.getElementById('cat-form-title').innerText = "Nova Categoria";
-    const btn = document.getElementById('cat-save-btn');
-    btn.innerText = "Gravar Categoria no Sistema";
-    btn.classList.replace('bg-blue-600', 'bg-accent');
-    btn.classList.replace('text-white', 'text-black');
-    document.getElementById('cat-cancel-btn').classList.add('hidden');
-    document.getElementById('cat-name').value = '';
-    document.getElementById('sub-input').value = '';
-    renderSubTags();
+    closeCatForm();
 }
 
 // Vinculação de eventos

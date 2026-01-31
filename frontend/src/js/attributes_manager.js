@@ -1,12 +1,50 @@
 let currentOptions = [];
 let deleteId = null;
-let editingId = null; // Agora armazenará a String do _id do MongoDB
+let editingId = null; 
 
 // --- AO CARREGAR A PÁGINA ---
 document.addEventListener('DOMContentLoaded', () => {
     loadTargetCategories();
     loadAttributesList();
+
+    // Vinculação segura do botão de confirmação
+    const confirmBtn = document.getElementById('confirm-yes');
+    if (confirmBtn) {
+        confirmBtn.onclick = () => closeConfirm(true);
+    }
 });
+
+// --- CONTROLE DE INTERFACE (ABRIR/FECHAR) ---
+
+function openAttrForm() {
+    document.getElementById('attr-form-container').classList.remove('hidden');
+    document.getElementById('btn-open-attr-form').classList.add('hidden');
+    if (!editingId) {
+        document.getElementById('form-title').innerText = "Novo Atributo";
+    }
+}
+
+function closeAttrForm() {
+    document.getElementById('attr-form-container').classList.add('hidden');
+    document.getElementById('btn-open-attr-form').classList.remove('hidden');
+    
+    // Reset de estado e campos
+    editingId = null;
+    currentOptions = [];
+    document.getElementById('attr-name').value = '';
+    document.getElementById('attr-target-cat').value = '';
+    document.getElementById('attr-type').value = 'select';
+    document.getElementById('new-option-input').value = '';
+    
+    // Reset visual do botão
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.innerText = "Salvar Atributo";
+    saveBtn.classList.remove('bg-blue-600', 'text-white');
+    saveBtn.classList.add('bg-accent', 'text-black');
+    
+    toggleOptionInput();
+    renderOptions();
+}
 
 // 1. Alterna a exibição das opções baseado no tipo
 function toggleOptionInput() {
@@ -59,7 +97,7 @@ function removeOption(option) {
 function renderOptions() {
     const container = document.getElementById('options-tags');
     container.innerHTML = currentOptions.map(opt => `
-        <span class="bg-accent/20 text-accent border border-accent/30 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 font-bold animate-in fade-in duration-300">
+        <span class="bg-accent/20 text-accent border border-accent/30 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 font-bold">
             ${opt}
             <button onclick="removeOption('${opt}')" class="text-white hover:text-red-500 transition">×</button>
         </span>
@@ -70,14 +108,15 @@ function renderOptions() {
 
 function editAttribute(attrJson) {
     const attr = JSON.parse(decodeURIComponent(attrJson));
-    editingId = attr._id; // AJUSTE: Usando _id do MongoDB
+    editingId = attr._id; 
+
+    openAttrForm(); // Abre o container primeiro
 
     document.getElementById('form-title').innerText = "Editar Atributo";
     const saveBtn = document.getElementById('save-btn');
     saveBtn.innerText = "Atualizar Atributo";
-    saveBtn.classList.replace('bg-accent', 'bg-blue-600');
-    saveBtn.classList.replace('text-black', 'text-white');
-    document.getElementById('cancel-btn').classList.remove('hidden');
+    saveBtn.classList.remove('bg-accent', 'text-black');
+    saveBtn.classList.add('bg-blue-600', 'text-white');
 
     document.getElementById('attr-target-cat').value = attr.category;
     document.getElementById('attr-name').value = attr.name;
@@ -88,25 +127,6 @@ function editAttribute(attrJson) {
     renderOptions();
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function cancelEdit() {
-    editingId = null;
-    currentOptions = [];
-    
-    document.getElementById('form-title').innerText = "Novo Atributo";
-    const saveBtn = document.getElementById('save-btn');
-    saveBtn.innerText = "Gravar Atributo no Sistema";
-    saveBtn.classList.replace('bg-blue-600', 'bg-accent');
-    saveBtn.classList.replace('text-white', 'text-black');
-    document.getElementById('cancel-btn').classList.add('hidden');
-    
-    document.getElementById('attr-name').value = '';
-    document.getElementById('attr-target-cat').value = '';
-    document.getElementById('attr-type').value = 'select';
-    
-    toggleOptionInput();
-    renderOptions();
 }
 
 // --- SALVAR / LISTAR / EXCLUIR ---
@@ -121,7 +141,6 @@ async function saveFullAttribute() {
 
     const payload = { category, name, type, options: type === 'text' ? [] : currentOptions };
     
-    // AJUSTE: A URL agora usa o _id para o PUT
     const url = editingId ? `http://localhost:3000/api/attributes/${editingId}` : 'http://localhost:3000/api/attributes';
     const method = editingId ? 'PUT' : 'POST';
 
@@ -133,7 +152,7 @@ async function saveFullAttribute() {
         });
 
         if (res.ok) {
-            cancelEdit();
+            closeAttrForm(); // Fecha o card após salvar
             loadAttributesList();
         }
     } catch (err) {
@@ -167,7 +186,6 @@ async function loadAttributesList() {
 
             catAttrs.forEach(attr => {
                 const data = encodeURIComponent(JSON.stringify(attr));
-                
                 sectionHtml += `
                     <div class="bg-[#111827] p-5 rounded-xl border border-gray-800 flex justify-between items-start group hover:border-accent/50 transition">
                         <div>
@@ -184,7 +202,7 @@ async function loadAttributesList() {
                                 }
                             </div>
                         </div>
-                        <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div class="flex gap-2">
                             <button onclick="editAttribute('${data}')" class="p-2 hover:bg-blue-500/10 rounded-lg text-gray-500 hover:text-blue-400 transition">✏️</button>
                             <button onclick="askDelete('${attr._id}', '${attr.name}')" class="p-2 hover:bg-red-500/10 rounded-lg text-gray-500 hover:text-red-500 transition">🗑️</button>
                         </div>
@@ -200,11 +218,12 @@ async function loadAttributesList() {
     }
 }
 
-// Modal Customizado
 function askDelete(id, name) {
-    deleteId = id; // Agora é uma string
+    deleteId = id; 
     document.getElementById('confirm-msg').innerHTML = `Excluir o atributo <strong>${name}</strong>?`;
-    document.getElementById('custom-confirm').classList.replace('hidden', 'flex');
+    const modal = document.getElementById('custom-confirm');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
 }
 
 async function closeConfirm(confirmado) {
@@ -216,13 +235,16 @@ async function closeConfirm(confirmado) {
             console.error("Erro ao deletar:", err);
         }
     }
-    document.getElementById('custom-confirm').classList.replace('flex', 'hidden');
+    const modal = document.getElementById('custom-confirm');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
     deleteId = null;
 }
 
-// Vincula o evento ao botão de confirmação do seu HTML
-document.getElementById('confirm-yes').onclick = () => closeConfirm(true);
-
+// Escuta a tecla Enter no input de opções
 document.getElementById('new-option-input')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); addOptionToList(); }
+    if (e.key === 'Enter') { 
+        e.preventDefault(); 
+        addOptionToList(); 
+    }
 });

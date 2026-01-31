@@ -69,9 +69,14 @@ function showFormUI() {
 }
 
 function closeForm() {
-    document.getElementById('product-form-container').classList.add('hidden');
-    document.getElementById('btn-open-form').classList.remove('hidden');
-    editingProductId = null;
+    const formContainer = document.getElementById('product-form-container');
+    const btnOpen = document.getElementById('btn-open-form');
+    
+    if (formContainer) formContainer.classList.add('hidden');
+    if (btnOpen) btnOpen.classList.remove('hidden');
+    
+    editingProductId = null; // ESSENCIAL: Volta o estado para criação
+    clearForm();
 }
 
 function clearForm() {
@@ -185,13 +190,16 @@ async function saveProduct() {
 
         if (res.ok) {
             showNotification(editingProductId ? "Produto atualizado!" : "Produto criado!");
-            closeForm();
-            await loadInitialData(); 
+            
+            // --- FECHAMENTO GARANTIDO ---
+            closeForm(); // Fecha a UI e reseta editingProductId para null
+            await loadInitialData(); // Atualiza a lista em segundo plano
         } else {
             const errorData = await res.json();
             showNotification(errorData.message || "Erro no servidor", "error");
         }
     } catch (err) {
+        console.error("Erro ao salvar:", err);
         showNotification("Erro de conexão", "error");
     }
 }
@@ -270,6 +278,29 @@ function filterProducts() {
     renderProducts();
 }
 
+function updateFilterSubcategories() {
+    const catName = document.getElementById('filter-category').value;
+    const subFilter = document.getElementById('filter-subcategory');
+    
+    // Limpa as subcategorias atuais e volta para o padrão
+    subFilter.innerHTML = '<option value="">Todas as Subcategorias</option>';
+    
+    // Busca a categoria selecionada na lista global de categorias
+    const catObj = categories.find(c => c.name === catName);
+    
+    if (catObj && catObj.subcategories) {
+        catObj.subcategories.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            subFilter.appendChild(opt);
+        });
+    }
+    
+    // Chama o filtro para atualizar a lista de produtos imediatamente
+    filterProducts();
+}
+
 function renderProducts() {
     const container = document.getElementById('product-list-body');
     if (!container) return;
@@ -303,7 +334,7 @@ function renderProducts() {
             </td>
             <td class="p-4 text-center font-bold text-white text-sm">R$ ${price.toFixed(2)}</td>
             <td class="p-4 text-right">
-                <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="flex justify-end gap-2">
                     <button onclick="editProduct('${p._id}')" class="p-2 hover:bg-blue-600/20 hover:text-blue-400 rounded-lg transition" title="Editar">✏️</button>
                     <button onclick="deleteProduct('${p._id}')" class="p-2 hover:bg-red-600/20 hover:text-red-400 rounded-lg transition" title="Excluir">🗑️</button>
                 </div>
@@ -313,4 +344,30 @@ function renderProducts() {
     }).join('');
 
     document.getElementById('pagination-info').innerText = `Total: ${filteredProducts.length} produtos`;
+}
+
+function showNotification(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const msg = document.getElementById('toast-message');
+    const content = document.getElementById('toast-content');
+    const icon = document.getElementById('toast-icon');
+
+    if (!toast || !msg) return; // Segurança caso o HTML não tenha o toast
+
+    if (type === 'success') {
+        content.className = "px-6 py-3 rounded-xl flex items-center gap-3 shadow-2xl border font-bold bg-green-500/10 border-green-500 text-green-500";
+        icon.innerText = "✅";
+    } else {
+        content.className = "px-6 py-3 rounded-xl flex items-center gap-3 shadow-2xl border font-bold bg-red-500/10 border-red-500 text-red-500";
+        icon.innerText = "⚠️";
+    }
+
+    msg.innerText = message;
+    toast.classList.remove('translate-y-20', 'opacity-0');
+    toast.classList.add('translate-y-0', 'opacity-100');
+
+    setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+    }, 3000);
 }
