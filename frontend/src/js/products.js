@@ -9,6 +9,14 @@ let productToDeleteId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadInitialData();
+
+    // --- NOVO: Listener para o Preview de Imagem ---
+    const fileInput = document.getElementById('prod-file');
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            previewImage(this); // Chama a função de preview assim que o arquivo muda
+        });
+    }
 });
 
 // --- CARREGAMENTO ---
@@ -113,6 +121,23 @@ function updateSubcategories(selectedSub = "") {
     }
 }
 
+function previewImage(input) {
+    const preview = document.getElementById('image-preview');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover animate-in fade-in duration-300">`;
+        };
+        
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        // Se o usuário cancelar a seleção ou o input estiver vazio
+        preview.innerHTML = `<span class="text-gray-600 text-xs italic">Sem foto</span>`;
+    }
+}
+
 // --- CRUD ---
 async function saveProduct() {
     const formData = new FormData();
@@ -187,6 +212,15 @@ function editProduct(id) {
     document.getElementById('p-stock').value = p.stock || 0;
     document.getElementById('p-category').value = p.category || '';
     
+    // --- ATUALIZAÇÃO DO PREVIEW NA EDIÇÃO ---
+    const preview = document.getElementById('image-preview');
+    if (p.image) {
+        const imagePath = `http://localhost:3000${p.image}`;
+        preview.innerHTML = `<img src="${imagePath}" class="w-full h-full object-cover">`;
+    } else {
+        preview.innerHTML = `<span class="text-gray-600 text-xs italic">Sem foto</span>`;
+    }
+
     updateSubcategories(p.subcategory);
     
     // Pequeno delay para os campos dinâmicos serem criados antes de preenchê-los

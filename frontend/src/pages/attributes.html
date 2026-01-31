@@ -19,7 +19,7 @@
 
   <main class="flex-1 p-8 overflow-y-auto">
     <div class="max-w-4xl mx-auto">
-      <h1 class="text-3xl font-bold mb-8 text-accent uppercase tracking-widest">Atributos de Peças</h1>
+      <h1 class="text-3xl font-bold mb-8 text-accent uppercase tracking-widest">Atributos dos Produtos</h1>
 
       <section class="bg-[#111827] p-8 rounded-2xl border border-gray-700 mb-10">
         <h2 id="form-title" class="text-xl font-bold mb-6 text-white uppercase tracking-tight">Novo Atributo</h2>
@@ -39,8 +39,8 @@
             <div>
                 <label class="text-xs text-gray-400 uppercase font-bold">Tipo de Campo</label>
                 <select id="attr-type" onchange="toggleOptionInput()" class="w-full p-3 mt-1 rounded bg-gray-800 outline-none focus:ring-1 ring-accent text-white">
-                    <option value="select">Lista de Seleção (Dropdown)</option>
-                    <option value="text">Digitação Manual (Input)</option>
+                    <option value="select">Lista de Seleção</option>
+                    <option value="text">Digitação Manual</option>
                 </select>
             </div>
         </div>
@@ -48,7 +48,7 @@
         <div id="options-group-container" class="mb-6">
             <label class="text-xs text-gray-400 uppercase font-bold">Opções do Atributo</label>
             <div class="flex gap-2 mt-1">
-                <input type="text" id="new-option-input" placeholder="Digite uma opção (ex: OLED)" class="flex-1 p-3 rounded bg-gray-800 outline-none border border-transparent focus:border-accent transition">
+                <input type="text" id="new-option-input" placeholder="Digite uma opção e aperte em Adicionar" class="flex-1 p-3 rounded bg-gray-800 outline-none border border-transparent focus:border-accent transition">
                 <button onclick="addOptionToList()" class="bg-gray-700 hover:bg-gray-600 px-6 rounded-lg font-bold transition">Adicionar</button>
             </div>
             <div id="options-tags" class="flex flex-wrap gap-2 mt-4 min-h-[40px]"></div>
@@ -59,7 +59,7 @@
                 Cancelar
             </button>
             <button id="save-btn" onclick="saveFullAttribute()" class="flex-[2] bg-accent text-black font-black py-4 rounded-xl uppercase tracking-widest hover:scale-[1.01] transition active:scale-95">
-                Gravar Atributo no Sistema
+                Salvar Atributo
             </button>
         </div>
       </section>

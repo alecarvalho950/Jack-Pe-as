@@ -19,20 +19,20 @@
 
     <main class="flex-1 p-8">
         <div class="max-w-4xl mx-auto">
-            <h1 class="text-3xl font-bold mb-8 text-accent uppercase tracking-widest">Gestão de Categorias</h1>
+            <h1 class="text-3xl font-bold mb-8 text-accent uppercase tracking-widest">Categorias</h1>
 
             <section class="bg-[#111827] p-8 rounded-2xl border border-gray-700 mb-10 shadow-xl">
                 <h2 id="cat-form-title" class="text-xl font-bold mb-6 text-white uppercase tracking-tight">Nova Categoria</h2>
                 
                 <div class="mb-6">
                     <label class="text-xs text-gray-400 uppercase font-bold">Nome da Categoria</label>
-                    <input type="text" id="cat-name" placeholder="Ex: Telas Displays" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                    <input type="text" id="cat-name" placeholder="Digite o nome da categoria" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
                 </div>
 
                 <div class="mb-6">
                     <label class="text-xs text-gray-400 uppercase font-bold">Subcategoria</label>
                     <div class="flex gap-2 mt-1">
-                        <input type="text" id="sub-input" placeholder="Samsung" class="flex-1 p-3 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                        <input type="text" id="sub-input" placeholder="Digite o nome da subcategoria" class="flex-1 p-3 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
                         <button onclick="addSubToList()" class="bg-gray-700 hover:bg-gray-600 px-6 rounded-lg font-bold transition">Adicionar</button>
                     </div>
                     <div id="sub-tags" class="flex flex-wrap gap-2 mt-4 min-h-[40px]"></div>
@@ -43,7 +43,7 @@
                         Cancelar
                     </button>
                     <button id="cat-save-btn" onclick="saveFullCategory()" class="flex-[2] bg-accent text-black font-black py-4 rounded-xl uppercase tracking-widest hover:scale-[1.01] transition active:scale-95">
-                        Gravar Categoria no Sistema
+                        Salvar Categoria
                     </button>
                 </div>
             </section>

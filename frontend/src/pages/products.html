@@ -31,7 +31,7 @@
         <div class="max-w-7xl mx-auto">
             
             <div class="flex justify-between items-center mb-8">
-                <h1 class="text-3xl font-bold text-accent uppercase tracking-widest">Gestão de Produtos</h1>
+                <h1 class="text-3xl font-bold text-accent uppercase tracking-widest">Produtos</h1>
                 <button onclick="openForm()" id="btn-open-form" class="bg-accent text-black font-bold px-6 py-3 rounded-xl hover:bg-yellow-500 transition shadow-lg active:scale-95">
                     + Novo Produto
                 </button>
@@ -80,7 +80,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="text-[10px] text-gray-400 uppercase font-bold">Estoque Inicial</label>
+                                <label class="text-[10px] text-gray-400 uppercase font-bold">Estoque</label>
                                 <input type="number" id="p-stock" placeholder="0" class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
                             </div>
                         </div>
@@ -100,8 +100,8 @@
 
             <div class="flex flex-col md:flex-row gap-4 mb-8">
                 <div class="flex-1 relative">
-                    <input type="text" id="search-input" oninput="filterProducts()" placeholder="Buscar por nome ou SKU..." class="w-full bg-[#111827] border border-gray-800 p-4 rounded-xl outline-none focus:border-accent transition pl-12 text-sm">
-                    <span class="absolute left-4 top-4.5 opacity-40">🔍</span>
+                    <input type="text" id="search-input" oninput="filterProducts()" placeholder="Buscar por nome..." class="w-full bg-[#111827] border border-gray-800 p-4 rounded-xl outline-none focus:border-accent transition pl-12 text-sm">
+                    <span class="absolute left-4 top-4 opacity-40">🔍</span>
                 </div>
                 <select id="filter-category" onchange="updateFilterSubcategories()" class="bg-[#111827] border border-gray-800 p-4 rounded-xl outline-none focus:border-accent text-sm text-gray-300 min-w-[200px]">
                     <option value="">Todas as Categorias</option>
