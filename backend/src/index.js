@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
+const mongoose = require('mongoose');
 
 const app = express();
 app.use(cors());
@@ -11,7 +12,40 @@ app.use(express.json());
 
 const PORT = 3000;
 
-// --- CONFIGURAÇÃO DE CAMINHOS ---
+// --- CONEXÃO COM BANCO DE DADOS MONGODB ---
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ Conectado ao MongoDB com sucesso!"))
+  .catch((err) => console.error("❌ Erro ao conectar ao MongoDB:", err));
+
+// --- SCHEMAS E MODELOS (ESTRUTURA DO BANCO) ---
+
+const categorySchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    subcategories: [String]
+});
+const Category = mongoose.model('Category', categorySchema);
+
+const attributeSchema = new mongoose.Schema({
+    category: String,
+    name: String,
+    type: String,
+    options: [String]
+});
+const Attribute = mongoose.model('Attribute', attributeSchema);
+
+const productSchema = new mongoose.Schema({
+    sku: String,
+    name: String,
+    category: String,
+    subcategory: String,
+    price: Number,
+    stock: Number,
+    attributes: mongoose.Schema.Types.Mixed, // Permite objetos flexíveis
+    image: String
+}, { timestamps: true }); // Adiciona data de criação e atualização automaticamente
+const Product = mongoose.model('Product', productSchema);
+
+// --- CONFIGURAÇÃO DE CAMINHOS E UPLOAD ---
 const PROJECT_ROOT = process.cwd();
 const uploadDir = path.join(PROJECT_ROOT, 'uploads', 'produtos');
 
@@ -19,7 +53,6 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Helper para deletar arquivos físicos
 const deleteFile = (relativeColPath) => {
     if (!relativeColPath) return;
     try {
@@ -44,21 +77,7 @@ const upload = multer({ storage });
 
 app.use('/uploads', express.static(path.join(PROJECT_ROOT, 'uploads')));
 
-// --- BANCO DE DADOS TEMPORÁRIO ---
-let products = [
-    { id: 1, sku: "T-IP13-INC", name: "Tela iPhone 13", category: "Telas Displays", subcategory: "Iphone", stock: 10, price: 250.00, attributes: {}, image: null }
-];
-
-let customAttributes = [
-    { id: 1, category: "Telas Displays", name: "Qualidade", type: "select", options: ["Incell", "OLED", "Skytech"] }
-];
-
-let categoriesStructure = [
-    { id: 1, name: "Telas Displays", subcategories: ["Samsung", "Motorola", "Iphone", "Xiaomi"] },
-    { id: 2, name: "Baterias", subcategories: ["Samsung", "Motorola", "Iphone"] }
-];
-
-// --- ROTA DE LOGIN E DASHBOARD ---
+// --- ROTA DE LOGIN ---
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
     if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
@@ -67,127 +86,148 @@ app.post('/api/login', (req, res) => {
     res.status(401).json({ message: "E-mail ou senha incorretos." });
 });
 
-app.get('/api/dashboard/stats', (req, res) => {
-    const stats = {};
-    categoriesStructure.forEach(cat => stats[cat.name] = 0);
-    products.forEach(p => { if (stats[p.category] !== undefined) stats[p.category]++; });
-    res.json({ total: products.length, categories: stats });
+// --- ROTA DO DASHBOARD ---
+app.get('/api/dashboard/stats', async (req, res) => {
+    try {
+        const totalProducts = await Product.countDocuments();
+        const categories = await Category.find();
+        const stats = {};
+
+        for (let cat of categories) {
+            stats[cat.name] = await Product.countDocuments({ category: cat.name });
+        }
+
+        res.json({ total: totalProducts, categories: stats });
+    } catch (err) {
+        res.status(500).json({ message: "Erro ao carregar estatísticas" });
+    }
 });
 
 // --- ROTAS DE PRODUTOS ---
-app.get('/api/products', (req, res) => res.json([...products].reverse()));
+app.get('/api/products', async (req, res) => {
+    try {
+        const products = await Product.find().sort({ createdAt: -1 });
+        res.json(products);
+    } catch (err) {
+        res.status(500).json({ message: "Erro ao buscar produtos" });
+    }
+});
 
-app.post('/api/products', upload.single('image'), (req, res) => {
+app.post('/api/products', upload.single('image'), async (req, res) => {
     try {
         const { sku, name, category, subcategory, price, stock, attributes } = req.body;
         
-        // Multer envia objetos como string, precisamos converter:
         let parsedAttributes = {};
         if (attributes) {
             parsedAttributes = typeof attributes === 'string' ? JSON.parse(attributes) : attributes;
         }
 
-        const newProduct = {
-            id: Date.now(),
-            sku: sku || "",
-            name: name || "Novo Produto",
-            category: category || "",
-            subcategory: subcategory || "",
+        const newProduct = new Product({
+            sku,
+            name,
+            category,
+            subcategory,
             price: parseFloat(price) || 0,
             stock: parseInt(stock) || 0,
             attributes: parsedAttributes,
             image: req.file ? `/uploads/produtos/${req.file.filename}` : null
-        };
-        products.push(newProduct);
+        });
+
+        await newProduct.save();
         res.status(201).json(newProduct);
-    } catch (err) { res.status(500).json({ message: "Erro no cadastro" }); }
-});
-
-app.put('/api/products/:id', upload.single('image'), (req, res) => {
-    const id = parseInt(req.params.id);
-    const index = products.findIndex(p => p.id === id);
-    if (index === -1) return res.status(404).json({ message: "Não encontrado" });
-
-    const oldProduct = products[index];
-    if (req.file && oldProduct.image) deleteFile(oldProduct.image);
-
-    let updatedAttributes = oldProduct.attributes;
-    if (req.body.attributes) {
-        try {
-            updatedAttributes = typeof req.body.attributes === 'string' ? JSON.parse(req.body.attributes) : req.body.attributes;
-        } catch (e) { console.error("Erro parse attributes"); }
+    } catch (err) { 
+        res.status(500).json({ message: "Erro no cadastro" }); 
     }
-
-    products[index] = {
-        ...oldProduct,
-        sku: req.body.sku || oldProduct.sku,
-        name: req.body.name || oldProduct.name,
-        category: req.body.category || oldProduct.category,
-        subcategory: req.body.subcategory || oldProduct.subcategory,
-        price: parseFloat(req.body.price) || oldProduct.price,
-        stock: parseInt(req.body.stock) || oldProduct.stock,
-        attributes: updatedAttributes,
-        image: req.file ? `/uploads/produtos/${req.file.filename}` : oldProduct.image
-    };
-    res.json(products[index]);
 });
 
-app.delete('/api/products/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const index = products.findIndex(p => p.id === id);
-    if (index !== -1) {
-        if (products[index].image) deleteFile(products[index].image);
-        products.splice(index, 1);
+app.put('/api/products/:id', upload.single('image'), async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+        if (!product) return res.status(404).json({ message: "Produto não encontrado" });
+
+        if (req.file && product.image) deleteFile(product.image);
+
+        let updatedAttributes = product.attributes;
+        if (req.body.attributes) {
+            try {
+                updatedAttributes = typeof req.body.attributes === 'string' ? JSON.parse(req.body.attributes) : req.body.attributes;
+            } catch (e) { console.error("Erro parse attributes"); }
+        }
+
+        const updateData = {
+            sku: req.body.sku || product.sku,
+            name: req.body.name || product.name,
+            category: req.body.category || product.category,
+            subcategory: req.body.subcategory || product.subcategory,
+            price: parseFloat(req.body.price) || product.price,
+            stock: parseInt(req.body.stock) || product.stock,
+            attributes: updatedAttributes
+        };
+
+        if (req.file) {
+            updateData.image = `/uploads/produtos/${req.file.filename}`;
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        res.json(updatedProduct);
+    } catch (err) {
+        res.status(500).json({ message: "Erro na atualização" });
+    }
+});
+
+app.delete('/api/products/:id', async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+        if (product && product.image) deleteFile(product.image);
+        
+        await Product.findByIdAndDelete(req.params.id);
         res.sendStatus(204);
-    } else { res.status(404).json({ message: "Não encontrado" }); }
+    } catch (err) {
+        res.status(500).json({ message: "Erro ao excluir produto" });
+    }
 });
 
-// --- ROTAS DE ATRIBUTOS (Requisitado por attributes_manager.js) ---
-app.get('/api/attributes', (req, res) => res.json(customAttributes));
+// --- ROTAS DE ATRIBUTOS ---
+app.get('/api/attributes', async (req, res) => {
+    const attrs = await Attribute.find();
+    res.json(attrs);
+});
 
-app.post('/api/attributes', (req, res) => {
-    const newAttr = { id: Date.now(), ...req.body };
-    customAttributes.push(newAttr);
+app.post('/api/attributes', async (req, res) => {
+    const newAttr = new Attribute(req.body);
+    await newAttr.save();
     res.status(201).json(newAttr);
 });
 
-app.put('/api/attributes/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const index = customAttributes.findIndex(a => a.id === id);
-    if (index !== -1) {
-        customAttributes[index] = { ...customAttributes[index], ...req.body, id };
-        res.json(customAttributes[index]);
-    } else { res.status(404).json({ message: "Atributo não encontrado" }); }
+app.put('/api/attributes/:id', async (req, res) => {
+    const updated = await Attribute.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updated);
 });
 
-app.delete('/api/attributes/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    customAttributes = customAttributes.filter(a => a.id !== id);
+app.delete('/api/attributes/:id', async (req, res) => {
+    await Attribute.findByIdAndDelete(req.params.id);
     res.sendStatus(204);
 });
 
-// --- ROTAS DE CATEGORIAS (Requisitado por categories.js) ---
-app.get('/api/categories', (req, res) => res.json(categoriesStructure));
+// --- ROTAS DE CATEGORIAS ---
+app.get('/api/categories', async (req, res) => {
+    const cats = await Category.find();
+    res.json(cats);
+});
 
-app.post('/api/categories', (req, res) => {
-    const newCat = { id: Date.now(), ...req.body };
-    categoriesStructure.push(newCat);
+app.post('/api/categories', async (req, res) => {
+    const newCat = new Category(req.body);
+    await newCat.save();
     res.status(201).json(newCat);
 });
 
-app.put('/api/categories/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const index = categoriesStructure.findIndex(c => c.id === id);
-    if (index !== -1) {
-        categoriesStructure[index] = { ...categoriesStructure[index], ...req.body, id };
-        res.json(categoriesStructure[index]);
-    } else { res.status(404).json({ message: "Categoria não encontrada" }); }
+app.put('/api/categories/:id', async (req, res) => {
+    const updated = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updated);
 });
 
-app.delete('/api/categories/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    // O categories.js já faz a validação de produtos no front, mas aqui garantimos no back
-    categoriesStructure = categoriesStructure.filter(c => c.id !== id);
+app.delete('/api/categories/:id', async (req, res) => {
+    await Category.findByIdAndDelete(req.params.id);
     res.sendStatus(204);
 });
 

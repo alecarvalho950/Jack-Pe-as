@@ -1,7 +1,7 @@
 let currentSubcategories = [];
-let editingCatId = null;
-let deleteCatId = null; // Para excluir categoria do banco
-let subToRemove = null; // Para remover subcategoria da lista
+let editingCatId = null; // Agora armazenará a String do _id
+let deleteCatId = null; 
+let subToRemove = null; 
 let allProducts = [];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,11 +24,12 @@ async function loadCategoriesList() {
         container.innerHTML = '';
 
         categories.forEach(cat => {
+            // AJUSTE: O MongoDB usa _id
             const data = encodeURIComponent(JSON.stringify(cat));
             const totalInCat = allProducts.filter(p => p.category === cat.name).length;
 
             container.innerHTML += `
-                <div class="bg-[#111827] p-6 rounded-2xl border border-gray-800 hover:border-accent/40 transition group relative shadow-lg">
+                <div class="bg-[#111827] p-6 rounded-2xl border border-gray-800 hover:border-accent/40 transition group relative shadow-lg animate-in fade-in duration-500">
                     <div class="flex justify-between items-start mb-6">
                         <div>
                             <h3 class="text-xl font-bold text-white flex items-center gap-2">
@@ -38,7 +39,7 @@ async function loadCategoriesList() {
                         </div>
                         <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onclick="editCategory('${data}')" class="p-2 hover:bg-blue-500/10 rounded-lg text-blue-400 transition">✏️</button>
-                            <button onclick="askDeleteCat(${cat.id}, '${cat.name}')" class="p-2 hover:bg-red-500/10 rounded-lg text-red-500 transition">🗑️</button>
+                            <button onclick="askDeleteCat('${cat._id}', '${cat.name}')" class="p-2 hover:bg-red-500/10 rounded-lg text-red-500 transition">🗑️</button>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
@@ -53,7 +54,9 @@ async function loadCategoriesList() {
                     </div>
                 </div>`;
         });
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error("Erro ao carregar categorias:", err); 
+    }
 }
 
 // --- GESTÃO DE SUBCATEGORIAS (TAGS) ---
@@ -82,7 +85,6 @@ function askRemoveSub(subName) {
         return;
     }
 
-    // Se estiver vazia, abre o modal de confirmação personalizado
     subToRemove = subName;
     document.getElementById('confirm-msg').innerHTML = `A subcategoria <strong>${subName}</strong> não possui produtos. Deseja removê-la da lista?`;
     document.getElementById('custom-confirm').classList.replace('hidden', 'flex');
@@ -107,30 +109,27 @@ function askDeleteCat(id, name) {
         return;
     }
 
-    deleteCatId = id;
+    deleteCatId = id; // ID String do Mongo
     document.getElementById('confirm-msg').innerHTML = `Tem certeza que deseja excluir a categoria <strong>${name}</strong>?`;
     document.getElementById('custom-confirm').classList.replace('hidden', 'flex');
 }
 
 async function closeConfirm(confirmado) {
     if (confirmado) {
-        // CASO 1: Excluindo categoria do Banco (ID existe)
         if (deleteCatId) {
-            const res = await fetch(`http://localhost:3000/api/categories/${deleteCatId}`, { method: 'DELETE' });
-            if (res.ok) loadCategoriesList();
-            else {
-                const err = await res.json();
-                showLockedAlert(err.message);
+            try {
+                const res = await fetch(`http://localhost:3000/api/categories/${deleteCatId}`, { method: 'DELETE' });
+                if (res.ok) loadCategoriesList();
+            } catch (err) {
+                console.error("Erro ao deletar categoria:", err);
             }
         } 
-        // CASO 2: Removendo apenas a tag da subcategoria (Memória local)
         else if (subToRemove) {
             currentSubcategories = currentSubcategories.filter(s => s !== subToRemove);
             renderSubTags();
         }
     }
     
-    // Limpa estados e fecha modal
     document.getElementById('custom-confirm').classList.replace('flex', 'hidden');
     deleteCatId = null;
     subToRemove = null;
@@ -170,12 +169,14 @@ async function saveFullCategory() {
             cancelCatEdit();
             loadCategoriesList();
         }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error("Erro ao salvar categoria:", err); 
+    }
 }
 
 function editCategory(catJson) {
     const cat = JSON.parse(decodeURIComponent(catJson));
-    editingCatId = cat.id;
+    editingCatId = cat._id; // AJUSTE: Usando _id do Mongo
 
     document.getElementById('cat-form-title').innerText = "Editar Categoria";
     const saveBtn = document.getElementById('cat-save-btn');
@@ -205,7 +206,7 @@ function cancelCatEdit() {
     renderSubTags();
 }
 
-// Atalhos e Eventos
+// Vinculação de eventos
 document.getElementById('confirm-yes').onclick = () => closeConfirm(true);
 document.getElementById('sub-input')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); addSubToList(); }

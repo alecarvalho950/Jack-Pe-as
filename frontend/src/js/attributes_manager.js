@@ -1,6 +1,6 @@
 let currentOptions = [];
 let deleteId = null;
-let editingId = null;
+let editingId = null; // Agora armazenará a String do _id do MongoDB
 
 // --- AO CARREGAR A PÁGINA ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,7 +38,7 @@ async function loadTargetCategories() {
     }
 }
 
-// 3. Gestão de Tags de Opções (Visual do Formulário)
+// 3. Gestão de Tags de Opções
 function addOptionToList() {
     const input = document.getElementById('new-option-input');
     const val = input.value.trim();
@@ -70,9 +70,8 @@ function renderOptions() {
 
 function editAttribute(attrJson) {
     const attr = JSON.parse(decodeURIComponent(attrJson));
-    editingId = attr.id;
+    editingId = attr._id; // AJUSTE: Usando _id do MongoDB
 
-    // Atualiza Textos e Cores da UI
     document.getElementById('form-title').innerText = "Editar Atributo";
     const saveBtn = document.getElementById('save-btn');
     saveBtn.innerText = "Atualizar Atributo";
@@ -80,16 +79,14 @@ function editAttribute(attrJson) {
     saveBtn.classList.replace('text-black', 'text-white');
     document.getElementById('cancel-btn').classList.remove('hidden');
 
-    // Preenche os campos
     document.getElementById('attr-target-cat').value = attr.category;
     document.getElementById('attr-name').value = attr.name;
     document.getElementById('attr-type').value = attr.type;
-    currentOptions = [...attr.options];
+    currentOptions = [...(attr.options || [])];
 
     toggleOptionInput();
     renderOptions();
     
-    // Scroll suave para o topo
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -97,7 +94,6 @@ function cancelEdit() {
     editingId = null;
     currentOptions = [];
     
-    // Reseta UI para o estado original
     document.getElementById('form-title').innerText = "Novo Atributo";
     const saveBtn = document.getElementById('save-btn');
     saveBtn.innerText = "Gravar Atributo no Sistema";
@@ -105,7 +101,6 @@ function cancelEdit() {
     saveBtn.classList.replace('text-white', 'text-black');
     document.getElementById('cancel-btn').classList.add('hidden');
     
-    // Limpa Campos
     document.getElementById('attr-name').value = '';
     document.getElementById('attr-target-cat').value = '';
     document.getElementById('attr-type').value = 'select';
@@ -125,6 +120,8 @@ async function saveFullAttribute() {
     if (type === 'select' && currentOptions.length === 0) return alert("Adicione opções para a lista de seleção.");
 
     const payload = { category, name, type, options: type === 'text' ? [] : currentOptions };
+    
+    // AJUSTE: A URL agora usa o _id para o PUT
     const url = editingId ? `http://localhost:3000/api/attributes/${editingId}` : 'http://localhost:3000/api/attributes';
     const method = editingId ? 'PUT' : 'POST';
 
@@ -136,15 +133,14 @@ async function saveFullAttribute() {
         });
 
         if (res.ok) {
-            cancelEdit(); // Sai do modo de edição e limpa
+            cancelEdit();
             loadAttributesList();
         }
     } catch (err) {
-        console.error(err);
+        console.error("Erro ao salvar atributo:", err);
     }
 }
 
-// VISUAL RESTAURADO AQUI
 async function loadAttributesList() {
     try {
         const [resAttr, resCats] = await Promise.all([
@@ -161,7 +157,6 @@ async function loadAttributesList() {
             const catAttrs = attrs.filter(a => a.category === cat.name);
             if (catAttrs.length === 0) return;
 
-            // Estrutura da Seção da Categoria
             let sectionHtml = `
                 <div class="mb-10 animate-in slide-in-from-bottom-2 duration-500">
                     <h3 class="text-accent font-black text-xs uppercase tracking-widest mb-4 flex items-center gap-3">
@@ -170,10 +165,9 @@ async function loadAttributesList() {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             `;
 
-            // Loop dos Cards de Atributos
             catAttrs.forEach(attr => {
                 const data = encodeURIComponent(JSON.stringify(attr));
-                // Card Visualmente Mais Rico (Restaurado)
+                
                 sectionHtml += `
                     <div class="bg-[#111827] p-5 rounded-xl border border-gray-800 flex justify-between items-start group hover:border-accent/50 transition">
                         <div>
@@ -186,13 +180,13 @@ async function loadAttributesList() {
                             <div class="flex flex-wrap gap-1.5 mt-3">
                                 ${attr.type === 'text' 
                                     ? '<span class="text-xs italic text-gray-600">Campo de digitação livre</span>'
-                                    : attr.options.map(opt => `<span class="text-[10px] bg-gray-800/50 text-gray-400 px-2 py-1 rounded border border-gray-700/50">${opt}</span>`).join('')
+                                    : (attr.options || []).map(opt => `<span class="text-[10px] bg-gray-800/50 text-gray-400 px-2 py-1 rounded border border-gray-700/50">${opt}</span>`).join('')
                                 }
                             </div>
                         </div>
                         <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <button onclick="editAttribute('${data}')" class="p-2 hover:bg-blue-500/10 rounded-lg text-gray-500 hover:text-blue-400 transition">✏️</button>
-                            <button onclick="askDelete(${attr.id}, '${attr.name}')" class="p-2 hover:bg-red-500/10 rounded-lg text-gray-500 hover:text-red-500 transition">🗑️</button>
+                            <button onclick="askDelete('${attr._id}', '${attr.name}')" class="p-2 hover:bg-red-500/10 rounded-lg text-gray-500 hover:text-red-500 transition">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -208,22 +202,27 @@ async function loadAttributesList() {
 
 // Modal Customizado
 function askDelete(id, name) {
-    deleteId = id;
+    deleteId = id; // Agora é uma string
     document.getElementById('confirm-msg').innerHTML = `Excluir o atributo <strong>${name}</strong>?`;
     document.getElementById('custom-confirm').classList.replace('hidden', 'flex');
 }
 
-function closeConfirm(confirmado) {
+async function closeConfirm(confirmado) {
     if (confirmado && deleteId) {
-        fetch(`http://localhost:3000/api/attributes/${deleteId}`, { method: 'DELETE' }).then(() => loadAttributesList());
+        try {
+            const res = await fetch(`http://localhost:3000/api/attributes/${deleteId}`, { method: 'DELETE' });
+            if (res.ok) loadAttributesList();
+        } catch (err) {
+            console.error("Erro ao deletar:", err);
+        }
     }
     document.getElementById('custom-confirm').classList.replace('flex', 'hidden');
     deleteId = null;
 }
 
+// Vincula o evento ao botão de confirmação do seu HTML
 document.getElementById('confirm-yes').onclick = () => closeConfirm(true);
 
-// Atalho Enter no input de opções
 document.getElementById('new-option-input')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); addOptionToList(); }
 });
