@@ -3,6 +3,39 @@ const passwordInput = document.getElementById('password');
 const emailInput = document.getElementById('email');
 const errorMsg = document.getElementById('error');
 
+// --- LIMPEZA DE CACHE E BUG DE SENHA PREENCHIDA ---
+window.onload = () => {
+    // Limpa os campos explicitamente ao carregar a página
+    emailInput.value = '';
+    passwordInput.value = '';
+    
+    // Pequeno delay para enganar o preenchimento automático do Chrome/Edge
+    setTimeout(() => {
+        passwordInput.value = '';
+    }, 100);
+};
+
+// --- FUNÇÃO VER SENHA ---
+const toggleBtn = document.getElementById('toggle-password');
+const eyeIcon = document.getElementById('eye-icon');
+
+toggleBtn.addEventListener('click', () => {
+    // Inverte o tipo do input
+    const isPassword = passwordInput.type === 'password';
+    passwordInput.type = isPassword ? 'text' : 'password';
+    
+    // Troca o ícone (opcional: você pode usar ícones da Heroicons ou FontAwesome)
+    eyeIcon.textContent = isPassword ? '🔒' : '👁️';
+});
+
+// Ajuste no Logout (Dica extra)
+// Certifique-se que sua função de logout no dashboard.html faça isso:
+function logout() {
+    localStorage.removeItem('admin_token');
+    // Limpa o histórico de navegação para evitar o botão "voltar"
+    window.location.replace('login.html'); 
+}
+
 // Elementos de Feedback
 const rulesList = document.getElementById('rules');
 const passwordSuccess = document.getElementById('password-success');

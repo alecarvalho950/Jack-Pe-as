@@ -248,3 +248,8 @@ document.getElementById('new-option-input')?.addEventListener('keypress', (e) =>
         addOptionToList(); 
     }
 });
+
+function logout() {
+      localStorage.removeItem('admin_token');
+      window.location.href = 'login.html';
+    }

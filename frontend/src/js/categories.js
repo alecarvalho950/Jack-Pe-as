@@ -258,3 +258,8 @@ document.getElementById('confirm-yes').onclick = () => closeConfirm(true);
 document.getElementById('sub-input')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); addSubToList(); }
 });
+
+function logout() {
+      localStorage.removeItem('admin_token');
+      window.location.href = 'login.html';
+    }

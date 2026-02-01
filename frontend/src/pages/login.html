@@ -46,16 +46,26 @@
       </div>
 
       <!-- SENHA -->
-      <div>
-        <label class="text-sm">Senha</label>
-        <input
-          type="password"
-          id="password"
-          class="w-full mt-1 p-3 rounded-lg bg-[#1f2937] border border-transparent focus:border-accent outline-none"
-          placeholder="Digite sua senha"
-          required
-        />
-      </div>
+      <div class="relative">
+  <label class="text-sm">Senha</label>
+  <div class="relative">
+    <input
+      type="password"
+      id="password"
+      autocomplete="new-password" 
+      class="w-full mt-1 p-3 rounded-lg bg-[#1f2937] border border-transparent focus:border-accent outline-none pr-12"
+      placeholder="Digite sua senha"
+      required
+    />
+    <button 
+      type="button" 
+      id="toggle-password"
+      class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-accent transition mt-0.5"
+    >
+      <span id="eye-icon">👁️</span>
+    </button>
+  </div>
+</div>
 
       <!-- REGRAS -->
       <ul id="rules" class="text-xs space-y-1 opacity-80">

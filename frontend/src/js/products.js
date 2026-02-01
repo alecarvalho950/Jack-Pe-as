@@ -328,7 +328,7 @@ function renderProducts() {
             </td>
             <td class="p-4 text-center font-mono text-xs text-gray-400">${p.sku || '-'}</td>
             <td class="p-4 text-center">
-                <span class="px-2 py-1 rounded-md text-xs font-bold ${p.stock < 5 ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}">
+                <span class="px-2 py-1 rounded-md text-xs font-bold ">
                     ${p.stock} un
                 </span>
             </td>
