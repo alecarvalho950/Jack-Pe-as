@@ -1,48 +1,76 @@
 let allProducts = [];
-let filteredProducts = [];
 let categories = [];
 let customAttributes = [];
 let currentPage = 1;
-const itemsPerPage = 25;
-let editingProductId = null; // Agora armazenará o _id (string)
-let productToDeleteId = null;
+const itemsPerPage = 25; // Mantido em 25
+let totalPages = 0;
+let totalItems = 0;
+let editingProductId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Adiciona os eventos nos filtros para que eles funcionem visualmente
+    document.getElementById('search-input')?.addEventListener('input', filterProducts);
+    document.getElementById('filter-category')?.addEventListener('change', updateFilterSubcategories);
+    document.getElementById('filter-subcategory')?.addEventListener('change', filterProducts);
+
     await loadInitialData();
 
-    // --- NOVO: Listener para o Preview de Imagem ---
     const fileInput = document.getElementById('prod-file');
     if (fileInput) {
         fileInput.addEventListener('change', function() {
-            previewImage(this); // Chama a função de preview assim que o arquivo muda
+            previewImage(this);
         });
     }
 });
 
-// --- CARREGAMENTO ---
-async function loadInitialData() {
+async function loadInitialData(page = 1) {
+    currentPage = page;
+    
+    const term = document.getElementById('search-input')?.value || "";
+    const cat = document.getElementById('filter-category')?.value || "";
+    const sub = document.getElementById('filter-subcategory')?.value || "";
+
     try {
+        const url = new URL('http://localhost:3000/api/products');
+        url.searchParams.append('page', page);
+        url.searchParams.append('limit', itemsPerPage);
+        if (term) url.searchParams.append('search', term);
+        if (cat) url.searchParams.append('category', cat);
+        if (sub) url.searchParams.append('subcategory', sub);
+
         const [resCat, resProd, resAttr] = await Promise.all([
             fetch('http://localhost:3000/api/categories'),
-            fetch('http://localhost:3000/api/products'),
+            fetch(url),
             fetch('http://localhost:3000/api/attributes')
         ]);
+        
         categories = await resCat.json();
-        allProducts = await resProd.json();
+        const productData = await resProd.json();
         customAttributes = await resAttr.json();
 
+        // SEGURANÇA: Verifica se a resposta é o objeto de paginação ou array direto
+        if (productData.products) {
+            allProducts = productData.products;
+            totalPages = productData.pages;
+            totalItems = productData.total;
+        } else {
+            allProducts = productData;
+            totalPages = 1;
+            totalItems = productData.length;
+        }
+
         populateCategorySelects();
-        filterProducts();
+        renderProducts();
     } catch (err) {
-        showNotification("Erro ao carregar dados", "error");
+        console.error("Erro no loadInitialData:", err);
     }
 }
 
+// Preenche os selects apenas se estiverem vazios (para não resetar o foco do usuário)
 function populateCategorySelects() {
     const pCat = document.getElementById('p-category');
     const fCat = document.getElementById('filter-category');
-    
-    if (!pCat || !fCat) return; 
+    if (!pCat || !fCat || fCat.options.length > 1) return; 
 
     pCat.innerHTML = '<option value="">Selecione...</option>';
     fCat.innerHTML = '<option value="">Todas as Categorias</option>';
@@ -265,39 +293,28 @@ async function confirmDelete() {
 
 // --- RENDERIZAÇÃO ---
 function filterProducts() {
-    const term = document.getElementById('search-input').value.toLowerCase();
-    const cat = document.getElementById('filter-category').value;
-    const sub = document.getElementById('filter-subcategory').value;
-
-    filteredProducts = allProducts.filter(p => {
-        const matchesTerm = (p.name || "").toLowerCase().includes(term) || (p.sku || "").toLowerCase().includes(term);
-        const matchesCat = cat === "" || p.category === cat;
-        const matchesSub = sub === "" || p.subcategory === sub;
-        return matchesTerm && matchesCat && matchesSub;
-    });
-    renderProducts();
+    loadInitialData(1); 
 }
 
 function updateFilterSubcategories() {
     const catName = document.getElementById('filter-category').value;
     const subFilter = document.getElementById('filter-subcategory');
-    
-    // Limpa as subcategorias atuais e volta para o padrão
+    if (!subFilter) return;
+
     subFilter.innerHTML = '<option value="">Todas as Subcategorias</option>';
-    
-    // Busca a categoria selecionada na lista global de categorias
-    const catObj = categories.find(c => c.name === catName);
-    
-    if (catObj && catObj.subcategories) {
-        catObj.subcategories.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s;
-            opt.textContent = s;
-            subFilter.appendChild(opt);
-        });
+    subFilter.value = ""; 
+
+    if (catName) {
+        const catObj = categories.find(c => c.name === catName);
+        if (catObj && catObj.subcategories) {
+            catObj.subcategories.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                subFilter.appendChild(opt);
+            });
+        }
     }
-    
-    // Chama o filtro para atualizar a lista de produtos imediatamente
     filterProducts();
 }
 
@@ -305,45 +322,119 @@ function renderProducts() {
     const container = document.getElementById('product-list-body');
     if (!container) return;
 
-    container.innerHTML = filteredProducts.map(p => {
+    if (allProducts.length === 0) {
+        container.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-gray-500 italic">Nenhum produto encontrado.</td></tr>`;
+        renderPaginationControls();
+        return;
+    }
+
+    container.innerHTML = allProducts.map(p => {
         const imagePath = p.image ? `http://localhost:3000${p.image}` : null;
-        // Preço garantido como número para o toFixed
         const price = parseFloat(p.price) || 0;
 
         return `
-        <tr class="hover:bg-gray-800/30 transition-colors group">
+        <tr class="hover:bg-white/[0.03] transition-all group border-b border-gray-800/50">
             <td class="p-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-lg bg-gray-800 border border-gray-700 overflow-hidden flex-shrink-0">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-xl bg-gray-900 border border-gray-700 overflow-hidden flex-shrink-0 shadow-lg group-hover:border-accent/50 transition-colors">
                         ${imagePath 
                             ? `<img src="${imagePath}" class="w-full h-full object-cover">`
-                            : `<div class="w-full h-full flex items-center justify-center text-[10px] text-gray-600 italic">N/A</div>`
+                            : `<div class="w-full h-full flex items-center justify-center text-[10px] text-gray-600 uppercase font-bold">Sem Foto</div>`
                         }
                     </div>
                     <div>
-                        <div class="text-sm font-bold text-white">${p.name}</div>
-                        <div class="text-[10px] text-accent uppercase tracking-tighter">${p.category} > ${p.subcategory}</div>
+                        <div class="text-sm font-bold text-white group-hover:text-accent transition-colors">${p.name}</div>
+                        <div class="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">${p.category} <span class="text-gray-700">/</span> ${p.subcategory}</div>
                     </div>
                 </div>
             </td>
-            <td class="p-4 text-center font-mono text-xs text-gray-400">${p.sku || '-'}</td>
+            <td class="p-4 text-center font-mono text-xs text-gray-400">${p.sku || '---'}</td>
             <td class="p-4 text-center">
-                <span class="px-2 py-1 rounded-md text-xs font-bold ">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.stock > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} border ${p.stock > 0 ? 'border-green-500/20' : 'border-red-500/20'}">
                     ${p.stock} un
                 </span>
             </td>
-            <td class="p-4 text-center font-bold text-white text-sm">R$ ${price.toFixed(2)}</td>
+            <td class="p-4 text-center">
+                <div class="text-sm font-black text-white">R$ ${price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            </td>
             <td class="p-4 text-right">
                 <div class="flex justify-end gap-2">
-                    <button onclick="editProduct('${p._id}')" class="p-2 hover:bg-blue-600/20 hover:text-blue-400 rounded-lg transition" title="Editar">✏️</button>
-                    <button onclick="deleteProduct('${p._id}')" class="p-2 hover:bg-red-600/20 hover:text-red-400 rounded-lg transition" title="Excluir">🗑️</button>
+                    <button onclick="editProduct('${p._id}')" class="p-2.5 hover:bg-blue-600/20 text-blue-400 rounded-xl transition-all hover:-translate-y-0.5" title="Editar">✏️</button>
+                    <button onclick="deleteProduct('${p._id}')" class="p-2.5 hover:bg-red-600/20 text-red-400 rounded-xl transition-all hover:-translate-y-0.5" title="Excluir">🗑️</button>
                 </div>
             </td>
-        </tr>
-        `;
+        </tr>`;
     }).join('');
 
-    document.getElementById('pagination-info').innerText = `Total: ${filteredProducts.length} produtos`;
+    renderPaginationControls();
+}
+
+function renderPaginationControls() {
+    const nav = document.getElementById('pagination-nav');
+    if (!nav) return;
+
+    // Cálculo dinâmico para a legenda
+    // Ex: Se estamos na página 1, mostra 1-25. Se na página 2, mostra 26-26.
+    const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+    const getPages = () => {
+        const pages = [];
+        const maxVisible = 2; 
+
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - maxVisible && i <= currentPage + maxVisible)) {
+                pages.push(i);
+            } else if (pages[pages.length - 1] !== '...') {
+                pages.push('...');
+            }
+        }
+        return pages;
+    };
+
+    const pages = getPages();
+
+    nav.className = "flex flex-col md:flex-row items-center justify-between gap-6 mt-8 pb-10 pt-6 border-t border-gray-800";
+    
+    nav.innerHTML = `
+        <div class="text-xs text-gray-500 font-medium order-2 md:order-1">
+            Exibindo <span class="text-white">${startItem}-${endItem}</span> de <span class="text-white">${totalItems}</span> resultados
+        </div>
+
+        <div class="flex items-center gap-2 order-1 md:order-2">
+            <button onclick="loadInitialData(${currentPage - 1})" 
+                ${currentPage === 1 ? 'disabled' : ''} 
+                class="p-2.5 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-20 disabled:cursor-not-allowed transition-all text-white">
+                ⬅️
+            </button>
+
+            <div class="flex items-center gap-1.5">
+                ${pages.map(p => {
+                    if (p === '...') return `<span class="px-2 text-gray-600 font-bold">...</span>`;
+                    
+                    const isCurrent = p === currentPage;
+                    return `
+                        <button onclick="loadInitialData(${p})" 
+                            class="w-10 h-10 rounded-xl text-xs font-bold transition-all border ${
+                                isCurrent 
+                                ? 'bg-accent text-black border-accent shadow-lg shadow-accent/20 scale-110 font-black' 
+                                : 'bg-gray-900 text-gray-400 border-gray-800 hover:border-gray-600 hover:text-white'
+                            }">
+                            ${p}
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+
+            <button onclick="loadInitialData(${currentPage + 1})" 
+                ${currentPage >= totalPages ? 'disabled' : ''} 
+                class="p-2.5 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-20 disabled:cursor-not-allowed transition-all text-white">
+                ➡️
+            </button>
+        </div>
+
+        <div class="hidden md:block w-32 order-3"></div>
+    `;
 }
 
 function showNotification(message, type = 'success') {

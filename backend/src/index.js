@@ -103,11 +103,35 @@ app.get('/api/dashboard/stats', async (req, res) => {
     }
 });
 
-// --- ROTAS DE PRODUTOS ---
+// --- ROTAS DE PRODUTOS COM PAGINAÇÃO ---
 app.get('/api/products', async (req, res) => {
     try {
-        const products = await Product.find().sort({ createdAt: -1 });
-        res.json(products);
+        const { page = 1, limit = 25, search, category, subcategory } = req.query;
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        // Criar o objeto de filtro para o MongoDB
+        let query = {};
+        
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { sku: { $regex: search, $options: 'i' } }
+            ];
+        }
+        if (category) query.category = category;
+        if (subcategory) query.subcategory = subcategory;
+
+        const [products, total] = await Promise.all([
+            Product.find(query).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+            Product.countDocuments(query)
+        ]);
+
+        res.json({
+            products,
+            total,
+            pages: Math.ceil(total / limit),
+            currentPage: parseInt(page)
+        });
     } catch (err) {
         res.status(500).json({ message: "Erro ao buscar produtos" });
     }

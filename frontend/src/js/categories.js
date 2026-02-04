@@ -14,22 +14,25 @@ async function loadCategoriesList() {
     try {
         const [resCat, resProd] = await Promise.all([
             fetch('http://localhost:3000/api/categories'),
-            fetch('http://localhost:3000/api/products')
+            fetch('http://localhost:3000/api/products?limit=99999') // Pegamos todos para o contador
         ]);
         
         const categories = await resCat.json();
-        allProducts = await resProd.json();
+        const productData = await resProd.json();
+        
+        // AJUSTE CRITICAL: Garante que allProducts seja um Array
+        allProducts = productData.products ? productData.products : productData;
         
         const container = document.getElementById('categories-list-display');
+        if(!container) return;
         container.innerHTML = '';
 
         categories.forEach(cat => {
-            // AJUSTE: O MongoDB usa _id
             const data = encodeURIComponent(JSON.stringify(cat));
             const totalInCat = allProducts.filter(p => p.category === cat.name).length;
 
             container.innerHTML += `
-                <div class="bg-[#111827] p-6 rounded-2xl border border-gray-800 hover:border-accent/40 transition group relative shadow-lg animate-in fade-in duration-500">
+                <div class="bg-[#111827] p-6 rounded-2xl border border-gray-800 hover:border-accent/40 transition group relative shadow-lg">
                     <div class="flex justify-between items-start mb-6">
                         <div>
                             <h3 class="text-xl font-bold text-white flex items-center gap-2">
