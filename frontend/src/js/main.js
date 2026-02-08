@@ -135,24 +135,65 @@ let allProducts = [];
         }
 
         function renderCard(p) {
-            const img = p.image ? `http://localhost:3000${p.image}` : null;
-            return `
-                <div class="bg-card border border-gray-800 rounded-2xl overflow-hidden flex flex-col h-full hover:border-gray-600 transition-all group">
-                    <div class="aspect-square bg-gray-900 overflow-hidden relative">
-                        ${img ? `<img src="${img}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">` : `<div class="w-full h-full flex items-center justify-center text-[10px] font-black text-gray-800 uppercase italic">S/ Imagem</div>`}
+    const img = p.image ? `http://localhost:3000${p.image}` : null;
+    const hasVars = p.hasVariations && p.variations?.length > 0;
+    
+    // Extrai apenas os valores das variações que são do tipo "Cor"
+    const coresDisponiveis = hasVars 
+        ? p.variations.filter(v => v.type.toLowerCase() === 'cor').map(v => v.value)
+        : [];
+
+    const displayPrice = hasVars 
+        ? Math.min(...p.variations.map(v => v.price || p.price))
+        : p.price;
+
+    return `
+        <div class="bg-card border border-gray-800 rounded-3xl overflow-hidden flex flex-col h-full hover:border-accent/40 transition-all duration-300 group shadow-lg">
+            <div class="aspect-square bg-gray-900 overflow-hidden relative border-b border-gray-800/50">
+                ${img ? `<img src="${img}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">` : 
+                `<div class="w-full h-full flex items-center justify-center text-[10px] font-black text-gray-700 uppercase italic">S/ Imagem</div>`}
+            </div>
+
+            <div class="p-5 flex flex-col flex-grow space-y-4">
+                
+                <h4 class="text-base md:text-lg font-bold text-white leading-tight group-hover:text-accent transition-colors duration-300 line-clamp-3">
+                    ${p.name}
+                </h4>
+
+                <div class="flex flex-wrap gap-2">
+                    ${Object.entries(p.attributes || {}).map(([key, val]) => 
+                        `<span class="px-2.5 py-1 rounded-lg text-[9px] font-bold border uppercase tracking-wider ${COLOR_MAP[val] || 'bg-gray-800/50 text-gray-400 border-gray-700'}">${val}</span>`
+                    ).join('')}
+                </div>
+
+                ${coresDisponiveis.length > 0 ? `
+                <div class="pt-2">
+                    <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-2 italic">Cores disponíveis:</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        ${coresDisponiveis.map(cor => `
+                            <span class="text-[10px] bg-white/5 border border-white/10 text-gray-200 px-2 py-1 rounded-md font-medium">
+                                ${cor}
+                            </span>
+                        `).join('')}
                     </div>
-                    <div class="p-4 flex flex-col flex-grow">
-                        <h4 class="text-[10px] font-bold text-gray-200 line-clamp-2 mb-2 leading-tight uppercase tracking-tight">${p.name}</h4>
-                        <div class="flex flex-wrap gap-1 mb-4">
-                            ${Object.entries(p.attributes || {}).map(([key, val]) => `<span class="px-2 py-0.5 rounded text-[7px] font-black border uppercase ${COLOR_MAP[val] || 'bg-gray-800 text-gray-500 border-gray-700'}">${val}</span>`).join('')}
+                </div>` : ''}
+
+                <div class="mt-auto pt-5 border-t border-gray-800/50 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex flex-col">
+                            <span class="text-[9px] font-black text-gray-500 uppercase tracking-tighter">
+                                ${hasVars ? 'A partir de' : 'Preço à vista'}
+                            </span>
+                            <p class="text-2xl font-black text-accent font-mono">
+                                <span class="text-xs mr-0.5">R$</span>${parseFloat(displayPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
                         </div>
-                        <div class="mt-auto pt-3 border-t border-gray-800/50 flex items-end justify-between">
-                            <span class="text-[8px] font-black text-gray-500 uppercase">Preço Unit.</span>
-                            <p class="text-[15px] font-black text-accent font-mono leading-none">R$ ${parseFloat(p.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                        </div>
+                        
                     </div>
-                </div>`;
-        }
+                </div>
+            </div>
+        </div>`;
+}
 
         function renderSection(title, products, container, targetView, cat, sub = null) {
             const section = document.createElement('div');
