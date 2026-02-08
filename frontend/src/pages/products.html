@@ -127,6 +127,26 @@
                         </label>
                     </div>
                 </div>
+                <div class="mt-6 border-t border-gray-800 pt-6">
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+            <input type="checkbox" id="p-has-variations" onchange="toggleVariations()" class="w-5 h-5 accent-accent">
+            <label for="p-has-variations" class="text-sm font-bold uppercase text-accent cursor-pointer">Este produto possui variações?</label>
+        </div>
+    </div>
+
+    <div id="variations-container" class="hidden space-y-4 bg-gray-900/50 p-6 rounded-2xl border border-gray-700 shadow-inner">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-3 mb-4">
+            <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Gerenciar Variedades (Cores/Modelos)</h3>
+            <button type="button" onclick="addVariationRow()" class="bg-white/10 hover:bg-accent hover:text-black transition-all px-3 py-1 rounded-lg text-[10px] font-bold uppercase">
+                + Adicionar Item
+            </button>
+        </div>
+        
+        <div id="variations-list" class="space-y-3">
+            </div>
+    </div>
+</div>
 
                 <div class="mt-8 flex justify-end gap-4 border-t border-gray-800 pt-6">
                     <button onclick="closeForm()"

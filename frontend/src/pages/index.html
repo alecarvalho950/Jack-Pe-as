@@ -3,10 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <title>Document</title>
+    <title>Jack Peças | Catálogo Profissional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { accent: '#fbbf24', dark: '#0a0f1a', card: '#111827' },
+                    backgroundImage: {
+                        'hero-pattern': 'radial-gradient(circle at 50% 50%, rgba(251, 191, 36, 0.08) 0%, transparent 80%)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0a0f1a; color: white; scroll-behavior: smooth; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .animate-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .text-glow { text-shadow: 0 0 40px rgba(251, 191, 36, 0.3); }
+        select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.7rem center; background-size: 1em; }
+    </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col font-sans">
 
+    <nav class="py-8 text-center">
+        <h1 onclick="resetAll()" class="text-3xl font-black tracking-[0.2em] text-white cursor-pointer uppercase italic inline-block">
+            JACK<span class="text-accent">PEÇAS</span>
+        </h1>
+    </nav>
+
+    <header id="hero-banner" class="relative overflow-hidden bg-hero-pattern pb-16 px-4">
+        <div class="max-w-4xl mx-auto text-center space-y-6 animate-in">
+            <h2 class="text-5xl md:text-7xl font-black italic tracking-tighter leading-none">
+                QUALIDADE EM <br>
+                <span class="text-accent text-glow">CADA COMPONENTE</span>
+            </h2>
+            <p class="text-gray-500 text-[10px] md:text-xs font-black uppercase tracking-[0.4em]">
+                Displays • Baterias • Acessórios • Reposição
+            </p>
+            
+            <div class="relative max-w-2xl mx-auto mt-10">
+                <input type="text" id="public-search" oninput="handleSearch()" placeholder="O QUE VOCÊ PROCURA HOJE?" class="w-full bg-card border border-gray-800 rounded-2xl py-5 px-14 text-xs font-bold focus:border-accent outline-none transition-all shadow-2xl">
+                <span class="absolute left-6 top-5 opacity-30">🔍</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow w-full max-w-7xl mx-auto px-4">
+        
+        <div id="filter-bar" class="sticky top-4 z-50 bg-dark/80 backdrop-blur-xl border border-gray-800 p-3 rounded-2xl mb-12 flex flex-wrap items-center justify-center gap-3 shadow-2xl">
+            <div id="quick-nav" class="flex gap-2 border-r border-gray-800 pr-3 overflow-x-auto hide-scroll"></div>
+            
+            <div id="brand-filter-container" class="hidden">
+                <select id="sub-filter" onchange="handleSubFilter(this.value)" class="bg-card border border-gray-700 rounded-xl px-4 py-2 pr-10 text-[9px] font-black uppercase outline-none focus:border-accent">
+                    <option value="">Marca</option>
+                </select>
+            </div>
+            
+            <div id="attribute-filters" class="flex gap-2"></div>
+            
+            <button onclick="resetAll()" class="text-[9px] font-black text-gray-500 hover:text-white uppercase px-2 transition-colors">Limpar</button>
+        </div>
+
+        <div id="view-header" class="mb-10 hidden animate-in">
+            <h2 id="active-title" class="text-2xl font-black uppercase italic tracking-tight border-l-4 border-accent pl-4"></h2>
+        </div>
+
+        <div id="catalog-content" class="space-y-20 pb-20"></div>
+        
+        <div id="catalog-footer" class="pb-20 flex flex-col items-center gap-4"></div>
+    </main>
+    <script src="/frontend/src/js/main.js"></script>
 </body>
 </html>
