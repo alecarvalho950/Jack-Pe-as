@@ -143,17 +143,27 @@ async function saveFullAttribute() {
     
     const url = editingId ? `http://localhost:3000/api/attributes/${editingId}` : 'http://localhost:3000/api/attributes';
     const method = editingId ? 'PUT' : 'POST';
+    const token = localStorage.getItem('admin_token')
 
     try {
         const res = await fetch(url, {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
             body: JSON.stringify(payload)
         });
 
         if (res.ok) {
-            closeAttrForm(); // Fecha o card após salvar
+            closeAttrForm(); 
             loadAttributesList();
+        } else if (res.status === 401 || res.status === 403) {
+            alert("Sua sessão expirou. Por favor, faça login novamente.");
+            window.location.href = 'login.html'; // Ajuste o nome da sua página de login
+        } else {
+            const errorData = await res.json();
+            alert("Erro ao salvar: " + errorData.message);
         }
     } catch (err) {
         console.error("Erro ao salvar atributo:", err);
@@ -228,9 +238,23 @@ function askDelete(id, name) {
 
 async function closeConfirm(confirmado) {
     if (confirmado && deleteId) {
+
+        const token = localStorage.getItem('admin_token');
+
         try {
-            const res = await fetch(`http://localhost:3000/api/attributes/${deleteId}`, { method: 'DELETE' });
-            if (res.ok) loadAttributesList();
+            const res = await fetch(`http://localhost:3000/api/attributes/${deleteId}`, { 
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (res.ok) {
+                loadAttributesList();
+            } else if (res.status === 401 || res.status === 403) {
+                alert("Sessão expirada. Faça login novamente.");
+                window.location.href = 'login.html';
+            }
         } catch (err) {
             console.error("Erro ao deletar:", err);
         }
@@ -248,8 +272,3 @@ document.getElementById('new-option-input')?.addEventListener('keypress', (e) =>
         addOptionToList(); 
     }
 });
-
-function logout() {
-      localStorage.removeItem('admin_token');
-      window.location.href = 'login.html';
-    }

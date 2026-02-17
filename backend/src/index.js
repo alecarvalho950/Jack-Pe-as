@@ -5,10 +5,12 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const PORT = 3000;
 
@@ -76,6 +78,25 @@ const deleteFile = (relativeColPath) => {
     } catch (err) { console.error(`❌ Erro ao deletar arquivo: ${err.message}`); }
 };
 
+// Middleware de Autenticação
+const verifyToken = (req, res, next) => {
+    const token = req.headers['authorization'];
+
+    if (!token) {
+        return res.status(403).json({ message: "Token não fornecido." });
+    }
+
+    try {
+        // Remove a palavra "Bearer " se ela existir
+        const cleanToken = token.split(' ')[1] || token;
+        const decoded = jwt.verify(cleanToken, process.env.JWT_SECRET);
+        req.user = decoded;
+        next(); // Token ok, pode seguir para a rota
+    } catch (err) {
+        return res.status(401).json({ message: "Sessão inválida ou expirada." });
+    }
+};
+
 // --- ROTAS DE PRODUTOS ---
 
 // LISTAR PRODUTOS
@@ -102,7 +123,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 // CRIAR PRODUTO (RESOLVIDO DUPLICIDADE E PARSE)
-app.post('/api/products', upload.single('image'), async (req, res) => {
+app.post('/api/products', verifyToken, upload.single('image'), async (req, res) => {
     try {
         const data = req.body;
 
@@ -142,7 +163,7 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
 });
 
 // EDITAR PRODUTO
-app.put('/api/products/:id', upload.single('image'), async (req, res) => {
+app.put('/api/products/:id', verifyToken, upload.single('image'), async (req, res) => {
     try {
         const data = req.body;
         
@@ -168,7 +189,7 @@ app.put('/api/products/:id', upload.single('image'), async (req, res) => {
 });
 
 // EXCLUIR PRODUTO
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', verifyToken, async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
         if (product && product.image) deleteFile(product.image);
@@ -180,9 +201,21 @@ app.delete('/api/products/:id', async (req, res) => {
 // --- RESTANTE DAS ROTAS (LOGIN, CATEGORIAS, ATRIBUTOS) ---
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
+
     if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
-        return res.status(200).json({ message: "Sucesso!", redirect: "../dashboard.html" });
+        
+        const token = jwt.sign(
+            { role: 'admin' }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '8h' } // Expira em 8 horas
+        );
+
+        return res.status(200).json({ 
+            message: "Sucesso!", 
+            token: token // Enviamos o token para o frontend salvar
+        });
     }
+
     res.status(401).json({ message: "E-mail ou senha incorretos." });
 });
 
@@ -199,31 +232,64 @@ app.get('/api/dashboard/stats', async (req, res) => {
 });
 
 app.get('/api/attributes', async (req, res) => { res.json(await Attribute.find()); });
-app.post('/api/attributes', async (req, res) => {
+app.post('/api/attributes', verifyToken, async (req, res) => {
     const newAttr = new Attribute(req.body);
     await newAttr.save();
     res.status(201).json(newAttr);
 });
-app.put('/api/attributes/:id', async (req, res) => {
+app.put('/api/attributes/:id', verifyToken, async (req, res) => {
     res.json(await Attribute.findByIdAndUpdate(req.params.id, req.body, { new: true }));
 });
-app.delete('/api/attributes/:id', async (req, res) => {
+app.delete('/api/attributes/:id', verifyToken, async (req, res) => {
     await Attribute.findByIdAndDelete(req.params.id);
     res.sendStatus(204);
 });
 
 app.get('/api/categories', async (req, res) => { res.json(await Category.find()); });
-app.post('/api/categories', async (req, res) => {
+
+app.post('/api/categories', verifyToken, async (req, res) => {
     const newCat = new Category(req.body);
     await newCat.save();
     res.status(201).json(newCat);
 });
-app.put('/api/categories/:id', async (req, res) => {
+
+app.put('/api/categories/:id', verifyToken, async (req, res) => {
     res.json(await Category.findByIdAndUpdate(req.params.id, req.body, { new: true }));
 });
-app.delete('/api/categories/:id', async (req, res) => {
+
+app.delete('/api/categories/:id', verifyToken, async (req, res) => {
     await Category.findByIdAndDelete(req.params.id);
     res.sendStatus(204);
+});
+
+// ROTA BATCH: RECEBE A PLANILHA PROCESSADA DO FRONTEND (Protegida)
+app.post('/api/products/batch', verifyToken, async (req, res) => {
+    try {
+        const { products } = req.body;
+
+        if (!products || !Array.isArray(products)) {
+            return res.status(400).json({ error: "O corpo da requisição deve ser um array de produtos." });
+        }
+
+        const operations = products.map(p => ({
+            updateOne: {
+                filter: { sku: p.sku }, 
+                update: { $set: p },
+                upsert: true 
+            }
+        }));
+
+        const result = await Product.bulkWrite(operations);
+
+        res.status(200).json({
+            message: "Sincronização concluída com sucesso!",
+            detalhes: result
+        });
+
+    } catch (err) {
+        console.error("❌ Erro na sincronização batch:", err);
+        res.status(500).json({ error: "Erro interno ao processar produtos." });
+    }
 });
 
 app.listen(PORT, () => console.log(`🚀 Servidor Jack Peças Ativo: http://localhost:${PORT}`));

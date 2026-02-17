@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Login ADM | Jack Peças</title>
 
-  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
   <script>
     tailwind.config = {
       theme: {
@@ -21,72 +22,76 @@
   </script>
 </head>
 
-<body class="bg-primary min-h-screen flex items-center justify-center text-white">
+<body class="bg-primary min-h-screen flex items-center justify-center text-white px-4">
 
-  <div class="w-full max-w-lg bg-[#111827] p-10 rounded-2xl shadow-2xl">
-    <h1 class="text-2xl font-bold text-accent mb-2 text-center">
-      Painel Administrativo
+  <div class="w-full max-w-md bg-[#111827] p-8 rounded-2xl shadow-2xl border border-gray-800">
+    <div class="flex justify-center mb-6">
+        <div class="bg-accent/10 p-3 rounded-full">
+            <i data-lucide="lock" class="text-accent w-8 h-8"></i>
+        </div>
+    </div>
+
+    <h1 class="text-2xl font-bold text-white mb-2 text-center">
+      Acesso Administrativo
     </h1>
-    <p class="text-center text-sm opacity-70 mb-8">
-      Acesso restrito – Jack Peças
+    <p class="text-center text-sm text-gray-400 mb-8">
+      Identifique-se para gerenciar a Jack Peças
     </p>
 
-    <form id="login-form" class="space-y-5">
+    <form id="login-form" class="space-y-6">
 
-      <!-- EMAIL -->
       <div>
-        <label class="text-sm">E-mail do administrador</label>
-        <input
-          type="email"
-          id="email"
-          class="w-full mt-1 p-3 rounded-lg bg-[#1f2937] border border-transparent focus:border-accent outline-none"
-          placeholder="admin@teste.com"
-          required
-        />
+        <label class="text-xs uppercase tracking-widest text-gray-500 font-bold ml-1">E-mail</label>
+        <div class="relative mt-1">
+            <input
+              type="email"
+              id="email"
+              class="w-full p-3 pl-4 rounded-xl bg-[#1f2937] border border-gray-700 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
+              placeholder="admin@jackpecas.com"
+              required
+            />
+        </div>
       </div>
 
-      <!-- SENHA -->
-      <div class="relative">
-  <label class="text-sm">Senha</label>
-  <div class="relative">
-    <input
-      type="password"
-      id="password"
-      autocomplete="new-password" 
-      class="w-full mt-1 p-3 rounded-lg bg-[#1f2937] border border-transparent focus:border-accent outline-none pr-12"
-      placeholder="Digite sua senha"
-      required
-    />
-    <button 
-      type="button" 
-      id="toggle-password"
-      class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-accent transition mt-0.5"
-    >
-      <span id="eye-icon">👁️</span>
-    </button>
-  </div>
-</div>
+      <div>
+        <label class="text-xs uppercase tracking-widest text-gray-500 font-bold ml-1">Senha</label>
+        <div class="relative mt-1">
+          <input
+            type="password"
+            id="password"
+            autocomplete="current-password" 
+            class="w-full p-3 pl-4 rounded-xl bg-[#1f2937] border border-gray-700 focus:border-accent focus:ring-1 focus:ring-accent outline-none pr-12 transition-all"
+            placeholder="••••••••"
+            required
+          />
+          <button 
+            type="button" 
+            id="toggle-password"
+            class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-accent transition-colors"
+          >
+            <i id="eye-icon" data-lucide="eye" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
 
-      <!-- REGRAS -->
-      <ul id="rules" class="text-xs space-y-1 opacity-80">
-        <li id="rule-length">• Mínimo 8 caracteres</li>
-        <li id="rule-upper">• 1 letra maiúscula</li>
-        <li id="rule-number">• 1 número</li>
-        <li id="rule-special">• 1 caractere especial</li>
-      </ul>
-      <p id="password-success" class="text-green-400 text-xs font-bold hidden">✓ Senha atende a todos os requisitos</p>
-
-      <p id="error" class="text-red-400 text-sm hidden"></p>
+      <div id="error" class="text-red-400 text-xs bg-red-400/10 p-3 rounded-lg border border-red-400/20 hidden flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4"></i>
+          <span id="error-text"></span>
+      </div>
 
       <button
         type="submit"
-        class="w-full bg-accent text-black font-semibold py-3 rounded-lg hover:opacity-90 transition"
+        class="w-full bg-accent text-black font-bold py-3.5 rounded-xl hover:bg-yellow-500 transition-all shadow-lg shadow-accent/10 active:scale-[0.98]"
       >
-        Entrar no Painel
+        Entrar no Sistema
       </button>
     </form>
   </div>
 
   <script src="../js/auth.js"></script>
+  <script>
+    // Inicializa os ícones do Lucide
+    lucide.createIcons();
+  </script>
 </body>
 </html>

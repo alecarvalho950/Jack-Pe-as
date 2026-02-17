@@ -126,13 +126,21 @@ function askDeleteCat(id, name) {
 async function closeConfirm(confirmado) {
     if (confirmado) {
         if (deleteCatId) {
+            const token = localStorage.getItem('admin_token');
             try {
                 const res = await fetch(`http://localhost:3000/api/categories/${deleteCatId}`, { 
-                    method: 'DELETE' 
+                    method: 'DELETE',
+                    // --- ADICIONADO: CABEÇALHO DE SEGURANÇA ---
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
                 });
                 
                 if (res.ok) {
-                    await loadCategoriesList(); // Recarrega a lista após deletar
+                    await loadCategoriesList(); 
+                } else if (res.status === 401 || res.status === 403) {
+                    alert("Sua sessão expirou. Faça login novamente.");
+                    window.location.href = 'login.html';
                 } else {
                     console.error("Erro na resposta do servidor ao deletar");
                 }
@@ -214,16 +222,26 @@ async function saveFullCategory() {
     const method = editingCatId ? 'PUT' : 'POST';
     const url = editingCatId ? `http://localhost:3000/api/categories/${editingCatId}` : 'http://localhost:3000/api/categories';
 
+    const token = localStorage.getItem('admin_token');
     try {
         const res = await fetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify(payload)
         });
+
         if (res.ok) {
-            // Se salvou com sucesso, fechamos o formulário e recarregamos a lista
             closeCatForm(); 
             loadCategoriesList();
+        } else if (res.status === 401 || res.status === 403) {
+            alert("Sua sessão expirou. Por favor, faça login novamente.");
+            window.location.href = 'login.html';
+        } else {
+            const errorData = await res.json();
+            alert("Erro ao salvar: " + errorData.message);
         }
     } catch (err) { 
         console.error("Erro ao salvar categoria:", err); 
@@ -261,8 +279,3 @@ document.getElementById('confirm-yes').onclick = () => closeConfirm(true);
 document.getElementById('sub-input')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); addSubToList(); }
 });
-
-function logout() {
-      localStorage.removeItem('admin_token');
-      window.location.href = 'login.html';
-    }

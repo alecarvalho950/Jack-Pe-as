@@ -8,11 +8,27 @@ let allProducts = [];
         const ITEMS_PER_PAGE = 20;
 
         const COLOR_MAP = {
-            "Sem Aro": "bg-sky-500/10 text-sky-400 border-sky-500/20",
-            "Com Aro": "bg-orange-500/10 text-orange-400 border-orange-500/20",
-            "Original": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-            "Incell": "bg-purple-500/10 text-purple-400 border-purple-500/20",
-            "OLED": "bg-pink-500/10 text-pink-400 border-pink-500/20"
+            // --- MODELO (Aro) ---
+    "Sem Aro": "bg-sky-500/10 text-sky-400 border-sky-500/20",
+    "Com Aro": "bg-orange-500/10 text-orange-400 border-orange-500/20",
+
+    // --- QUALIDADE (Níveis de peça) ---
+    "China": "bg-gray-500/10 text-gray-400 border-gray-500/20",
+    "Nacional Jack": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    "Premium": "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    "Jack Premium": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+    "Incell Premium": "bg-purple-500/10 text-purple-400 border-purple-500/20",
+
+    // --- TIPO DE TELA (Tecnologia) ---
+    "Lcd": "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    "Lcd Full HD": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+    "Full HD": "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+    "Oled": "bg-pink-500/10 text-pink-400 border-pink-500/20",
+    "Amoled": "bg-rose-500/10 text-rose-400 border-rose-500/20",
+    
+    // Fallback para tecnologias antigas ou importações
+    "Incell": "bg-purple-500/10 text-purple-400 border-purple-500/20",
+    "Original": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
         };
 
         async function init() {
@@ -138,9 +154,13 @@ let allProducts = [];
     const img = p.image ? `http://localhost:3000${p.image}` : null;
     const hasVars = p.hasVariations && p.variations?.length > 0;
     
-    // Extrai apenas os valores das variações que são do tipo "Cor"
-    const coresDisponiveis = hasVars 
-        ? p.variations.filter(v => v.type.toLowerCase() === 'cor').map(v => v.value)
+    // Pega todas as variações e formata como "Tipo: Valor" (Ex: "Versão: M15")
+    // Filtramos apenas as que possuem valor para não gerar badges vazios
+    const listaVariacoes = hasVars 
+        ? p.variations.filter(v => v.value).map(v => ({
+            label: `${v.type}: ${v.value}`,
+            price: v.price
+        }))
         : [];
 
     const displayPrice = hasVars 
@@ -161,18 +181,20 @@ let allProducts = [];
                 </h4>
 
                 <div class="flex flex-wrap gap-2">
-                    ${Object.entries(p.attributes || {}).map(([key, val]) => 
-                        `<span class="px-2.5 py-1 rounded-lg text-[9px] font-bold border uppercase tracking-wider ${COLOR_MAP[val] || 'bg-gray-800/50 text-gray-400 border-gray-700'}">${val}</span>`
-                    ).join('')}
+                    ${p.attributes ? Object.entries(p.attributes).map(([key, val]) => {
+                        if (!val) return '';
+                        const badgeStyle = COLOR_MAP[val] || 'bg-gray-800/50 text-gray-400 border-gray-700';
+                        return `<span class="px-2.5 py-1 rounded-lg text-[9px] font-bold border uppercase tracking-wider ${badgeStyle}">${val}</span>`;
+                    }).join('') : ''}
                 </div>
 
-                ${coresDisponiveis.length > 0 ? `
+                ${listaVariacoes.length > 0 ? `
                 <div class="pt-2">
-                    <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-2 italic">Cores disponíveis:</p>
+                    <p class="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-2 italic">Opções Disponíveis:</p>
                     <div class="flex flex-wrap gap-1.5">
-                        ${coresDisponiveis.map(cor => `
-                            <span class="text-[10px] bg-white/5 border border-white/10 text-gray-200 px-2 py-1 rounded-md font-medium">
-                                ${cor}
+                        ${listaVariacoes.map(v => `
+                            <span class="text-[9px] bg-accent/5 border border-accent/20 text-accent px-2 py-1 rounded-md font-bold uppercase">
+                                ${v.label}
                             </span>
                         `).join('')}
                     </div>
@@ -182,18 +204,18 @@ let allProducts = [];
                     <div class="flex items-center justify-between">
                         <div class="flex flex-col">
                             <span class="text-[9px] font-black text-gray-500 uppercase tracking-tighter">
-                                ${hasVars ? 'A partir de' : 'Preço à vista'}
+                                ${hasVars ? 'Preço' : 'Preço'}
                             </span>
                             <p class="text-2xl font-black text-accent font-mono">
                                 <span class="text-xs mr-0.5">R$</span>${parseFloat(displayPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </p>
                         </div>
-                        
                     </div>
                 </div>
             </div>
         </div>`;
 }
+
 
         function renderSection(title, products, container, targetView, cat, sub = null) {
             const section = document.createElement('div');
@@ -224,4 +246,5 @@ let allProducts = [];
 
         function goToPage(p) { currentPage = p; render(); window.scrollTo({ top: 400, behavior: 'smooth' }); }
         
+
         init();

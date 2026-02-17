@@ -23,15 +23,45 @@
 <body class="bg-primary text-white min-h-screen flex">
     <aside class="w-64 bg-[#111827] border-r border-gray-800 p-6 flex flex-col">
         <h2 class="text-2xl font-bold text-accent mb-10 text-center uppercase tracking-tighter">Jack Peças</h2>
-        <nav class="flex-1 space-y-2">
-            <a href="dashboard.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">📊 Dashboard</a>
-            <a href="products.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">📦 Produtos</a>
-            <a href="categories.html" class="flex items-center p-3 rounded-lg bg-accent text-black font-bold">📂 Categorias</a>
-            <a href="attributes.html" class="flex items-center p-3 rounded-lg hover:bg-gray-800 transition">⚙️ Atributos</a>
-        </nav>
-        <button onclick="logout()" class="p-3 text-red-400 hover:bg-red-900/20 rounded-lg text-left">
-      🚪 Sair
-    </button>
+        <nav id="main-nav" class="flex-1 space-y-2">
+    <a href="dashboard.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="15" rx="1"/></svg>
+        </div>
+        <span class="text-sm font-medium">Dashboard</span>
+    </a>
+
+    <a href="products.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+        </div>
+        <span class="text-sm font-medium">Produtos</span>
+    </a>
+
+    <a href="categories.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/><path d="M12 4v2"/><path d="M16 4v2"/><path d="M8 4v4"/></svg>
+        </div>
+        <span class="text-sm font-medium">Categorias</span>
+    </a>
+
+    <a href="attributes.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        </div>
+        <span class="text-sm font-medium">Atributos</span>
+    </a>
+</nav>
+        <button onclick="logout()" class="group mt-4 flex items-center gap-3 p-3 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-all duration-200 w-full text-left font-medium">
+    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-red-900/40 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+    </div>
+    <span class="text-sm uppercase tracking-wider">Sair</span>
+</button>
     </aside>
 
     <main class="flex-1 p-8">

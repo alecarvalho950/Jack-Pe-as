@@ -199,26 +199,34 @@ function addVariationRow(data = { type: 'Cor', value: '', stock: '', sku: '' }) 
     div.innerHTML = `
         <div>
             <label class="text-[9px] text-gray-500 uppercase font-bold">Tipo</label>
-            <select class="v-type w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none">
-                <option value="Cor" ${data.type === 'Cor' ? 'selected' : ''}>Cor</option>
-                <option value="Qualidade" ${data.type === 'Qualidade' ? 'selected' : ''}>Qualidade</option>
-                <option value="Modelo" ${data.type === 'Modelo' ? 'selected' : ''}>Modelo</option>
-            </select>
+            <input type="text" list="variation-types" placeholder="Ex: Versão" 
+                value="${data.type || 'Cor'}" 
+                class="v-type w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+            <datalist id="variation-types">
+                <option value="Cor">
+                <option value="Qualidade">
+                <option value="Modelo">
+                <option value="Versão">
+            </datalist>
         </div>
         <div>
             <label class="text-[9px] text-gray-500 uppercase font-bold">Valor</label>
-            <input type="text" placeholder="Ex: Azul" value="${data.value || ''}" class="v-value w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none">
+            <input type="text" placeholder="Ex: M15" value="${data.value || ''}" 
+                class="v-value w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
         </div>
         <div>
             <label class="text-[9px] text-gray-500 uppercase font-bold">Estoque</label>
-            <input type="number" placeholder="0" value="${data.stock || ''}" class="v-stock w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none">
+            <input type="number" placeholder="0" value="${data.stock || ''}" 
+                class="v-stock w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
         </div>
         <div class="flex gap-2 items-end">
             <div class="flex-1">
                 <label class="text-[9px] text-gray-500 uppercase font-bold">SKU</label>
-                <input type="text" placeholder="Opcional" value="${data.sku || ''}" class="v-sku w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none">
+                <input type="text" placeholder="Opcional" value="${data.sku || ''}" 
+                    class="v-sku w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
             </div>
-            <button type="button" onclick="this.closest('.variation-row').remove()" class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white p-2.5 rounded-lg transition-all mb-[1px]">✕</button>
+            <button type="button" onclick="this.closest('.variation-row').remove()" 
+                class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white p-2.5 rounded-lg transition-all mb-[1px]">✕</button>
         </div>
     `;
     list.appendChild(div);
@@ -277,12 +285,24 @@ async function saveProduct() {
     const url = editingProductId ? `http://localhost:3000/api/products/${editingProductId}` : 'http://localhost:3000/api/products';
     const method = editingProductId ? 'PUT' : 'POST';
 
+    const token = localStorage.getItem('admin_token');
     try {
-        const res = await fetch(url, { method, body: formData });
+        const res = await fetch(url, { 
+            method, 
+            headers: {
+                // IMPORTANTE: Com FormData NÃO definimos Content-Type
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData 
+        });
+
         if (res.ok) {
             showNotification(editingProductId ? "Produto atualizado!" : "Produto criado!");
             closeForm();
             loadInitialData(currentPage);
+        } else if (res.status === 401 || res.status === 403) {
+            showNotification("Sessão expirada. Faça login.", "error");
+            window.location.href = 'login.html';
         } else {
             const errorData = await res.json();
             showNotification(errorData.error || "Erro ao salvar", "error");
@@ -380,36 +400,47 @@ function renderProducts() {
         const imagePath = p.image ? `http://localhost:3000${p.image}` : null;
         const hasVars = p.hasVariations && p.variations?.length > 0;
 
-        let rowsHtml = `
-        <tr class="hover:bg-white/[0.02] transition-colors border-b border-gray-800/50 group">
-            <td class="p-4">
-                <div class="flex items-center gap-4">
-                    <div class="w-6 flex justify-center">
-                        ${hasVars ? `<button onclick="toggleVariationRows('${p._id}', this)" class="text-gray-500 hover:text-accent transition-transform duration-300">▶</button>` : ''}
-                    </div>
-                    <div class="w-12 h-12 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden flex-shrink-0">
-                        ${imagePath ? `<img src="${imagePath}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 font-bold p-1 text-center">SEM FOTO</div>`}
-                    </div>
-                    <div>
-                        <div class="text-sm font-bold text-white group-hover:text-accent transition-colors">${p.name}</div>
-                        <div class="text-[10px] text-gray-500 uppercase tracking-tight">${p.category} • ${p.subcategory || 'Geral'}</div>
-                    </div>
+        // Ícone de Seta Profissional
+const arrowIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
+
+// Ícones de Ação (Lápis e Lixeira)
+const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
+const deleteIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
+
+let rowsHtml = `
+<tr class="hover:bg-white/[0.02] transition-colors border-b border-gray-800/50 group">
+    <td class="p-4">
+        <div class="flex items-center gap-4">
+            <div class="w-6 flex justify-center">
+                ${hasVars ? `<button onclick="toggleVariationRows('${p._id}', this)" class="text-gray-500 hover:text-accent flex items-center justify-center transition-all">
+                    ${arrowIcon}
+                </button>` : ''}
+            </div>
+            <div class="w-12 h-12 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden flex-shrink-0">
+                ${p.image ? `<img src="http://localhost:3000${p.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 font-bold p-1 text-center">SEM FOTO</div>`}
+            </div>
+            <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-sm font-bold text-white group-hover:text-accent transition-colors">${p.name}</span>
                 </div>
-            </td>
-            <td class="p-4 text-center font-mono text-xs text-gray-400">${p.sku || '---'}</td>
-            <td class="p-4 text-center">
-                <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${p.stock > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} border border-current">
-                    ${hasVars ? '<span class="opacity-50 mr-1 text-gray-400">TOTAL:</span>' : ''}${p.stock}
-                </span>
-            </td>
-            <td class="p-4 text-center font-black text-white text-sm">R$ ${parseFloat(p.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-            <td class="p-4 text-right">
-                <div class="flex justify-end gap-1">
-                    <button onclick="editProduct('${p._id}')" class="p-2 hover:bg-blue-600/20 text-blue-400 rounded-lg">✏️</button>
-                    <button onclick="deleteProduct('${p._id}')" class="p-2 hover:bg-red-600/20 text-red-400 rounded-lg">🗑️</button>
-                </div>
-            </td>
-        </tr>`;
+                <div class="text-[10px] text-gray-500 uppercase tracking-tight">${p.category} • ${p.subcategory || 'Geral'}</div>
+            </div>
+        </div>
+    </td>
+    <td class="p-4 text-center font-mono text-xs text-gray-400">${p.sku || '---'}</td>
+    <td class="p-4 text-center">
+        <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${p.stock > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} border border-current">
+            ${hasVars ? '<span class="opacity-50 mr-1 text-gray-400">TOTAL:</span>' : ''}${p.stock}
+        </span>
+    </td>
+    <td class="p-4 text-center font-black text-white text-sm">R$ ${parseFloat(p.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+    <td class="p-4 text-right">
+        <div class="flex justify-end gap-1">
+            <button onclick="editProduct('${p._id}')" class="p-2 hover:bg-accent/20 text-gray-400 hover:text-accent rounded-lg transition-colors">${editIcon}</button>
+            <button onclick="deleteProduct('${p._id}')" class="p-2 hover:bg-red-600/20 text-gray-400 hover:text-red-400 rounded-lg transition-colors">${deleteIcon}</button>
+        </div>
+    </td>
+</tr>`;
 
         if (hasVars) {
             p.variations.forEach(v => {
@@ -445,14 +476,11 @@ function toggleVariationRows(productId, btn) {
     const isHidden = rows[0]?.classList.contains('hidden');
 
     rows.forEach(row => {
-        if (isHidden) {
-            row.classList.remove('hidden');
-            row.classList.add('table-row');
-        } else {
-            row.classList.add('hidden');
-            row.classList.remove('table-row');
-        }
+        row.classList.toggle('hidden', !isHidden);
+        row.classList.toggle('table-row', isHidden);
     });
+    
+    // Gira o ícone SVG que está dentro do botão
     btn.classList.toggle('rotate-90', isHidden);
 }
 
@@ -479,21 +507,33 @@ function renderPaginationControls() {
     const pages = getPages();
     nav.className = "flex flex-col md:flex-row items-center justify-between gap-6 mt-8 pb-10 pt-6 border-t border-gray-800";
 
-    nav.innerHTML = `
-        <div class="text-xs text-gray-500 font-medium order-2 md:order-1">
-            Exibindo <span class="text-white">${startItem}-${endItem}</span> de <span class="text-white">${totalItems}</span> resultados
+   // Dentro de renderPaginationControls:
+const iconLeft = `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
+const iconRight = `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
+
+nav.innerHTML = `
+    <div class="text-xs text-gray-500 font-medium order-2 md:order-1">
+        Exibindo <span class="text-white">${startItem}-${endItem}</span> de <span class="text-white">${totalItems}</span> resultados
+    </div>
+    <div class="flex items-center gap-2 order-1 md:order-2">
+        <button onclick="loadInitialData(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
+            class="p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-10 text-accent transition-all">
+            ${iconLeft}
+        </button>
+        
+        <div class="flex items-center gap-1.5">
+            ${pages.map(p => {
+                if (p === '...') return `<span class="px-2 text-gray-600 font-bold">...</span>`;
+                return `<button onclick="loadInitialData(${p})" class="w-10 h-10 rounded-xl text-xs font-bold border ${p === currentPage ? 'bg-accent text-black border-accent' : 'bg-gray-900 text-gray-400 border-gray-800 hover:text-white'}">${p}</button>`;
+            }).join('')}
         </div>
-        <div class="flex items-center gap-2 order-1 md:order-2">
-            <button onclick="loadInitialData(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="p-2.5 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-20 text-white">⬅️</button>
-            <div class="flex items-center gap-1.5">
-                ${pages.map(p => {
-                    if (p === '...') return `<span class="px-2 text-gray-600 font-bold">...</span>`;
-                    return `<button onclick="loadInitialData(${p})" class="w-10 h-10 rounded-xl text-xs font-bold border ${p === currentPage ? 'bg-accent text-black border-accent' : 'bg-gray-900 text-gray-400 border-gray-800 hover:text-white'}">${p}</button>`;
-                }).join('')}
-            </div>
-            <button onclick="loadInitialData(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''} class="p-2.5 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-20 text-white">➡️</button>
-        </div>
-    `;
+
+        <button onclick="loadInitialData(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''} 
+            class="p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-10 text-accent transition-all">
+            ${iconRight}
+        </button>
+    </div>
+`;
 }
 
 function deleteProduct(id) {
@@ -505,12 +545,21 @@ function deleteProduct(id) {
 }
 
 async function confirmDelete() {
+    const token = localStorage.getItem('admin_token');
     try {
-        const res = await fetch(`http://localhost:3000/api/products/${productToDeleteId}`, { method: 'DELETE' });
+        const res = await fetch(`http://localhost:3000/api/products/${productToDeleteId}`, { 
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
         if (res.ok) {
             showNotification("Produto removido!");
             document.getElementById('delete-modal').classList.add('hidden');
             loadInitialData(currentPage);
+        } else if (res.status === 401 || res.status === 403) {
+            alert("Acesso negado. Faça login novamente.");
+            window.location.href = 'login.html';
         }
     } catch (err) { showNotification("Erro ao excluir", "error"); }
 }
@@ -536,4 +585,144 @@ function showNotification(message, type = 'success') {
         toast.classList.add('translate-y-20', 'opacity-0');
         toast.classList.remove('translate-y-0', 'opacity-100');
     }, 3000);
+}
+
+async function handleUniversalUpload(event) {
+    const file = event.target.files[0];
+    const status = document.getElementById('upload-status');
+    if (!file) return;
+
+    status.innerText = "⏳ Processando planilha e calculando estoques...";
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+            // Dicionário para organizar pais e filhos antes de enviar
+            const productsMap = {};
+            let currentParentSku = null;
+
+            rows.forEach((row, index) => {
+                const tipo = (row.Tipo || 'Simples').trim();
+                const sku = String(row.SKU || `AUTO-${index}`).trim();
+                
+                // Tratamento de Preço (Brasileiro -> Decimal)
+                let precoFinal = 0;
+if (row.Preço) {
+    let pRaw = String(row.Preço).replace('R$', '').trim();
+    
+    // Se houver vírgula e ponto (ex: 1.200,50), removemos o ponto e trocamos a vírgula por ponto
+    if (pRaw.includes(',') && pRaw.includes('.')) {
+        pRaw = pRaw.replace(/\./g, '').replace(',', '.');
+    } 
+    // Se houver apenas vírgula (ex: 214,29), trocamos por ponto
+    else if (pRaw.includes(',')) {
+        pRaw = pRaw.replace(',', '.');
+    }
+    
+    precoFinal = parseFloat(pRaw) || 0;
+}
+
+                // Estrutura base do produto
+                const p = {
+                    sku: sku,
+                    name: row["Nome do Produto"] || "Sem Nome",
+                    price: precoFinal,
+                    stock: parseInt(row.Estoque) || 0,
+                    category: row.Categoria || "Telas",
+                    subcategory: row.Subcategoria || "Iphone",
+                    attributes: {}, 
+                    variations: [],
+                    hasVariations: false
+                };
+
+                // Captura Atributos Extras (Qualidade, Modelo, Taxa, etc)
+                const camposFixos = ['SKU', 'Nome do Produto', 'Tipo', 'Preço', 'Estoque', 'Categoria', 'Subcategoria'];
+                Object.keys(row).forEach(key => {
+                    if (!camposFixos.includes(key) && row[key] !== undefined && row[key] !== "") {
+                        p.attributes[key] = String(row[key]).trim();
+                    }
+                });
+
+                if (tipo === 'Pai') {
+                    p.hasVariations = true;
+                    p.stock = 0; // Começa em 0 para somar os filhos abaixo
+                    currentParentSku = sku;
+                    productsMap[sku] = p;
+                } 
+               else if (tipo === 'Var' && currentParentSku && productsMap[currentParentSku]) {
+    let nomeCompleto = p.name; // Ex: "Versão:M15"
+    let tipoVar = 'Cor'; // Valor padrão caso não tenha :
+    let valorVar = nomeCompleto;
+
+    if (nomeCompleto.includes(':')) {
+        const partes = nomeCompleto.split(':');
+        tipoVar = partes[0].trim();  // Pega "Versão"
+        valorVar = partes[1].trim(); // Pega "M15"
+    }
+    
+    productsMap[currentParentSku].variations.push({
+        sku: p.sku,
+        type: tipoVar, // Agora salva "Versão" dinamicamente
+        value: valorVar,
+        price: p.price,
+        stock: p.stock
+    });
+    
+    // Soma o estoque no pai normalmente
+    productsMap[currentParentSku].stock += p.stock;
+}
+                else {
+                    // Produto Simples
+                    productsMap[sku] = p;
+                }
+            });
+
+            const toSend = Object.values(productsMap);
+            console.log("📦 Lote final para sincronização:", toSend);
+            
+            await sendBatch(toSend);
+
+        } catch (err) {
+            status.innerText = "❌ Erro no processamento.";
+            console.error(err);
+            alert("Erro ao ler arquivo: " + err.message);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+// Atualize também o sendBatch para mostrar números reais
+async function sendBatch(products) {
+    const token = localStorage.getItem('admin_token');
+    try {
+        const response = await fetch('http://localhost:3000/api/products/batch', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // --- ADICIONADO ---
+            },
+            body: JSON.stringify({ products })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('upload-status').innerText = "✅ Sincronização Concluída!";
+            const upserted = result.detalhes?.upsertedCount || result.detalhes?.nUpserted || 0;
+            const modified = result.detalhes?.modifiedCount || result.detalhes?.nModified || 0;
+            alert(`Sucesso! Processados: ${products.length} produtos.\n(Novos: ${upserted} | Atualizados: ${modified})`);
+            loadInitialData(1);
+        } else if (response.status === 401 || response.status === 403) {
+            alert("Sua sessão expirou. Faça login para sincronizar a planilha.");
+            window.location.href = 'login.html';
+        } else { 
+            throw new Error(result.error || "Erro desconhecido"); 
+        }
+    } catch (err) {
+        alert("Erro no servidor: " + err.message);
+        document.getElementById('upload-status').innerText = "❌ Eredro na sincronização.";
+    }
 }

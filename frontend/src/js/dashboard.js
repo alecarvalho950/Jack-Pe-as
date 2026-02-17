@@ -36,9 +36,4 @@
   }
 }
 
-    function logout() {
-      localStorage.removeItem('admin_token');
-      window.location.href = 'login.html';
-    }
-
-    loadStats();
+  loadStats();
