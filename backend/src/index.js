@@ -54,6 +54,11 @@ const productSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const Product = mongoose.model('Product', productSchema);
+// Adicione isso no index.js logo após criar o Model
+productSchema.index({ name: 1 });
+productSchema.index({ sku: 1 });
+// No seu index.js, abaixo dos outros índices:
+productSchema.index({ category: 1, subcategory: 1, createdAt: -1 });
 
 // --- CONFIGURAÇÃO DE UPLOAD ---
 const PROJECT_ROOT = process.cwd();
@@ -100,26 +105,71 @@ const verifyToken = (req, res, next) => {
 // --- ROTAS DE PRODUTOS ---
 
 // LISTAR PRODUTOS
+// LISTAR PRODUTOS (UNIFICADO: BUSCA + FILTROS)
 app.get('/api/products', async (req, res) => {
     try {
         const { page = 1, limit = 25, search, category, subcategory } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
-        let query = {};
-        if (search) {
-            query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { sku: { $regex: search, $options: 'i' } }
-            ];
-        }
-        if (category) query.category = category;
-        if (subcategory) query.subcategory = subcategory;
+        
+        // 1. Criamos a base da Query com filtros fixos (se existirem)
+        let baseQuery = {};
+        if (category) baseQuery.category = category;
+        if (subcategory) baseQuery.subcategory = subcategory;
 
+        let finalQuery = { ...baseQuery };
+
+        // 2. Se houver termo de busca, adicionamos a lógica de Nome ou SKU
+        if (search) {
+            const searchTerm = search.trim();
+            const keywords = searchTerm.split(/\s+/);
+
+            // Regex de termo isolado (a que deu certo!)
+            const nameConditions = keywords.map(word => {
+                const s = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regexPattern = `(^|\\s|[\\/\\-])(${s})($|\\s|[\\/\\-])`;
+                return { name: { $regex: regexPattern, $options: 'i' } };
+            });
+
+            // A lógica aqui é: (Filtros de Cat) AND (Match no Nome OR Match no SKU)
+            finalQuery.$and = [
+                ...(baseQuery.$and || []), // Mantém outros ANDs se existirem
+                {
+                    $or: [
+                        { $and: nameConditions }, // Todas as palavras no nome
+                        { sku: searchTerm }       // OU o SKU exato
+                    ]
+                }
+            ];
+            
+            // Removemos os campos soltos de baseQuery para não duplicar no root da query
+            delete finalQuery.category;
+            delete finalQuery.subcategory;
+            // Se houver categoria, ela entra no AND geral
+            if (category) finalQuery.$and.unshift({ category });
+            if (subcategory) finalQuery.$and.unshift({ subcategory });
+        }
+
+        // 3. Execução Única
         const [products, total] = await Promise.all([
-            Product.find(query).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
-            Product.countDocuments(query)
+            Product.find(finalQuery)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(parseInt(limit))
+                .lean(),
+            Product.countDocuments(finalQuery)
         ]);
-        res.json({ products, total, pages: Math.ceil(total / limit), currentPage: parseInt(page) });
-    } catch (err) { res.status(500).json({ message: "Erro ao buscar" }); }
+
+        res.json({ 
+            products, 
+            total, 
+            pages: Math.ceil(total / limit), 
+            currentPage: parseInt(page) 
+        });
+
+    } catch (err) { 
+        console.error("❌ Erro na listagem:", err);
+        res.status(500).json({ message: "Erro ao carregar produtos" }); 
+    }
 });
 
 // CRIAR PRODUTO (RESOLVIDO DUPLICIDADE E PARSE)

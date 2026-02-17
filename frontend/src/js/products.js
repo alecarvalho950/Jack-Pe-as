@@ -9,7 +9,13 @@ let editingProductId = null;
 let productToDeleteId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    document.getElementById('search-input')?.addEventListener('input', filterProducts);
+    let searchTimer;
+    document.getElementById('search-input')?.addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        filterProducts();
+    }, 400); // Aguarda 300ms após a última tecla
+});
     document.getElementById('filter-category')?.addEventListener('change', updateFilterSubcategories);
     document.getElementById('filter-subcategory')?.addEventListener('change', filterProducts);
 
@@ -25,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadInitialData(page = 1) {
     currentPage = page;
-    const term = document.getElementById('search-input')?.value || "";
+    const term = document.getElementById('search-input')?.value.trim();
     const cat = document.getElementById('filter-category')?.value || "";
     const sub = document.getElementById('filter-subcategory')?.value || "";
 
@@ -400,69 +406,83 @@ function renderProducts() {
         const imagePath = p.image ? `http://localhost:3000${p.image}` : null;
         const hasVars = p.hasVariations && p.variations?.length > 0;
 
+        // --- LÓGICA DE ATRIBUTOS DINÂMICOS ---
+        // Transforma o objeto { Marca: 'Apple', Modelo: 'X' } em HTML de badges
+        const attributeBadges = p.attributes ? Object.entries(p.attributes)
+            .map(([key, value]) => {
+                if (!value) return ''; // Não mostra se estiver vazio
+                return `<span class="bg-blue-500/10 text-blue-400 text-[9px] px-1.5 py-0.5 rounded border border-blue-500/20 mr-1 mt-1 inline-block uppercase font-bold">
+                            ${value}
+                        </span>`;
+            }).join('') : '';
+
         // Ícone de Seta Profissional
-const arrowIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
+        const arrowIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
 
-// Ícones de Ação (Lápis e Lixeira)
-const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
-const deleteIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
+        // Ícones de Ação
+        const editIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
+        const deleteIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>`;
 
-let rowsHtml = `
-<tr class="hover:bg-white/[0.02] transition-colors border-b border-gray-800/50 group">
-    <td class="p-4">
-        <div class="flex items-center gap-4">
-            <div class="w-6 flex justify-center">
-                ${hasVars ? `<button onclick="toggleVariationRows('${p._id}', this)" class="text-gray-500 hover:text-accent flex items-center justify-center transition-all">
-                    ${arrowIcon}
-                </button>` : ''}
-            </div>
-            <div class="w-12 h-12 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden flex-shrink-0">
-                ${p.image ? `<img src="http://localhost:3000${p.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 font-bold p-1 text-center">SEM FOTO</div>`}
-            </div>
-            <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-sm font-bold text-white group-hover:text-accent transition-colors">${p.name}</span>
+        let rowsHtml = `
+        <tr class="hover:bg-white/[0.02] transition-colors border-b border-gray-800/50 group">
+            <td class="p-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-6 flex justify-center">
+                        ${hasVars ? `<button onclick="toggleVariationRows('${p._id}', this)" class="text-gray-500 hover:text-accent flex items-center justify-center transition-all">
+                            ${arrowIcon}
+                        </button>` : ''}
+                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden flex-shrink-0">
+                        ${p.image ? `<img src="http://localhost:3000${p.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 font-bold p-1 text-center">SEM FOTO</div>`}
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-sm font-bold text-white group-hover:text-accent transition-colors">${p.name}</span>
+                        </div>
+                        <div class="text-[10px] text-gray-500 uppercase tracking-tight">${p.category} • ${p.subcategory || 'Geral'}</div>
+                        
+                        <div class="flex flex-wrap mt-1">
+                            ${attributeBadges}
+                        </div>
+                    </div>
                 </div>
-                <div class="text-[10px] text-gray-500 uppercase tracking-tight">${p.category} • ${p.subcategory || 'Geral'}</div>
-            </div>
-        </div>
-    </td>
-    <td class="p-4 text-center font-mono text-xs text-gray-400">${p.sku || '---'}</td>
-    <td class="p-4 text-center">
-        <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${p.stock > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} border border-current">
-            ${hasVars ? '<span class="opacity-50 mr-1 text-gray-400">TOTAL:</span>' : ''}${p.stock}
-        </span>
-    </td>
-    <td class="p-4 text-center font-black text-white text-sm">R$ ${parseFloat(p.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-    <td class="p-4 text-right">
-        <div class="flex justify-end gap-1">
-            <button onclick="editProduct('${p._id}')" class="p-2 hover:bg-accent/20 text-gray-400 hover:text-accent rounded-lg transition-colors">${editIcon}</button>
-            <button onclick="deleteProduct('${p._id}')" class="p-2 hover:bg-red-600/20 text-gray-400 hover:text-red-400 rounded-lg transition-colors">${deleteIcon}</button>
-        </div>
-    </td>
-</tr>`;
+            </td>
+            <td class="p-4 text-center font-mono text-xs text-gray-400">${p.sku || '---'}</td>
+            <td class="p-4 text-center">
+                <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${p.stock > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} border border-current">
+                    ${hasVars ? '<span class="opacity-50 mr-1 text-gray-400">TOTAL:</span>' : ''}${p.stock}
+                </span>
+            </td>
+            <td class="p-4 text-center font-black text-white text-sm">R$ ${parseFloat(p.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+            <td class="p-4 text-right">
+                <div class="flex justify-end gap-1">
+                    <button onclick="editProduct('${p._id}')" class="p-2 hover:bg-accent/20 text-gray-400 hover:text-accent rounded-lg transition-colors">${editIcon}</button>
+                    <button onclick="deleteProduct('${p._id}')" class="p-2 hover:bg-red-600/20 text-gray-400 hover:text-red-400 rounded-lg transition-colors">${deleteIcon}</button>
+                </div>
+            </td>
+        </tr>`;
 
         if (hasVars) {
             p.variations.forEach(v => {
                 rowsHtml += `
-<tr class="child-of-${p._id} hidden bg-black/20 border-b border-gray-800/30">
-    <td class="p-2 pl-12"> <div class="flex items-center gap-3 relative">
-            <div class="absolute -left-6 top-0 bottom-0 w-px bg-gray-700"></div>
-            <div class="absolute -left-6 top-1/2 w-4 h-px bg-gray-700"></div>
-            
-            <div class="text-[11px] flex items-center gap-2">
-                <span class="font-bold text-accent uppercase">${v.type}:</span>
-                <span class="text-gray-300">${v.value}</span>
-            </div>
-        </div>
-    </td>
-    <td class="p-2 text-center font-mono text-[10px] text-gray-500">${v.sku || '---'}</td>
-    <td class="p-2 text-center">
-        <span class="text-[10px] text-gray-400 bg-gray-900 px-2 py-0.5 rounded-full border border-gray-800">
-            ${v.stock} un
-        </span>
-    </td>
-    <td colspan="2" class="p-2"></td> </tr>`;
+        <tr class="child-of-${p._id} hidden bg-black/20 border-b border-gray-800/30">
+            <td class="p-2 pl-12"> <div class="flex items-center gap-3 relative">
+                    <div class="absolute -left-6 top-0 bottom-0 w-px bg-gray-700"></div>
+                    <div class="absolute -left-6 top-1/2 w-4 h-px bg-gray-700"></div>
+                    
+                    <div class="text-[11px] flex items-center gap-2">
+                        <span class="font-bold text-accent uppercase">${v.type}:</span>
+                        <span class="text-gray-300">${v.value}</span>
+                    </div>
+                </div>
+            </td>
+            <td class="p-2 text-center font-mono text-[10px] text-gray-500">${v.sku || '---'}</td>
+            <td class="p-2 text-center">
+                <span class="text-[10px] text-gray-400 bg-gray-900 px-2 py-0.5 rounded-full border border-gray-800">
+                    ${v.stock} un
+                </span>
+            </td>
+            <td colspan="2" class="p-2"></td> </tr>`;
             });
         }
         return rowsHtml;
