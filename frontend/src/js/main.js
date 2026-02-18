@@ -39,7 +39,7 @@ async function init() {
       searchInput.addEventListener("input", handleSearch);
     }
 
-    const API_BASE_URL = "https://seu-projeto-no-railway.up.railway.app";
+    const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
 
     const [resCat, resProd] = await Promise.all([
       fetch(`${API_BASE_URL}/api/categories`),
