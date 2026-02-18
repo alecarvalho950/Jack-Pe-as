@@ -238,6 +238,47 @@ function addVariationRow(data = { type: 'Cor', value: '', stock: '', sku: '' }) 
     list.appendChild(div);
 }
 
+// Paleta de cores para os atributos dinâmicos
+const TAG_PALETTE = [
+    { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
+    { bg: 'bg-sky-500/10', text: 'text-sky-400', border: 'border-sky-500/20' },
+    { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20' },
+    { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/20' },
+    { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/20' },
+    { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20' },
+    { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20' },
+    { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/20' },
+    { bg: 'bg-lime-500/10', text: 'text-lime-400', border: 'border-lime-500/20' },
+    { bg: 'bg-fuchsia-500/10', text: 'text-fuchsia-400', border: 'border-fuchsia-500/20' },
+    { bg: 'bg-pink-500/10', text: 'text-pink-400', border: 'border-pink-500/20' },
+    { bg: 'bg-violet-500/10', text: 'text-violet-400', border: 'border-violet-500/20' },
+    { bg: 'bg-teal-500/10', text: 'text-teal-400', border: 'border-teal-500/20' },
+    { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
+    { bg: 'bg-blue-600/10', text: 'text-blue-400', border: 'border-blue-600/20' },
+    { bg: 'bg-yellow-500/10', text: 'text-yellow-300', border: 'border-yellow-500/20' },
+    { bg: 'bg-slate-400/10', text: 'text-slate-300', border: 'border-slate-400/20' },
+    { bg: 'bg-green-600/10', text: 'text-green-400', border: 'border-green-600/20' },
+    { bg: 'bg-zinc-400/10', text: 'text-zinc-300', border: 'border-zinc-400/20' },
+    { bg: 'bg-blue-400/10', text: 'text-blue-300', border: 'border-blue-400/20' }
+];
+
+function getTagStyle(text) {
+    if (!text) return "bg-gray-500/10 text-gray-400 border-gray-500/20";
+    const cleanText = text.toLowerCase();
+    
+    // Exceções manuais
+    if (cleanText.includes('original')) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+    if (cleanText.includes('china')) return "bg-gray-500/10 text-gray-400 border-gray-500/20";
+    
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+        hash = text.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % TAG_PALETTE.length;
+    const style = TAG_PALETTE[index];
+    return `${style.bg} ${style.text} ${style.border}`;
+}
+
 // --- CRUD PRINCIPAL ---
 async function saveProduct() {
     const formData = new FormData();
@@ -410,8 +451,10 @@ function renderProducts() {
         // Transforma o objeto { Marca: 'Apple', Modelo: 'X' } em HTML de badges
         const attributeBadges = p.attributes ? Object.entries(p.attributes)
             .map(([key, value]) => {
-                if (!value) return ''; // Não mostra se estiver vazio
-                return `<span class="bg-blue-500/10 text-blue-400 text-[9px] px-1.5 py-0.5 rounded border border-blue-500/20 mr-1 mt-1 inline-block uppercase font-bold">
+                if (!value) return ''; 
+                // Chamada da função de cor automática
+                const badgeStyle = getTagStyle(value);
+                return `<span class="${badgeStyle} text-[9px] px-1.5 py-0.5 rounded border mr-1 mt-1 inline-block uppercase font-bold">
                             ${value}
                         </span>`;
             }).join('') : '';

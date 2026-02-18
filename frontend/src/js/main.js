@@ -8,29 +8,28 @@ let activeFilters = {};
 let currentPage = 1;
 const ITEMS_PER_PAGE = 20;
 
-const COLOR_MAP = {
-  // --- MODELO (Aro) ---
-  "Sem Aro": "bg-sky-500/10 text-sky-400 border-sky-500/20",
-  "Com Aro": "bg-orange-500/10 text-orange-400 border-orange-500/20",
-
-  // --- QUALIDADE (Níveis de peça) ---
-  China: "bg-gray-500/10 text-gray-400 border-gray-500/20",
-  "Nacional Jack": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  Premium: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  "Jack Premium": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  "Incell Premium": "bg-purple-500/10 text-purple-400 border-purple-500/20",
-
-  // --- TIPO DE TELA (Tecnologia) ---
-  Lcd: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  "Lcd Full HD": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-  "Full HD": "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-  Oled: "bg-pink-500/10 text-pink-400 border-pink-500/20",
-  Amoled: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-
-  // Fallback para tecnologias antigas ou importações
-  Incell: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  Original: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-};
+const TAG_PALETTE = [
+    { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
+    { bg: 'bg-sky-500/10', text: 'text-sky-400', border: 'border-sky-500/20' },
+    { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20' },
+    { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/20' },
+    { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/20' },
+    { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20' },
+    { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20' },
+    { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/20' },
+    { bg: 'bg-lime-500/10', text: 'text-lime-400', border: 'border-lime-500/20' },
+    { bg: 'bg-fuchsia-500/10', text: 'text-fuchsia-400', border: 'border-fuchsia-500/20' },
+    { bg: 'bg-pink-500/10', text: 'text-pink-400', border: 'border-pink-500/20' },
+    { bg: 'bg-violet-500/10', text: 'text-violet-400', border: 'border-violet-500/20' },
+    { bg: 'bg-teal-500/10', text: 'text-teal-400', border: 'border-teal-500/20' },
+    { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
+    { bg: 'bg-blue-600/10', text: 'text-blue-400', border: 'border-blue-600/20' },
+    { bg: 'bg-yellow-500/10', text: 'text-yellow-300', border: 'border-yellow-500/20' },
+    { bg: 'bg-slate-400/10', text: 'text-slate-300', border: 'border-slate-400/20' },
+    { bg: 'bg-green-600/10', text: 'text-green-400', border: 'border-green-600/20' },
+    { bg: 'bg-zinc-400/10', text: 'text-zinc-300', border: 'border-zinc-400/20' },
+    { bg: 'bg-blue-400/10', text: 'text-blue-300', border: 'border-blue-400/20' }
+];
 
 async function init() {
   try {
@@ -40,9 +39,11 @@ async function init() {
       searchInput.addEventListener("input", handleSearch);
     }
 
+    const API_BASE_URL = "https://seu-projeto-no-railway.up.railway.app";
+
     const [resCat, resProd] = await Promise.all([
-      fetch("http://localhost:3000/api/categories"),
-      fetch("http://localhost:3000/api/products?limit=9999"),
+      fetch(`${API_BASE_URL}/api/categories`),
+      fetch(`${API_BASE_URL}/api/products?limit=9999`),
     ]);
     categories = await resCat.json();
     allProducts = (await resProd.json()).products || [];
@@ -308,32 +309,49 @@ function setupBrandSelect() {
       .join("");
 }
 
+function getTagStyle(text) {
+    if (!text) return "bg-gray-500/10 text-gray-400 border-gray-500/20";
+    
+    // Algoritmo simples de hash para converter texto em um índice da paleta
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+        hash = text.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    const index = Math.abs(hash) % TAG_PALETTE.length;
+    const style = TAG_PALETTE[index];
+    
+    return `${style.bg} ${style.text} ${style.border}`;
+}
+
 function renderCard(p) {
-  const img = p.image ? `http://localhost:3000${p.image}` : null;
-  const hasVars = p.hasVariations && p.variations?.length > 0;
+    const img = p.image ? p.image : null;
+    const hasVars = p.hasVariations && p.variations?.length > 0;
 
-  // Lógica para agrupar variações por tipo (Ex: "Cor": "Azul, Preto")
-  let variacoesAgrupadas = "";
-  if (hasVars) {
-    const grupos = {};
-    p.variations.forEach(v => {
-      if (v.type && v.value) {
-        if (!grupos[v.type]) grupos[v.type] = [];
-        grupos[v.type].push(v.value);
-      }
-    });
+    // Lógica para agrupar variações por tipo
+    let variacoesAgrupadas = "";
+    if (hasVars) {
+        const grupos = {};
+        p.variations.forEach(v => {
+            if (v.type && v.value) {
+                if (!grupos[v.type]) grupos[v.type] = [];
+                // Evita duplicatas no agrupamento
+                if (!grupos[v.type].includes(v.value)) {
+                    grupos[v.type].push(v.value);
+                }
+            }
+        });
 
-    // Transforma o objeto em strings: "Modelo: Tipo C, iPhone..."
-    variacoesAgrupadas = Object.entries(grupos)
-      .map(([type, values]) => `<span class="text-accent">${type}:</span> ${values.join(", ")}`)
-      .join(" | ");
-  }
+        variacoesAgrupadas = Object.entries(grupos)
+            .map(([type, values]) => `<span class="text-accent font-bold">${type}:</span> ${values.join(", ")}`)
+            .join(" | ");
+    }
 
-  const displayPrice = hasVars
-    ? Math.min(...p.variations.map((v) => v.price || p.price))
-    : p.price;
+    const displayPrice = hasVars
+        ? Math.min(...p.variations.map((v) => v.price || p.price))
+        : p.price;
 
-  return `
+    return `
         <div class="bg-card border border-gray-800 rounded-3xl overflow-hidden flex flex-col h-full hover:border-accent/40 transition-all duration-300 group shadow-lg">
             <div class="aspect-square bg-gray-900 overflow-hidden relative border-b border-gray-800/50">
                 ${
@@ -355,7 +373,8 @@ function renderCard(p) {
                         ? Object.entries(p.attributes)
                             .map(([key, val]) => {
                               if (!val) return "";
-                              const badgeStyle = COLOR_MAP[val] || "bg-gray-800/50 text-gray-400 border-gray-700";
+                              // AQUI: Usando a função getTagStyle em vez do COLOR_MAP estático
+                              const badgeStyle = getTagStyle(val); 
                               return `<span class="px-2 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[9px] font-bold border uppercase tracking-wide ${badgeStyle}">${val}</span>`;
                             })
                             .join("")
@@ -377,7 +396,7 @@ function renderCard(p) {
                 <div class="mt-auto pt-3 md:pt-5 border-t border-gray-800/50">
                     <div class="flex flex-col">
                         <span class="text-[8px] md:text-[9px] font-black text-gray-500 uppercase tracking-tighter">
-                            ${hasVars ? 'Preço:' : 'Preço:'}
+                            ${hasVars ? 'A partir de' : 'Preço:'}
                         </span>
                         <p class="text-xl md:text-2xl font-black text-accent font-mono leading-none mt-1">
                             <span class="text-[10px] md:text-xs mr-0.5">R$</span>${parseFloat(displayPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
