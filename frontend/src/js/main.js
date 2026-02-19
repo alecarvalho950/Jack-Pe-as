@@ -32,6 +32,7 @@ const TAG_PALETTE = [
 ];
 
 async function init() {
+  const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
   try {
     // Listener de busca com debounce (Idêntico ao painel)
     const searchInput = document.getElementById("public-search");
@@ -39,7 +40,6 @@ async function init() {
       searchInput.addEventListener("input", handleSearch);
     }
 
-    const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
 
     const [resCat, resProd] = await Promise.all([
       fetch(`${API_BASE_URL}/api/categories`),
