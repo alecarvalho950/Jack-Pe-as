@@ -7,7 +7,7 @@ const toggleBtn = document.getElementById('toggle-password');
 const eyeIcon = document.getElementById('eye-icon');
 
 // URL DO SEU BACKEND NO RAILWAY
-const API_BASE_URL = "//jack-pe-as-production.up.railway.app";
+const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
 
 // Alternar visibilidade da senha
 if (toggleBtn) {

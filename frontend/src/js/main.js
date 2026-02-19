@@ -32,7 +32,7 @@ const TAG_PALETTE = [
 ];
 
 async function init() {
-  const API_BASE_URL = "//jack-pe-as-production.up.railway.app";
+  const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
   
   try {
     const searchInput = document.getElementById("public-search");

@@ -3,7 +3,7 @@ let editingCatId = null; // Agora armazenará a String do _id
 let deleteCatId = null; 
 let subToRemove = null; 
 let allProducts = [];
-const API_BASE_URL = "//jack-pe-as-production.up.railway.app";
+const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
 
 document.addEventListener('DOMContentLoaded', () => {
     loadCategoriesList();

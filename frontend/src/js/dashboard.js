@@ -1,5 +1,5 @@
 // URL de Produção no Railway
-const API_BASE_URL = "//jack-pe-as-production.up.railway.app";
+const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
 
 async function loadStats() {
   try {
