@@ -7,7 +7,7 @@ let totalPages = 0;
 let totalItems = 0;
 let editingProductId = null;
 let productToDeleteId = null;
-const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
+const API_BASE_URL = "//jack-pe-as-production.up.railway.app";
 
 document.addEventListener('DOMContentLoaded', async () => {
     let searchTimer;
@@ -765,7 +765,7 @@ if (row.Preço) {
 async function sendBatch(products) {
     const token = localStorage.getItem('admin_token');
     try {
-        const response = await fetch('http://localhost:3000/api/products/batch', {
+        const response = await fetch(`${API_BASE_URL}/api/products/batch`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
