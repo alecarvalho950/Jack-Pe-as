@@ -33,24 +33,37 @@ const TAG_PALETTE = [
 
 async function init() {
   const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
+  
   try {
-    // Listener de busca com debounce (Idêntico ao painel)
     const searchInput = document.getElementById("public-search");
     if (searchInput) {
       searchInput.addEventListener("input", handleSearch);
     }
 
+    // Adicionamos um cabeçalho simples para forçar a conexão
+    const fetchOptions = {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    };
 
     const [resCat, resProd] = await Promise.all([
-      fetch(`${API_BASE_URL}/api/categories`),
-      fetch(`${API_BASE_URL}/api/products?limit=9999`),
+      fetch(`${API_BASE_URL}/api/categories`, fetchOptions),
+      fetch(`${API_BASE_URL}/api/products?limit=9999`, fetchOptions),
     ]);
+
+    if (!resCat.ok || !resProd.ok) throw new Error("Erro na resposta do servidor");
+
     categories = await resCat.json();
-    allProducts = (await resProd.json()).products || [];
+    const prodData = await resProd.json();
+    allProducts = prodData.products || [];
+
+    console.log("Dados carregados com sucesso!");
     renderQuickNav();
     render();
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao carregar dados do Railway:", err);
+    // Tenta renderizar mesmo vazio para não travar a tela
+    render(); 
   }
 }
 
