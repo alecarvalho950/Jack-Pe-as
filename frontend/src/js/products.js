@@ -7,6 +7,7 @@ let totalPages = 0;
 let totalItems = 0;
 let editingProductId = null;
 let productToDeleteId = null;
+const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
 
 document.addEventListener('DOMContentLoaded', async () => {
     let searchTimer;
@@ -36,7 +37,7 @@ async function loadInitialData(page = 1) {
     const sub = document.getElementById('filter-subcategory')?.value || "";
 
     try {
-        const url = new URL('http://localhost:3000/api/products');
+        const url = new URL(`${API_BASE_URL}/api/products`);
         url.searchParams.append('page', page);
         url.searchParams.append('limit', itemsPerPage);
         if (term) url.searchParams.append('search', term);
@@ -44,9 +45,9 @@ async function loadInitialData(page = 1) {
         if (sub) url.searchParams.append('subcategory', sub);
 
         const [resCat, resProd, resAttr] = await Promise.all([
-            fetch('http://localhost:3000/api/categories'),
+            fetch(`${API_BASE_URL}/api/categories`),
             fetch(url),
-            fetch('http://localhost:3000/api/attributes')
+            fetch(`${API_BASE_URL}/api/attributes`)
         ]);
 
         categories = await resCat.json();
@@ -329,7 +330,7 @@ async function saveProduct() {
     const fileInput = document.getElementById('prod-file');
     if (fileInput?.files[0]) formData.append('image', fileInput.files[0]);
 
-    const url = editingProductId ? `http://localhost:3000/api/products/${editingProductId}` : 'http://localhost:3000/api/products';
+    const url = editingProductId ? `${API_BASE_URL}/api/products/${editingProductId}` : `${API_BASE_URL}/api/products`;
     const method = editingProductId ? 'PUT' : 'POST';
 
     const token = localStorage.getItem('admin_token');
@@ -391,9 +392,12 @@ function editProduct(id) {
     }
 
     const preview = document.getElementById('image-preview');
-    preview.innerHTML = p.image
-        ? `<img src="http://localhost:3000${p.image}" class="w-full h-full object-cover rounded-lg">`
-        : `<span class="text-gray-600 text-xs italic">Sem foto</span>`;
+    if (p.image) {
+        const fullImageUrl = p.image.startsWith('http') ? p.image : `${API_BASE_URL}${p.image}`;
+        preview.innerHTML = `<img src="${fullImageUrl}" class="w-full h-full object-cover rounded-lg">`;
+    } else {
+        preview.innerHTML = `<span class="text-gray-600 text-xs italic">Sem foto</span>`;
+    }
 
     updateSubcategories(p.subcategory);
 
@@ -444,7 +448,7 @@ function renderProducts() {
     }
 
     container.innerHTML = allProducts.map(p => {
-        const imagePath = p.image ? `http://localhost:3000${p.image}` : null;
+        const imagePath = p.image ? p.image : null;
         const hasVars = p.hasVariations && p.variations?.length > 0;
 
         // --- LÓGICA DE ATRIBUTOS DINÂMICOS ---
@@ -476,7 +480,7 @@ function renderProducts() {
                         </button>` : ''}
                     </div>
                     <div class="w-12 h-12 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden flex-shrink-0">
-                        ${p.image ? `<img src="http://localhost:3000${p.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 font-bold p-1 text-center">SEM FOTO</div>`}
+                        ${p.image ? `<img src="${p.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 font-bold p-1 text-center">SEM FOTO</div>`}
                     </div>
                     <div>
                         <div class="flex items-center gap-2 flex-wrap">
@@ -610,7 +614,7 @@ function deleteProduct(id) {
 async function confirmDelete() {
     const token = localStorage.getItem('admin_token');
     try {
-        const res = await fetch(`http://localhost:3000/api/products/${productToDeleteId}`, { 
+        const res = await fetch(`${API_BASE_URL}/api/products/${productToDeleteId}`, { 
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`

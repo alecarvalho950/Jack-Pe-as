@@ -1,6 +1,7 @@
 let currentOptions = [];
 let deleteId = null;
 let editingId = null; 
+const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
 
 // --- AO CARREGAR A PÁGINA ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -63,9 +64,10 @@ function toggleOptionInput() {
 // 2. Carrega as categorias no <select>
 async function loadTargetCategories() {
     try {
-        const res = await fetch('http://localhost:3000/api/categories');
+        const res = await fetch(`${API_BASE_URL}/api/categories`);
         const cats = await res.json();
         const select = document.getElementById('attr-target-cat');
+        if (!select) return;
         
         select.innerHTML = '<option value="">Selecione a Categoria</option>';
         cats.forEach(c => {
@@ -141,7 +143,7 @@ async function saveFullAttribute() {
 
     const payload = { category, name, type, options: type === 'text' ? [] : currentOptions };
     
-    const url = editingId ? `http://localhost:3000/api/attributes/${editingId}` : 'http://localhost:3000/api/attributes';
+    const url = editingId ? `${API_BASE_URL}/api/attributes/${editingId}` : `${API_BASE_URL}/api/attributes`;
     const method = editingId ? 'PUT' : 'POST';
     const token = localStorage.getItem('admin_token')
 
@@ -173,8 +175,8 @@ async function saveFullAttribute() {
 async function loadAttributesList() {
     try {
         const [resAttr, resCats] = await Promise.all([
-            fetch('http://localhost:3000/api/attributes'),
-            fetch('http://localhost:3000/api/categories')
+            fetch(`${API_BASE_URL}/api/attributes`),
+            fetch(`${API_BASE_URL}/api/categories`)
         ]);
         
         const attrs = await resAttr.json();
@@ -242,7 +244,7 @@ async function closeConfirm(confirmado) {
         const token = localStorage.getItem('admin_token');
 
         try {
-            const res = await fetch(`http://localhost:3000/api/attributes/${deleteId}`, { 
+            const res = await fetch(`${API_BASE_URL}/api/attributes/${deleteId}`, { 
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`

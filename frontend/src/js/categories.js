@@ -3,6 +3,7 @@ let editingCatId = null; // Agora armazenará a String do _id
 let deleteCatId = null; 
 let subToRemove = null; 
 let allProducts = [];
+const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
 
 document.addEventListener('DOMContentLoaded', () => {
     loadCategoriesList();
@@ -12,9 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadCategoriesList() {
     try {
+        const token = localStorage.getItem('admin_token');
+        const headers = { 'Authorization': `Bearer ${token}` };
+
         const [resCat, resProd] = await Promise.all([
-            fetch('http://localhost:3000/api/categories'),
-            fetch('http://localhost:3000/api/products?limit=99999') // Pegamos todos para o contador
+            fetch(`${API_BASE_URL}/api/categories`),
+            fetch(`${API_BASE_URL}/api/products?limit=99999`, { headers }) 
         ]);
         
         const categories = await resCat.json();
@@ -128,12 +132,9 @@ async function closeConfirm(confirmado) {
         if (deleteCatId) {
             const token = localStorage.getItem('admin_token');
             try {
-                const res = await fetch(`http://localhost:3000/api/categories/${deleteCatId}`, { 
+                const res = await fetch(`${API_BASE_URL}/api/categories/${deleteCatId}`, { 
                     method: 'DELETE',
-                    // --- ADICIONADO: CABEÇALHO DE SEGURANÇA ---
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
                 if (res.ok) {
@@ -220,8 +221,7 @@ async function saveFullCategory() {
 
     const payload = { name, subcategories: currentSubcategories };
     const method = editingCatId ? 'PUT' : 'POST';
-    const url = editingCatId ? `http://localhost:3000/api/categories/${editingCatId}` : 'http://localhost:3000/api/categories';
-
+    const url = editingCatId ? `${API_BASE_URL}/api/categories/${editingCatId}` : `${API_BASE_URL}/api/categories`;
     const token = localStorage.getItem('admin_token');
     try {
         const res = await fetch(url, {
