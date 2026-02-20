@@ -33,6 +33,7 @@ const TAG_PALETTE = [
 
 async function init() {
   const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
+  const overlay = document.getElementById('loading-overlay');
   
   try {
     const searchInput = document.getElementById("public-search");
@@ -57,12 +58,17 @@ async function init() {
     const prodData = await resProd.json();
     allProducts = prodData.products || [];
 
-    console.log("Dados carregados com sucesso!");
     renderQuickNav();
     render();
+
+  if (overlay) {
+        overlay.classList.add('opacity-0');
+        setTimeout(() => overlay.remove(), 500);
+    }
+
   } catch (err) {
-    console.error("Erro ao carregar dados do Railway:", err);
-    // Tenta renderizar mesmo vazio para não travar a tela
+    console.error("Erro ao carregar dados:", err);
+    if (overlay) overlay.remove();
     render(); 
   }
 }
@@ -86,18 +92,21 @@ function renderQuickNav() {
 }
 
 function changeView(view, cat = null, sub = null) {
-  currentView = view;
-  activeCat = cat;
-  activeSub = sub;
-  if (view === "HOME") activeFilters = {};
-  currentPage = 1;
-  render();
-  renderQuickNav();
+  showLocalLoading(); // Feedback imediato ao clicar
+  
+  setTimeout(() => {
+      currentView = view;
+      activeCat = cat;
+      activeSub = sub;
+      if (view === "HOME") activeFilters = {};
+      currentPage = 1;
+      render();
+      renderQuickNav();
 
-  if (view !== "HOME") {
-    // Reduzi para 320 para alinhar melhor com a barra fixa
-    window.scrollTo({ top: 320, behavior: "smooth" });
-  }
+      if (view !== "HOME") {
+        window.scrollTo({ top: 320, behavior: "smooth" });
+      }
+  }, 50);
 }
 
 function handleSearch() {
@@ -120,35 +129,47 @@ function setAttrFilter(key, val) {
   render();
 }
 
+// --- NOVA FUNÇÃO: MOSTRAR LOADING NAS TRANSIÇÕES ---
+function showLocalLoading() {
+    const container = document.getElementById("catalog-content");
+    if (!container) return;
+    container.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-20 w-full col-span-full animate-pulse">
+            <div class="w-10 h-10 border-4 border-accent/20 border-t-accent rounded-full animate-spin-custom mb-4"></div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Buscando peças...</p>
+        </div>
+    `;
+}
+
 function render() {
   const container = document.getElementById("catalog-content");
   const header = document.getElementById("view-header");
   const footer = document.getElementById("catalog-footer");
   const attrBox = document.getElementById("attribute-filters");
   const brandBox = document.getElementById("brand-filter-container");
-  const searchRaw = document
-    .getElementById("public-search")
-    .value.toLowerCase()
-    .trim();
+  const searchInput = document.getElementById("public-search");
+  
+  if (!container) return;
 
-  container.innerHTML = "";
+  const isMobile = window.innerWidth < 768;
+  
+  const searchRaw = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+  // EM VEZ DE LIMPAR O CONTAINER AGORA, VAMOS MONTAR O HTML NESTA VARIÁVEL
+  let htmlOutput = "";
+  
+  // Limpamos apenas elementos de suporte
   footer.innerHTML = "";
   attrBox.innerHTML = "";
 
-  const isMobile = window.innerWidth < 768;
-  const homeLimit = isMobile ? 6 : 8;
-
-  // 1. Filtragem Inicial
+  // 1. Filtragem (Mantém sua lógica original)
   let filtered = allProducts.filter((p) => {
     let matchesSearch = true;
     if (searchRaw) {
       const keywords = searchRaw.split(/\s+/);
       matchesSearch = keywords.every((word) => {
         const s = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const regexPattern = new RegExp(
-          `(^|\\s|[\\/\\-])(${s})($|\\s|[\\/\\-])`,
-          "i",
-        );
+        const regexPattern = new RegExp(`(^|\\s|[\\/\\-])(${s})($|\\s|[\\/\\-])`, "i");
         return regexPattern.test(p.name);
       });
     }
@@ -159,9 +180,7 @@ function render() {
 
   // 2. Filtros de Atributos
   Object.keys(activeFilters).forEach((key) => {
-    filtered = filtered.filter(
-      (p) => p.attributes && p.attributes[key] === activeFilters[key],
-    );
+    filtered = filtered.filter((p) => p.attributes && p.attributes[key] === activeFilters[key]);
   });
 
   renderAttributeSelectors(filtered, attrBox);
@@ -173,87 +192,41 @@ function render() {
     brandBox.classList.add("hidden");
   }
 
-  const isFiltering =
-    Object.keys(activeFilters).length > 0 || searchRaw.length > 0;
+  const isFiltering = Object.keys(activeFilters).length > 0 || searchRaw.length > 0;
 
-  // 3. Lógica de Exibição
   if (currentView === "HOME" && !isFiltering) {
     header.classList.add("hidden");
     categories.forEach((cat) => {
       const catProducts = filtered.filter((p) => p.category === cat.name);
-      const diverseProducts = [];
-      const usedSubs = new Set();
-
-      // Pega um de cada subcategoria
-      for (const p of catProducts) {
-        if (!usedSubs.has(p.subcategory)) {
-          diverseProducts.push(p);
-          usedSubs.add(p.subcategory);
-        }
-        if (diverseProducts.length >= homeLimit) break;
-      }
-
-      // Completa se sobrar espaço
-      if (diverseProducts.length < homeLimit) {
-        const remaining = catProducts.filter(
-          (p) => !diverseProducts.includes(p),
-        );
-        diverseProducts.push(
-          ...remaining.slice(0, homeLimit - diverseProducts.length),
-        );
-      }
-
-      if (diverseProducts.length > 0) {
-        renderSection(
-          cat.name,
-          diverseProducts,
-          container,
-          "CATEGORY",
-          cat.name,
-        );
+      if (catProducts.length > 0) {
+        const diverse = catProducts.slice(0, isMobile ? 6 : 8);
+        htmlOutput += createSectionHTML(cat.name, diverse, "CATEGORY", cat.name);
       }
     });
   } else if (currentView === "CATEGORY" && !isFiltering) {
     header.classList.remove("hidden");
     document.getElementById("active-title").innerText = activeCat;
     const catData = categories.find((c) => c.name === activeCat);
-
     catData?.subcategories.forEach((sub) => {
       const products = filtered.filter((p) => p.subcategory === sub);
       if (products.length > 0) {
-        // Aqui mostramos a quantidade dinâmica (6 ou 8) por linha de subcategoria
-        renderSection(
-          `${activeCat} ${sub}`,
-          products.slice(0, homeLimit),
-          container,
-          "SUBCATEGORY",
-          activeCat,
-          sub,
-        );
+        htmlOutput += createSectionHTML(`${activeCat} ${sub}`, products.slice(0, isMobile ? 6 : 8), "SUBCATEGORY", activeCat, sub);
       }
     });
   } else {
-    // VISUALIZAÇÃO DE GRADE COM PAGINAÇÃO (Busca ou Subcategoria selecionada)
     header.classList.remove("hidden");
-    document.getElementById("active-title").innerText = activeSub
-      ? `${activeCat} ${activeSub}`
-      : activeCat || "Busca";
+    document.getElementById("active-title").innerText = activeSub ? `${activeCat} ${activeSub}` : activeCat || "Busca";
 
     if (filtered.length === 0) {
-      renderEmpty(container);
-      return;
+      htmlOutput = `<div class="py-20 text-center w-full"><p class="text-gray-500 font-black uppercase text-xs">Sem resultados.</p></div>`;
+    } else {
+      const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+      const pageItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+      htmlOutput = `<div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-in">${pageItems.map(p => renderCard(p)).join("")}</div>`;
+      renderPager(currentPage, totalPages, filtered.length, footer);
     }
-
-    // CORREÇÃO AQUI: Definindo pageItems antes de usar
-    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const pageItems = filtered.slice(
-      (currentPage - 1) * ITEMS_PER_PAGE,
-      currentPage * ITEMS_PER_PAGE,
-    );
-
-    renderGrid(pageItems, container);
-    renderPager(currentPage, totalPages, filtered.length, footer);
   }
+  container.innerHTML = htmlOutput;
 }
 
 window.addEventListener("resize", () => {
@@ -272,6 +245,7 @@ function toggleFilters() {
 }
 
 function renderAttributeSelectors(products, container) {
+  if (!container) return;
   const attrOptions = {};
   products.forEach((p) => {
     if (p.attributes) {
@@ -286,7 +260,6 @@ function renderAttributeSelectors(products, container) {
 
   Object.entries(attrOptions).forEach(([key, values]) => {
     const select = document.createElement("select");
-    // 'w-full sm:w-auto' faz com que no celular eles fiquem em lista ou pequenos
     select.className = `bg-card border border-gray-700 rounded-lg px-3 py-2 pr-8 text-[10px] font-black uppercase outline-none focus:border-accent transition-all ${activeFilters[key] ? "border-accent text-accent" : "text-gray-400"}`;
 
     select.onchange = (e) => setAttrFilter(key, e.target.value);
@@ -420,23 +393,17 @@ function renderCard(p) {
         </div>`;
 }
 
-function renderSection(
-  title,
-  products,
-  container,
-  targetView,
-  cat,
-  sub = null,
-) {
-  const section = document.createElement("div");
-  section.className = "animate-in";
-  section.innerHTML = `
-                <div class="flex items-center justify-between mb-6 px-1">
-                    <h3 class="text-xs font-black uppercase tracking-[0.3em] text-gray-500">${title}</h3>
-                    <button onclick="changeView('${targetView}', '${cat}', '${sub || ""}')" class="text-[9px] font-black text-accent border border-accent/20 px-4 py-1.5 rounded-full uppercase hover:bg-accent hover:text-black transition-all">Ver Tudo</button>
-                </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">${products.map((p) => renderCard(p)).join("")}</div>`;
-  container.appendChild(section);
+function createSectionHTML(title, products, targetView, cat, sub = null) {
+    return `
+        <div class="animate-in mb-12">
+            <div class="flex items-center justify-between mb-6 px-1">
+                <h3 class="text-xs font-black uppercase tracking-[0.3em] text-gray-500">${title}</h3>
+                <button onclick="changeView('${targetView}', '${cat}', '${sub || ""}')" class="text-[9px] font-black text-accent border border-accent/20 px-4 py-1.5 rounded-full uppercase hover:bg-accent hover:text-black transition-all">Ver Tudo</button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                ${products.map((p) => renderCard(p)).join("")}
+            </div>
+        </div>`;
 }
 
 function renderGrid(products, container) {
