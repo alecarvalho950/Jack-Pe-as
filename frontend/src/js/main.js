@@ -229,10 +229,13 @@ function render() {
   container.innerHTML = htmlOutput;
 }
 
+let lastWidth = window.innerWidth;
 window.addEventListener("resize", () => {
-  // Debounce simples para não travar a UI no resize
-  clearTimeout(window.resizeTimer);
-  window.resizeTimer = setTimeout(render, 250);
+    if (window.innerWidth !== lastWidth) {
+        lastWidth = window.innerWidth;
+        clearTimeout(window.resizeTimer);
+        window.resizeTimer = setTimeout(render, 250);
+    }
 });
 
 function toggleFilters() {
@@ -338,11 +341,15 @@ function renderCard(p) {
         : p.price;
 
     return `
-        <div class="bg-card border border-gray-800 rounded-3xl overflow-hidden flex flex-col h-full hover:border-accent/40 transition-all duration-300 group shadow-lg">
+        <div class="gpu-card bg-card border border-gray-800 rounded-3xl overflow-hidden flex flex-col h-full hover:border-accent/40 transition-all duration-300 group shadow-lg">
             <div class="aspect-square bg-gray-900 overflow-hidden relative border-b border-gray-800/50">
                 ${
                   img
-                    ? `<img src="${img}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">`
+                    ? `<img src="${img}" 
+                        loading="lazy" 
+                        decoding="async"
+                        width="400" height="400"
+                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">`
                     : `<div class="w-full h-full flex items-center justify-center text-[9px] font-black text-gray-700 uppercase italic">S/ Imagem</div>`
                 }
             </div>
