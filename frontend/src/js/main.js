@@ -345,7 +345,8 @@ function renderCard(p) {
             <div class="aspect-square bg-gray-900 overflow-hidden relative border-b border-gray-800/50">
                 ${
                   img
-                    ? `<img src="${img}" 
+                    ? `<img src="${img}"
+                        alt="Produto: ${p.name} - Jack Peças" 
                         loading="lazy" 
                         decoding="async"
                         width="400" height="400"
@@ -356,9 +357,9 @@ function renderCard(p) {
 
             <div class="p-4 md:p-5 flex flex-col flex-grow space-y-3 md:space-y-4">
                 
-                <h5 class="text-xs md:text-base font-bold text-white leading-tight group-hover:text-accent transition-colors duration-300 line-clamp-2 md:line-clamp-3">
+                <h4 class="text-xs md:text-base font-bold text-white leading-tight group-hover:text-accent transition-colors duration-300 line-clamp-2 md:line-clamp-3">
                     ${p.name}
-                </h5>
+                </h4>
 
                 <div class="flex flex-wrap gap-1.5 md:gap-2">
                     ${
