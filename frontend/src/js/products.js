@@ -282,65 +282,91 @@ function getTagStyle(text) {
 
 // --- CRUD PRINCIPAL ---
 async function saveProduct() {
-    const formData = new FormData();
+    const btnSave = document.getElementById('btn-save-product');
+    const originalBtnText = btnSave.innerHTML;
+    
+    // 1. Pegar dados básicos
     const name = document.getElementById('p-name').value;
-    const sku = document.getElementById('p-sku').value;
-    const price = document.getElementById('p-price').value || "0";
     const category = document.getElementById('p-category').value;
-    const subcategory = document.getElementById('p-subcategory').value;
-    const hasVariations = document.getElementById('p-has-variations').checked;
-
     if (!name || !category) {
         showNotification("Nome e Categoria são obrigatórios", "error");
         return;
     }
 
-    formData.append('name', name);
-    formData.append('sku', sku);
-    formData.append('category', category);
-    formData.append('subcategory', subcategory);
-    formData.append('price', price);
-    formData.append('hasVariations', hasVariations);
-
-    if (hasVariations) {
-        const varRows = document.querySelectorAll('.variation-row');
-        const variations = Array.from(varRows).map(row => ({
-            type: row.querySelector('.v-type').value,
-            value: row.querySelector('.v-value').value,
-            stock: parseInt(row.querySelector('.v-stock').value) || 0,
-            sku: row.querySelector('.v-sku').value,
-            price: parseFloat(price)
-        }));
-        formData.append('variations', JSON.stringify(variations));
-        
-        const totalStock = variations.reduce((acc, v) => acc + v.stock, 0);
-        formData.append('stock', totalStock);
-    } else {
-        const simpleStock = document.getElementById('p-stock').value || "0";
-        formData.append('stock', simpleStock);
-        formData.append('variations', JSON.stringify([]));
-    }
-
-    const attrs = {};
-    document.querySelectorAll('.dynamic-attr').forEach(el => {
-        if (el.value) attrs[el.getAttribute('data-name')] = el.value;
-    });
-    formData.append('attributes', JSON.stringify(attrs));
-
-    const fileInput = document.getElementById('prod-file');
-    if (fileInput?.files[0]) formData.append('image', fileInput.files[0]);
-
-    const url = editingProductId ? `${API_BASE_URL}/api/products/${editingProductId}` : `${API_BASE_URL}/api/products`;
-    const method = editingProductId ? 'PUT' : 'POST';
-
-    const token = localStorage.getItem('admin_token');
     try {
+        // 2. BLOQUEIO VISUAL: Muda o botão para estado de carregamento
+        btnSave.disabled = true;
+        btnSave.classList.add('opacity-50', 'cursor-not-allowed');
+        btnSave.innerHTML = `<svg class="animate-spin h-4 w-4 mr-2 border-t-2 border-white rounded-full inline-block" viewBox="0 0 24 24"></svg> SALVANDO...`;
+
+        const formData = new FormData();
+        const sku = document.getElementById('p-sku').value;
+        const price = document.getElementById('p-price').value || "0";
+        const subcategory = document.getElementById('p-subcategory').value;
+        const hasVariations = document.getElementById('p-has-variations').checked;
+
+        formData.append('name', name);
+        formData.append('sku', sku);
+        formData.append('category', category);
+        formData.append('subcategory', subcategory);
+        formData.append('price', price);
+        formData.append('hasVariations', hasVariations);
+
+        // Lógica de Variações
+        if (hasVariations) {
+            const varRows = document.querySelectorAll('.variation-row');
+            const variations = Array.from(varRows).map(row => ({
+                type: row.querySelector('.v-type').value,
+                value: row.querySelector('.v-value').value,
+                stock: parseInt(row.querySelector('.v-stock').value) || 0,
+                sku: row.querySelector('.v-sku').value,
+                price: parseFloat(price)
+            }));
+            formData.append('variations', JSON.stringify(variations));
+            const totalStock = variations.reduce((acc, v) => acc + v.stock, 0);
+            formData.append('stock', totalStock);
+        } else {
+            const simpleStock = document.getElementById('p-stock').value || "0";
+            formData.append('stock', simpleStock);
+            formData.append('variations', JSON.stringify([]));
+        }
+
+        // Atributos dinâmicos
+        const attrs = {};
+        document.querySelectorAll('.dynamic-attr').forEach(el => {
+            if (el.value) attrs[el.getAttribute('data-name')] = el.value;
+        });
+        formData.append('attributes', JSON.stringify(attrs));
+
+        // 3. OTIMIZAÇÃO DE IMAGEM: Comprimir antes de enviar
+        const fileInput = document.getElementById('prod-file');
+        if (fileInput?.files[0]) {
+            const imageFile = fileInput.files[0];
+            
+            // Opções de compressão (ajusta para no máximo 1MB e 1200px)
+            const options = {
+                maxSizeMB: 0.8,
+                maxWidthOrHeight: 1200,
+                useWebWorker: true
+            };
+
+            try {
+                const compressedFile = await imageCompression(imageFile, options);
+                formData.append('image', compressedFile, compressedFile.name);
+            } catch (error) {
+                console.error("Erro na compressão, enviando original...", error);
+                formData.append('image', imageFile);
+            }
+        }
+
+        // 4. ENVIO PARA O SERVIDOR
+        const url = editingProductId ? `${API_BASE_URL}/api/products/${editingProductId}` : `${API_BASE_URL}/api/products`;
+        const method = editingProductId ? 'PUT' : 'POST';
+        const token = localStorage.getItem('admin_token');
+
         const res = await fetch(url, { 
             method, 
-            headers: {
-                // IMPORTANTE: Com FormData NÃO definimos Content-Type
-                'Authorization': `Bearer ${token}`
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
             body: formData 
         });
 
@@ -348,15 +374,19 @@ async function saveProduct() {
             showNotification(editingProductId ? "Produto atualizado!" : "Produto criado!");
             closeForm();
             loadInitialData(currentPage);
-        } else if (res.status === 401 || res.status === 403) {
-            showNotification("Sessão expirada. Faça login.", "error");
-            window.location.href = 'login.html';
         } else {
             const errorData = await res.json();
             showNotification(errorData.error || "Erro ao salvar", "error");
         }
+
     } catch (err) {
-        showNotification("Erro de conexão", "error");
+        console.error(err);
+        showNotification("Erro de conexão ou processamento", "error");
+    } finally {
+        // 5. LIBERAR INTERFACE: Volta o botão ao normal
+        btnSave.disabled = false;
+        btnSave.classList.remove('opacity-50', 'cursor-not-allowed');
+        btnSave.innerHTML = originalBtnText;
     }
 }
 
