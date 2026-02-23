@@ -34,6 +34,8 @@ const TAG_PALETTE = [
 async function init() {
   const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
   const overlay = document.getElementById('loading-overlay');
+
+  showLocalLoading();
   
   try {
     const searchInput = document.getElementById("public-search");
@@ -41,7 +43,6 @@ async function init() {
       searchInput.addEventListener("input", handleSearch);
     }
 
-    // Adicionamos um cabeçalho simples para forçar a conexão
     const fetchOptions = {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
@@ -68,8 +69,11 @@ async function init() {
 
   } catch (err) {
     console.error("Erro ao carregar dados:", err);
+    const container = document.getElementById("catalog-content");
+    if (container) {
+        container.innerHTML = `<p class="text-red-500 text-center py-10 uppercase font-black text-xs">Erro ao conectar com o servidor.</p>`;
+    }
     if (overlay) overlay.remove();
-    render(); 
   }
 }
 
@@ -112,8 +116,11 @@ function changeView(view, cat = null, sub = null) {
 function handleSearch() {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
-    currentPage = 1;
-    render();
+    showLocalLoading();
+    setTimeout(() => {
+        currentPage = 1;
+        render();
+    }, 100);
   }, 400);
 }
 
@@ -129,14 +136,15 @@ function setAttrFilter(key, val) {
   render();
 }
 
-// --- NOVA FUNÇÃO: MOSTRAR LOADING NAS TRANSIÇÕES ---
 function showLocalLoading() {
     const container = document.getElementById("catalog-content");
     if (!container) return;
     container.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-20 w-full col-span-full animate-pulse">
-            <div class="w-10 h-10 border-4 border-accent/20 border-t-accent rounded-full animate-spin-custom mb-4"></div>
-            <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Buscando peças...</p>
+        <div class="flex flex-col items-center justify-center py-32 w-full col-span-full animate-in">
+            <span class="loader"></span>
+            <p class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mt-6 animate-pulse">
+                Sincronizando Catálogo...
+            </p>
         </div>
     `;
 }

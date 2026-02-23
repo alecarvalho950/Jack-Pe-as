@@ -145,8 +145,24 @@ function askDeleteCat(id, name) {
 }
 
 async function closeConfirm(confirmado) {
+    const btnSim = document.getElementById('confirm-yes');
+    const btnNao = document.querySelector('#custom-confirm button[onclick="closeConfirm(false)"]');
+    const originalText = "Sim, confirmar";
+
     if (confirmado) {
         if (deleteCatId) {
+            btnSim.disabled = true;
+            if (btnNao) btnNao.classList.add('opacity-0', 'pointer-events-none'); // Esconde o "Não" suavemente
+            btnSim.innerHTML = `
+                <div class="flex items-center justify-center gap-2">
+                    <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Excluindo...</span>
+                </div>
+            `;
+
             const token = localStorage.getItem('admin_token');
             try {
                 const res = await fetch(`${API_BASE_URL}/api/categories/${deleteCatId}`, { 
@@ -160,10 +176,11 @@ async function closeConfirm(confirmado) {
                     alert("Sua sessão expirou. Faça login novamente.");
                     window.location.href = 'login.html';
                 } else {
-                    console.error("Erro na resposta do servidor ao deletar");
+                    alert("Erro ao excluir. Tente novamente.");
                 }
             } catch (err) {
-                console.error("Erro ao conectar com a API para deletar:", err);
+                console.error("Erro ao conectar com a API:", err);
+                alert("Erro de conexão.");
             }
         } 
         else if (subToRemove) {
@@ -172,10 +189,12 @@ async function closeConfirm(confirmado) {
         }
     }
     
-    // Fecha o modal e limpa os IDs
     const modal = document.getElementById('custom-confirm');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
+    modal.classList.replace('flex', 'hidden');
+    
+    btnSim.disabled = false;
+    btnSim.innerText = originalText;
+    if (btnNao) btnNao.classList.remove('opacity-0', 'pointer-events-none');
     
     deleteCatId = null;
     subToRemove = null;

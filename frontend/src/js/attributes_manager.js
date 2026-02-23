@@ -275,11 +275,24 @@ function askDelete(id, name) {
 }
 
 async function closeConfirm(confirmado) {
-    if (confirmado && deleteId) {
+    const modal = document.getElementById('custom-confirm');
+    const btnConfirm = document.getElementById('confirm-yes');
+    const originalBtnText = "Sim, excluir";
 
+    if (confirmado && deleteId) {
         const token = localStorage.getItem('admin_token');
 
         try {
+            // 1. Feedback visual de carregamento no botão
+            if (btnConfirm) {
+                btnConfirm.disabled = true;
+                btnConfirm.innerHTML = `
+                    <svg class="animate-spin h-4 w-4 mr-2 border-t-2 border-white rounded-full inline-block" viewBox="0 0 24 24"></svg>
+                    EXCLUINDO...
+                `;
+                btnConfirm.classList.add('opacity-70', 'cursor-not-allowed');
+            }
+
             const res = await fetch(`${API_BASE_URL}/api/attributes/${deleteId}`, { 
                 method: 'DELETE',
                 headers: {
@@ -288,19 +301,33 @@ async function closeConfirm(confirmado) {
             });
 
             if (res.ok) {
+                // Sucesso: Fecha o modal e recarrega a lista
+                modal.classList.replace('flex', 'hidden');
                 loadAttributesList();
             } else if (res.status === 401 || res.status === 403) {
                 alert("Sessão expirada. Faça login novamente.");
                 window.location.href = 'login.html';
+            } else {
+                const errorData = await res.json();
+                alert(errorData.error || "Erro ao excluir atributo");
             }
         } catch (err) {
             console.error("Erro ao deletar:", err);
+            alert("Erro de conexão ao excluir.");
+        } finally {
+            // 2. Restaura o botão ao estado original
+            if (btnConfirm) {
+                btnConfirm.disabled = false;
+                btnConfirm.innerText = originalBtnText;
+                btnConfirm.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+            deleteId = null;
         }
+    } else {
+        // Se clicar em "Não" ou cancelar
+        modal.classList.replace('flex', 'hidden');
+        deleteId = null;
     }
-    const modal = document.getElementById('custom-confirm');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
-    deleteId = null;
 }
 
 // Escuta a tecla Enter no input de opções

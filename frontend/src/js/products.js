@@ -651,28 +651,61 @@ function deleteProduct(id) {
     const p = allProducts.find(item => item._id === id);
     if (!p) return;
     productToDeleteId = id;
-    document.getElementById('delete-modal-msg').innerText = `Deseja realmente excluir o produto "${p.name}"?`;
+
+    const msgElement = document.getElementById('delete-modal-msg');
+    if (msgElement) {
+        msgElement.innerHTML = `Deseja realmente excluir o produto <br><b class="text-white">${p.name}</b>?`;
+    }
+
     document.getElementById('delete-modal').classList.remove('hidden');
 }
 
 async function confirmDelete() {
     const token = localStorage.getItem('admin_token');
+    const btnConfirm = document.getElementById('confirm-delete-btn');
+    const originalBtnText = "Sim, Excluir";
+
     try {
-        const res = await fetch(`${API_BASE_URL}/api/products/${productToDeleteId}`, { 
+        if (btnConfirm) {
+            btnConfirm.disabled = true;
+            btnConfirm.innerHTML = `
+                <span class="inline-block animate-spin mr-2">⏳</span> EXCLUINDO...
+            `;
+            btnConfirm.classList.replace('bg-red-600', 'bg-red-800');
+        }
+
+        const res = await fetch(`${API_BASE_URL}/api/products/${productToDeleteId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
+
         if (res.ok) {
-            showNotification("Produto removido!");
-            document.getElementById('delete-modal').classList.add('hidden');
+            showNotification("Produto removido com sucesso!");
+            closeDeleteModal(); 
             loadInitialData(currentPage);
         } else if (res.status === 401 || res.status === 403) {
-            alert("Acesso negado. Faça login novamente.");
+            alert("Sessão expirada. Faça login novamente.");
             window.location.href = 'login.html';
+        } else {
+            const errorData = await res.json();
+            showNotification(errorData.error || "Erro ao excluir", "error");
         }
-    } catch (err) { showNotification("Erro ao excluir", "error"); }
+    } catch (err) {
+        showNotification("Erro de conexão", "error");
+    } finally {
+        if (btnConfirm) {
+            btnConfirm.disabled = false;
+            btnConfirm.innerText = originalBtnText;
+            btnConfirm.classList.replace('bg-red-800', 'bg-red-600');
+        }
+    }
+}
+
+function closeDeleteModal() {
+    document.getElementById('delete-modal').classList.add('hidden');
+    productToDeleteId = null;
 }
 
 function showNotification(message, type = 'success') {
@@ -750,7 +783,6 @@ if (row.Preço) {
                     hasVariations: false
                 };
 
-                // Captura Atributos Extras (Qualidade, Modelo, Taxa, etc)
                 const camposFixos = ['SKU', 'Nome do Produto', 'Tipo', 'Preço', 'Estoque', 'Categoria', 'Subcategoria'];
                 Object.keys(row).forEach(key => {
                     if (!camposFixos.includes(key) && row[key] !== undefined && row[key] !== "") {
@@ -760,24 +792,24 @@ if (row.Preço) {
 
                 if (tipo === 'Pai') {
                     p.hasVariations = true;
-                    p.stock = 0; // Começa em 0 para somar os filhos abaixo
+                    p.stock = 0;
                     currentParentSku = sku;
                     productsMap[sku] = p;
                 } 
                else if (tipo === 'Var' && currentParentSku && productsMap[currentParentSku]) {
-    let nomeCompleto = p.name; // Ex: "Versão:M15"
-    let tipoVar = 'Cor'; // Valor padrão caso não tenha :
+    let nomeCompleto = p.name;
+    let tipoVar = 'Cor'; 
     let valorVar = nomeCompleto;
 
     if (nomeCompleto.includes(':')) {
         const partes = nomeCompleto.split(':');
-        tipoVar = partes[0].trim();  // Pega "Versão"
-        valorVar = partes[1].trim(); // Pega "M15"
+        tipoVar = partes[0].trim(); 
+        valorVar = partes[1].trim(); 
     }
     
     productsMap[currentParentSku].variations.push({
         sku: p.sku,
-        type: tipoVar, // Agora salva "Versão" dinamicamente
+        type: tipoVar, 
         value: valorVar,
         price: p.price,
         stock: p.stock
@@ -805,7 +837,6 @@ if (row.Preço) {
     };
     reader.readAsArrayBuffer(file);
 }
-// Atualize também o sendBatch para mostrar números reais
 async function sendBatch(products) {
     const token = localStorage.getItem('admin_token');
     try {
