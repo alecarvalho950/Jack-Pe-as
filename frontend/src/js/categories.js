@@ -12,6 +12,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- CARREGAMENTO E RENDERIZAÇÃO ---
 
 async function loadCategoriesList() {
+    const container = document.getElementById('categories-list-display');
+    if (container) {
+        container.innerHTML = `
+            <div class="loading-state col-span-full">
+                <span class="loader"></span>
+                <p class="text-gray-400 animate-pulse">Buscando categorias no servidor...</p>
+            </div>
+        `;
+    }
     try {
         const token = localStorage.getItem('admin_token');
         const headers = { 'Authorization': `Bearer ${token}` };
@@ -27,46 +36,56 @@ async function loadCategoriesList() {
         // AJUSTE CRITICAL: Garante que allProducts seja um Array
         allProducts = productData.products ? productData.products : productData;
         
-        const container = document.getElementById('categories-list-display');
         if(!container) return;
         container.innerHTML = '';
 
         categories.forEach(cat => {
-            const data = encodeURIComponent(JSON.stringify(cat));
-            const totalInCat = allProducts.filter(p => p.category === cat.name).length;
+    const data = encodeURIComponent(JSON.stringify(cat));
+    const totalInCat = allProducts.filter(p => p.category === cat.name).length;
 
-            container.innerHTML += `
-                <div class="bg-[#111827] p-6 rounded-2xl border border-gray-800 hover:border-accent/40 transition group relative shadow-lg">
-                    <div class="flex justify-between items-start mb-6">
-                        <div>
-                            <h3 class="text-xl font-bold text-white flex items-center gap-2">
-                                ${cat.name}
-                                <span class="text-[10px] bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded-full">${totalInCat} itens</span>
-                            </h3>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="editCategory('${data}')" class="p-2 hover:bg-blue-500/10 rounded-lg text-blue-400 transition">✏️</button>
-                            <button onclick="askDeleteCat('${cat._id}', '${cat.name}')" class="p-2 hover:bg-red-500/10 rounded-lg text-red-500 transition">🗑️</button>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        ${cat.subcategories.map(sub => {
-                            const count = allProducts.filter(p => p.category === cat.name && p.subcategory === sub).length;
-                            return `
-                                <div class="bg-gray-800/40 border border-gray-700/50 p-2 rounded-lg flex justify-between items-center">
-                                    <span class="text-xs text-gray-400">${sub}</span>
-                                    <span class="text-[10px] font-bold ${count > 0 ? 'text-accent' : 'text-gray-600'}">${count}</span>
-                                </div>`;
-                        }).join('')}
-                    </div>
-                </div>`;
-        });
+    container.innerHTML += `
+        <div class="bg-[#111827] p-6 rounded-2xl border border-gray-800 hover:border-accent/40 transition group relative shadow-lg">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        ${cat.name}
+                        <span class="text-[10px] bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded-full">${totalInCat} itens</span>
+                    </h3>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="editCategory('${data}')" 
+                        class="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl hover:bg-blue-500 hover:text-white transition-all duration-300" 
+                        title="Editar Categoria">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </button>
+
+                    <button onclick="askDeleteCat('${cat._id}', '${cat.name}')" 
+                        class="p-2.5 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all duration-300" 
+                        title="Excluir Categoria">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                ${cat.subcategories.map(sub => {
+                    const count = allProducts.filter(p => p.category === cat.name && p.subcategory === sub).length;
+                    return `
+                        <div class="bg-gray-800/40 border border-gray-700/50 p-2 rounded-lg flex justify-between items-center">
+                            <span class="text-xs text-gray-400">${sub}</span>
+                            <span class="text-[10px] font-bold ${count > 0 ? 'text-accent' : 'text-gray-600'}">${count}</span>
+                        </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+});
     } catch (err) { 
         console.error("Erro ao carregar categorias:", err); 
     }
 }
-
-// --- GESTÃO DE SUBCATEGORIAS (TAGS) ---
 
 function renderSubTags() {
     const container = document.getElementById('sub-tags');
@@ -97,8 +116,6 @@ function askRemoveSub(subName) {
     document.getElementById('custom-confirm').classList.replace('hidden', 'flex');
 }
 
-// --- MODAIS E ALERTAS ---
-
 function showLockedAlert(msg) {
     document.getElementById('alert-msg').innerHTML = msg;
     document.getElementById('alert-modal').classList.replace('hidden', 'flex');
@@ -116,8 +133,8 @@ function askDeleteCat(id, name) {
         return;
     }
 
-    deleteCatId = id; // Armazena o ID do MongoDB
-    subToRemove = null; // Garante que não vai remover uma subcategoria por engano
+    deleteCatId = id;
+    subToRemove = null;
     
     document.getElementById('confirm-msg').innerHTML = `Tem certeza que deseja excluir a categoria <strong>${name}</strong>?`;
     
@@ -213,17 +230,30 @@ function closeCatForm() {
 }
 
 async function saveFullCategory() {
-    const name = document.getElementById('cat-name').value.trim();
+    const nameInput = document.getElementById('cat-name');
+    const name = nameInput.value.trim();
+    const saveBtn = document.getElementById('cat-save-btn');
+    const originalBtnText = saveBtn.innerHTML;
+
     if (!name || currentSubcategories.length === 0) {
-        showLockedAlert("Preencha o nome da categoria e adicione subcategorias.");
+        showLockedAlert("Preencha o nome da categoria e adicione pelo menos uma subcategoria.");
         return;
     }
 
-    const payload = { name, subcategories: currentSubcategories };
-    const method = editingCatId ? 'PUT' : 'POST';
-    const url = editingCatId ? `${API_BASE_URL}/api/categories/${editingCatId}` : `${API_BASE_URL}/api/categories`;
-    const token = localStorage.getItem('admin_token');
     try {
+        // 2. EFEITO NO BOTÃO AO SALVAR (ESTILO PRODUTOS)
+        saveBtn.disabled = true;
+        saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        saveBtn.innerHTML = `
+            <svg class="animate-spin h-4 w-4 mr-2 border-t-2 border-white rounded-full inline-block" viewBox="0 0 24 24"></svg>
+            SALVANDO...
+        `;
+
+        const payload = { name, subcategories: currentSubcategories };
+        const method = editingCatId ? 'PUT' : 'POST';
+        const url = editingCatId ? `${API_BASE_URL}/api/categories/${editingCatId}` : `${API_BASE_URL}/api/categories`;
+        const token = localStorage.getItem('admin_token');
+
         const res = await fetch(url, {
             method,
             headers: { 
@@ -235,16 +265,22 @@ async function saveFullCategory() {
 
         if (res.ok) {
             closeCatForm(); 
-            loadCategoriesList();
+            await loadCategoriesList();
         } else if (res.status === 401 || res.status === 403) {
             alert("Sua sessão expirou. Por favor, faça login novamente.");
             window.location.href = 'login.html';
         } else {
             const errorData = await res.json();
-            alert("Erro ao salvar: " + errorData.message);
+            alert("Erro ao salvar: " + (errorData.message || "Erro desconhecido"));
         }
     } catch (err) { 
-        console.error("Erro ao salvar categoria:", err); 
+        console.error("Erro ao salvar categoria:", err);
+        alert("Erro de conexão com o servidor.");
+    } finally {
+        // 3. RESTAURA O BOTÃO
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        saveBtn.innerHTML = originalBtnText;
     }
 }
 

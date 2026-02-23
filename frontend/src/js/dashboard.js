@@ -2,8 +2,22 @@
 const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
 
 async function loadStats() {
+  const grid = document.querySelector('.grid');
+    const totalElement = document.getElementById('total-count');
+
+    // 1. ESTADO DE CARREGAMENTO (SPINNER)
+    if (grid) {
+        grid.innerHTML = `
+            <div class="col-span-full flex flex-col items-center justify-center py-20 gap-4">
+                <span class="loader"></span>
+                <p class="text-gray-400 animate-pulse font-bold text-sm tracking-widest uppercase">Carregando Estatísticas...</p>
+            </div>
+        `;
+    }
+    
+    if (totalElement) totalElement.innerText = "...";
+
   try {
-    // Recupera o token para caso a rota seja protegida
     const token = localStorage.getItem('admin_token');
 
     const response = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
@@ -25,13 +39,10 @@ async function loadStats() {
     const data = await response.json();
 
     // Atualiza o contador total
-    const totalElement = document.getElementById('total-count');
-    if (totalElement) totalElement.innerText = data.total;
+    if (totalElement) totalElement.innerText = data.total || 0;
 
-    const grid = document.querySelector('.grid');
     if (!grid) return;
-
-    grid.innerHTML = ''; // Limpa o grid para reconstruir
+    grid.innerHTML = '';
 
     // Pegamos as chaves (nomes das categorias)
     const categoryNames = Object.keys(data.categories || {});
@@ -56,10 +67,16 @@ async function loadStats() {
       `;
     });
   } catch (err) {
-    console.error("Erro ao carregar stats:", err);
-    const grid = document.querySelector('.grid');
-    if (grid) grid.innerHTML = '<p class="col-span-full text-red-500 text-center">Erro ao conectar com o servidor.</p>';
-  }
+        console.error("Erro ao carregar stats:", err);
+        if (grid) {
+            grid.innerHTML = `
+                <div class="col-span-full text-center py-10">
+                    <p class="text-red-500 font-bold uppercase tracking-widest text-sm">⚠️ Erro ao conectar com o servidor</p>
+                    <button onclick="loadStats()" class="mt-4 px-4 py-2 bg-gray-800 rounded-lg text-xs text-accent hover:bg-gray-700 transition uppercase font-bold">Tentar novamente</button>
+                </div>
+            `;
+        }
+    }
 }
 
 // Inicia a carga de dados
