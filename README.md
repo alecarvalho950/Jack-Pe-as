@@ -1,100 +1,78 @@
-# 🚀 Jack Peças - Sistema de Gestão de Inventário
+# 🚀 Jack Peças - Sistema Integrado de Inventário e Catálogo Digital
 
-Este projeto é uma solução completa para gerenciamento de estoque e catálogo de peças (focado em displays e baterias). O sistema é composto por um **Painel Administrativo** robusto para controle total do inventário e uma estrutura preparada para alimentar um **Site de Clientes**.
-
----
-
-## 📋 Índice
-* [Visão Geral do Projeto](#-visão-geral-do-projeto)
-* [Tecnologias Utilizadas](#-tecnologias-utilizadas)
-* [Funcionalidades Principais](#-funcionalidades-principais)
-* [Gestão de Mídia (Imagens)](#-gestão-de-mídia-imagens)
-* [Como Rodar o Projeto](#-como-rodar-o-projeto)
-* [Estrutura de Arquivos](#-estrutura-de-arquivos)
+Este projeto nasceu de uma necessidade real de mercado: modernizar a gestão de estoque e a vitrine digital da **Jack Peças**. A solução substitui processos manuais e custos com plataformas de terceiros por um sistema personalizado, escalável e de alto desempenho.
 
 ---
 
-## 🔍 Visão Geral do Projeto
+## 📸 Demonstração do Sistema
 
-O sistema foi desenhado para resolver a complexidade de produtos que possuem múltiplas variações técnicos (atributos) e categorias ramificadas.
+### Catálogo de Produtos (Visão do Cliente)
 
-### 1. Painel Administrativo (Admin)
-* **Gestão de Produtos:** Cadastro completo com SKU, Preço, Estoque e upload de Imagem.
-* **Gerenciador de Atributos:** Criação dinâmica de campos (ex: Qualidade, Modelo, Tipo de Tela) que aparecem no cadastro conforme a categoria selecionada.
-* **Categorias e Subcategorias:** Organização hierárquica (ex: Telas Displays -> iPhone -> iPhone 13).
-* **Dashboard de Estatísticas:** Resumo em tempo real do total de itens e distribuição por categoria.
+| Visualização Desktop | Visualização Mobile |
+| :---: | :---: |
+| <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1772578043/Pagina_inicial_-_Jack_Pe%C3%A7as_1_jac4xf.png" width="800px" /> | <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1772578264/Catalogo_de_produtos_1_cni2vw.jpg" width="200px" height="400px" /> |
+| <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1772578043/Pagina_inicial_-_Jack_Pe%C3%A7as_2_hddzxq.png" width="800px" /> | <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1772578264/Catalogo_de_produtos_3_tcaqsg.jpg" width="200px" height="400px" /> |
 
-### 2. Fluxo do Cliente
-* **API Dinâmica:** O catálogo de produtos é servido via JSON, permitindo que o site do cliente esteja sempre atualizado com o estoque real.
-* **Filtros Inteligentes:** Preparado para filtragem por subcategorias e atributos técnicos.
 
 ---
 
-## 🛠 Tecnologias Utilizadas
+## 🔗 Acesse o Projeto
+O sistema está publicado e pode ser visualizado nos links abaixo:
 
-### **Backend**
-* **Node.js & Express:** Framework para a construção da API REST.
-* **Multer:** Middleware para processamento de `multipart/form-data` (Upload de fotos).
-* **Dotenv:** Proteção de dados sensíveis (E-mail e Senha do Admin).
-* **FS (File System) & Path:** Gerenciamento de diretórios e exclusão de arquivos físicos.
-
-### **Frontend (Administrativo)**
-* **JavaScript (ES6+):** Manipulação de DOM e requisições assíncronas (`fetch`).
-* **Tailwind CSS:** Framework utilitário para uma interface moderna e responsiva.
-* **HTML5:** Estrutura semântica dos componentes.
+* **🛒 Catálogo de Produtos (Frontend):** [https://jack-pe-as.vercel.app/](https://jack-pe-as.vercel.app/)
+* **⚙️ API/Backend (Railway):** Hospedado em infraestrutura de alta disponibilidade.
 
 ---
 
-## 📸 Gestão de Mídia (Imagens)
+## 🔍 Visão Geral e Impacto no Negócio
 
-O sistema possui uma lógica inteligente de manutenção de arquivos para evitar acúmulo de lixo digital no servidor:
+Antes deste sistema, a loja dependia de tabelas estáticas e gerenciadores de catálogo externos, o que dificultava a visualização dos produtos via mobile e gerava insatisfação do cliente. 
 
-1.  **Upload Automatizado:** As imagens são salvas em `uploads/produtos/` com nomes únicos baseados em `Date.now()` para evitar sobreposição.
-2.  **Sincronização na Edição:** Ao atualizar a foto de um produto, o servidor identifica o arquivo antigo e o remove do disco permanentemente antes de salvar o novo.
-3.  **Limpeza na Exclusão:** Ao deletar um produto do banco de dados, a imagem vinculada a ele é automaticamente excluída da pasta de uploads.
-
----
-
-## ⚙️ Como Rodar o Projeto
-
-1.  **Clone o repositório:**
-    ```bash
-    git clone [https://github.com/SEU_USUARIO/jack-pecas.git](https://github.com/SEU_USUARIO/jack-pecas.git)
-    ```
-
-2.  **Instale as dependências:**
-    ```bash
-    npm install
-    ```
-
-3.  **Configure as Variáveis de Ambiente:**
-    Crie um arquivo `.env` na raiz do projeto:
-    ```env
-    ADMIN_EMAIL=seu-email@exemplo.com
-    ADMIN_PASSWORD=sua-senha-segura
-    ```
-
-4.  **Inicie o servidor:**
-    ```bash
-    node index.js
-    ```
-
-5.  **Acesse o sistema:**
-    O backend rodará em `http://localhost:3000`.
+O projeto foi desenvolvido para entregar:
+* **Independência Tecnológica:** Redução imediata de custos com plataformas de terceiros (*SaaS*).
+* **Experiência do Usuário (UX):** Um catálogo fluido, focado em dispositivos móveis, para que o cliente encontre a peça certa em segundos.
+* **Gestão Dinâmica:** Um painel administrativo que permite o controle total de atributos técnicos, categorias e subcategorias de forma personalizada.
 
 ---
 
-## 📂 Estrutura de Arquivos
+## 🛠 Tecnologias Utilizadas e Porquê?
 
-```text
-├── uploads/             # Pasta física das imagens dos produtos
-├── public/              # Interface do Usuário (HTML/JS)
-│   ├── js/
-│   │   ├── attributes_manager.js  # Gestão de campos dinâmicos
-│   │   ├── categories.js         # Gestão de categorias/subcategorias
-│   │   └── dashboard.js          # Lógica principal do inventário
-│   └── dashboard.html   # HTML do painel administrativo
-├── index.js             # API Express com todas as rotas de controle
-├── .env                 # Credenciais privadas
-├── .gitignore           # Filtro para não enviar node_modules e fotos ao Git
-└── package.json         # Manifesto do projeto e dependências
+A escolha da *stack* tecnológica foi pensada para garantir um sistema leve, rápido e com custo de manutenção zero para o cliente.
+
+### **Frontend (Interface)**
+* **JavaScript (ES6+):** Utilizado para criar uma experiência dinâmica, realizando comunicações assíncronas com a API sem recarregar a página.
+* **Tailwind CSS:** Escolhido pela agilidade no desenvolvimento e pela garantia de um design responsivo e moderno, essencial para o acesso via smartphones.
+* **HTML5 Semântico:** Para garantir acessibilidade e uma boa estrutura de dados.
+
+### **Backend (API)**
+* **Node.js & Express:** Frameworks de alta performance que permitem lidar com múltiplas requisições de forma rápida, ideal para um catálogo de consulta constante.
+* **MongoDB Atlas:** Banco de dados NoSQL escolhido pela flexibilidade. Como peças de smartphones possuem diferentes especificações, o NoSQL permite armazenar esses dados variados sem "travar" a estrutura do banco.
+* **Cloudinary (CDN de Mídia):** Utilizado para o armazenamento e otimização das imagens dos produtos, garantindo que as fotos carreguem instantaneamente em qualquer dispositivo.
+* **JWT (JSON Web Token):** Implementado para garantir que apenas administradores autorizados possam alterar o inventário.
+
+### **Infraestrutura (Cloud)**
+* **Vercel:** Hospedagem do Frontend para garantir carregamento instantâneo.
+* **Railway:** Plataforma de nuvem utilizada para o deploy da API, garantindo que o servidor esteja sempre disponível com monitoramento em tempo real.
+
+---
+
+## 💡 Funcionalidades Principais
+
+* **Gerenciador de Atributos Dinâmicos:** O sistema permite criar campos personalizados (ex: "Qualidade da Tela") que aparecem no cadastro apenas quando a categoria correspondente é selecionada.
+* **Busca Inteligente:** Filtros por categorias e subcategorias que facilitam a navegação do cliente final.
+* **Dashboard em Tempo Real:** Resumo estatístico da quantidade de produtos cadastrados em cada categoria.
+* **Gestão Inteligente de Mídia:** Lógica de backend que remove automaticamente fotos antigas do servidor quando um produto é editado ou excluído, evitando desperdício de armazenamento.
+
+---
+
+## 📈 Futuro do Projeto
+
+O sistema foi arquitetado de forma modular, o que permite que ele evolua para um **ERP completo**, integrando futuramente módulos de vendas, controle financeiro e emissão de notas fiscais, tornando-se o coração tecnológico da Jack Peças.
+
+---
+
+### 🌟 Diferencial Acadêmico
+Este é um projeto de ciclo completo (**Full Stack**), cobrindo desde o levantamento de requisitos com o cliente local até o deploy final em ambientes de produção na nuvem. Representa a aplicação prática da tecnologia para resolver problemas reais de pequenos empreendedores.
+
+---
+Desenvolvido por Alejandro Carvalho - 2026
