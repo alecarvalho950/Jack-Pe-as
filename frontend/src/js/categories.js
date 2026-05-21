@@ -3,8 +3,8 @@ let editingCatId = null; // Agora armazenará a String do _id
 let deleteCatId = null; 
 let subToRemove = null; 
 let allProducts = [];
-//const API_BASE_URL = "https://jack-pe-as-production.up.railway.app";
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
+//const API_BASE_URL = "http://localhost:3000";
 
 document.addEventListener('DOMContentLoaded', () => {
     loadCategoriesList();
