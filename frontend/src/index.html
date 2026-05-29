@@ -43,46 +43,45 @@
         select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.7rem center; background-size: 1em; }
 
         .gpu-card {
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
-        transform: translateZ(0);
-        -webkit-transform: translateZ(0);
-    }
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+        }
 
         #catalog-content {
-        contain: paint;
-        min-height: 100vh;
-    }
+            contain: paint;
+            min-height: 100vh;
+        }
 
-    .text-gray-500 {
-    color: #a1a1aa !important;
-}
+        .text-gray-500 {
+            color: #a1a1aa !important;
+        }
 
-#filter-bar {
-    background-color: rgba(10, 15, 26, 1) !important;
-    backdrop-filter: none !important;
-}
+        #filter-bar {
+            background-color: rgba(10, 15, 26, 1) !important;
+            backdrop-filter: none !important;
+        }
 
-button.whitespace-nowrap {
-    color: #ffffff !important;
-    background-color: rgba(251, 191, 36, 0.15) !important;
-    border: 1px solid rgba(251, 191, 36, 0.3) !important;
+        button.whitespace-nowrap {
+            color: #ffffff;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
 
-.loader {
-        width: 48px;
-        height: 48px;
-        border: 3px solid rgba(255, 255, 255, 0.1);
-        border-bottom-color: #fbbf24; /* Cor Accent */
-        border-radius: 50%;
-        display: inline-block;
-        animation: rotation 1s linear infinite;
-    }
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-bottom-color: #fbbf24; /* Cor Accent */
+            border-radius: 50%;
+            display: inline-block;
+            animation: rotation 1s linear infinite;
+        }
 
-    @keyframes rotation {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-}
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans">

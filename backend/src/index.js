@@ -199,7 +199,9 @@ async function syncProductsFromBling() {
             let finalSub = null;
 
             // --- MAPEAMENTO DE CATEGORIAS ---
-            if (productName.includes("TELA FRONTAL") || productName.includes("FRONTAL")) {
+            if ((productName.includes("TELA FRONTAL") || productName.includes("FRONTAL")) && 
+                !productName.includes("FLEX CÂMERA")
+            ) {
                 finalCat = "Telas";
                 if (productName.includes("IPHONE")) finalSub = "Telas Iphone";
                 else if (productName.includes("SAMSUNG")) finalSub = "Telas Samsung";

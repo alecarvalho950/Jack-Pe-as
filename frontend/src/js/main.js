@@ -86,18 +86,36 @@ function resetAll() {
 
 function renderQuickNav() {
   const nav = document.getElementById("quick-nav");
-  nav.innerHTML =
-    `<button onclick="changeView('HOME')" class="whitespace-nowrap px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${currentView === "HOME" ? "bg-accent text-black" : "text-gray-500 hover:text-white"}">Tudo</button>` +
-    categories
-      .map(
-        (cat) =>
-          `<button onclick="changeView('CATEGORY', '${cat.name}')" class="whitespace-nowrap px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${activeCat === cat.name && currentView !== "HOME" ? "bg-accent text-black" : "text-gray-500 hover:text-white"}">${cat.name}</button>`,
-      )
-      .join("");
+  if (!nav) return;
+
+  const isHomeActive = currentView === "HOME" || !activeCat;
+
+  const styleInactive = "bg-accent/10 border border-accent/20 text-white hover:bg-accent/20";
+  const styleActive = "bg-accent border border-accent text-dark font-black shadow-lg shadow-accent/20";
+
+  let html = `<button onclick="resetAll()" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${isHomeActive ? styleActive : styleInactive}">Tudo</button>`;
+
+  const categoriesList = Array.isArray(categories) ? categories : [];
+
+  html += categoriesList
+    .map((cat) => {
+      const categoryName = typeof cat === 'object' && cat !== null ? (cat.name || cat.categoria || "") : cat;
+      
+      if (!categoryName) return ""; 
+
+      const isCurrentCat = !isHomeActive && activeCat && categoryName && activeCat.trim().toLowerCase() === categoryName.trim().toLowerCase();
+      
+      const currentStyle = isCurrentCat ? styleActive : styleInactive;
+
+      return `<button onclick="changeView('CATEGORY', '${categoryName}')" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${currentStyle}">${categoryName}</button>`;
+    })
+    .join("");
+
+  nav.innerHTML = html;
 }
 
 function changeView(view, cat = null, sub = null) {
-  showLocalLoading(); // Feedback imediato ao clicar
+  showLocalLoading(); 
   
   setTimeout(() => {
       currentView = view;
@@ -105,6 +123,7 @@ function changeView(view, cat = null, sub = null) {
       activeSub = sub;
       if (view === "HOME") activeFilters = {};
       currentPage = 1;
+
       render();
       renderQuickNav();
 
@@ -192,7 +211,12 @@ function render() {
     filtered = filtered.filter((p) => p.attributes && p.attributes[key] === activeFilters[key]);
   });
 
+  // 🚫 Só mostra os seletores de atributos (Modelos, Cores, etc.) se tiver uma categoria ativa (sai do "Tudo")
+if (activeCat && currentView !== "HOME") {
   renderAttributeSelectors(filtered, attrBox);
+} else {
+  attrBox.innerHTML = ""; // Garante que fica totalmente limpo na Home ("Tudo")
+}
 
   if (activeCat) {
     brandBox.classList.remove("hidden");
@@ -326,6 +350,18 @@ function renderCard(p) {
     const img = p.image ? p.image : null;
     const hasVars = p.hasVariations && p.variations?.length > 0;
 
+    // Lógica para verificar o estoque geral do produto (ou se todas as variações estão zeradas)
+    let isOutOfStock = false;
+    if (hasVars) {
+        // Se tem variações, verifica se a soma de todos os estoques é zero
+        const totalStock = p.variations.reduce((acc, v) => acc + (v.stock || 0), 0);
+        isOutOfStock = totalStock <= 0;
+    } else {
+        // Produto simples: considera a propriedade stock (ou estoque)
+        const currentStock = p.stock !== undefined ? p.stock : (p.estoque !== undefined ? p.estoque : 0);
+        isOutOfStock = currentStock <= 0;
+    }
+
     // Lógica para agrupar variações por tipo
     let variacoesAgrupadas = "";
     if (hasVars) {
@@ -333,7 +369,6 @@ function renderCard(p) {
         p.variations.forEach(v => {
             if (v.type && v.value) {
                 if (!grupos[v.type]) grupos[v.type] = [];
-                // Evita duplicatas no agrupamento
                 if (!grupos[v.type].includes(v.value)) {
                     grupos[v.type].push(v.value);
                 }
@@ -349,8 +384,22 @@ function renderCard(p) {
         ? Math.min(...p.variations.map((v) => v.price || p.price))
         : p.price;
 
+    // Classes dinâmicas para o card caso esteja sem estoque
+    const stockCardClasses = isOutOfStock 
+        ? "opacity-60 grayscale-[40%] border-gray-900 shadow-none pointer-events-none" 
+        : "hover:border-accent/40 group shadow-lg";
+
     return `
-        <div class="gpu-card bg-card border border-gray-800 rounded-3xl overflow-hidden flex flex-col h-full hover:border-accent/40 transition-all duration-300 group shadow-lg">
+        <div class="gpu-card bg-card border border-gray-800 rounded-3xl overflow-hidden flex flex-col h-full relative transition-all duration-300 ${stockCardClasses}">
+            
+            ${/* 🏷️ FAIXA DE SEM ESTOQUE COLOQUER EM CIMA DO CARD */
+              isOutOfStock 
+                ? `<div class="absolute top-3 left-3 z-10 bg-rose-600/90 border border-rose-500 text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-md shadow-md animate-pulse">
+                    Sem Estoque
+                   </div>`
+                : ""
+            }
+
             <div class="aspect-square bg-gray-900 overflow-hidden relative border-b border-gray-800/50">
                 ${
                   img
@@ -359,14 +408,14 @@ function renderCard(p) {
                         loading="lazy" 
                         decoding="async"
                         width="400" height="400"
-                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">`
+                        class="w-full h-full object-cover ${!isOutOfStock ? 'group-hover:scale-110' : ''} transition-transform duration-700">`
                     : `<div class="w-full h-full flex items-center justify-center text-[9px] font-black text-gray-700 uppercase italic">S/ Imagem</div>`
                 }
             </div>
 
             <div class="p-4 md:p-5 flex flex-col flex-grow space-y-3 md:space-y-4">
                 
-                <h4 class="text-xs md:text-base font-bold text-white leading-tight group-hover:text-accent transition-colors duration-300 line-clamp-2 md:line-clamp-3">
+                <h4 class="text-xs md:text-base font-bold text-white leading-tight ${!isOutOfStock ? 'group-hover:text-accent' : 'text-gray-400'} transition-colors duration-300 line-clamp-2 md:line-clamp-3">
                     ${p.name}
                 </h4>
 
@@ -376,7 +425,6 @@ function renderCard(p) {
                         ? Object.entries(p.attributes)
                             .map(([key, val]) => {
                               if (!val) return "";
-                              // AQUI: Usando a função getTagStyle em vez do COLOR_MAP estático
                               const badgeStyle = getTagStyle(val); 
                               return `<span class="px-2 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[9px] font-bold border uppercase tracking-wide ${badgeStyle}">${val}</span>`;
                             })
@@ -401,7 +449,7 @@ function renderCard(p) {
                         <span class="text-[8px] md:text-[9px] font-black text-gray-500 uppercase tracking-tighter">
                             ${hasVars ? 'A partir de' : 'Preço:'}
                         </span>
-                        <p class="text-xl md:text-2xl font-black text-accent font-mono leading-none mt-1">
+                        <p class="text-xl md:text-2xl font-black ${isOutOfStock ? 'text-gray-500' : 'text-accent'} font-mono leading-none mt-1">
                             <span class="text-[10px] md:text-xs mr-0.5">R$</span>${parseFloat(displayPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </p>
                     </div>
