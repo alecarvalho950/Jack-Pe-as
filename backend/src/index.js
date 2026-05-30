@@ -29,7 +29,7 @@ mongoose.connect(process.env.MONGO_URI)
     })
     .catch((err) => console.error("❌ Erro ao conectar ao MongoDB:", err));
 
-// --- SCHEMAS E MODELOS (DEFINIDOS NO TOPO) ---
+// --- SCHEMAS E MODELOS ---
 
 const blingTokenSchema = new mongoose.Schema({
     access_token: String,
@@ -52,7 +52,7 @@ const attributeSchema = new mongoose.Schema({
 });
 const Attribute = mongoose.model('Attribute', attributeSchema);
 
-// 📑 CRIADO SUB-SCHEMA SEGURO PARA AS VARIAÇÕES: Evita o CastError
+// Sub-schema seguro para evitar CastError nas variações
 const variationItemSchema = new mongoose.Schema({
     sku: { type: String },
     name: { type: String },
@@ -60,7 +60,7 @@ const variationItemSchema = new mongoose.Schema({
     stock: { type: Number, default: 0 },
     type: { type: String },
     value: { type: String }
-}, { _id: false }); // _id: false evita que o Mongo crie um ID para cada cor de variação desnecessariamente
+}, { _id: false });
 
 const productSchema = new mongoose.Schema({
     blingId: { type: String, unique: true, sparse: true }, 
@@ -71,18 +71,40 @@ const productSchema = new mongoose.Schema({
     category: { type: String },
     subcategory: { type: String },
     hasVariations: { type: Boolean, default: false },
-    variations: [variationItemSchema], // 👈 Vinculado ao sub-schema estruturado
+    variations: [variationItemSchema],
     image: { type: String, default: null },
     attributes: { type: Map, of: String, default: {} },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
-
 const Product = mongoose.model('Product', productSchema);
 
-// --- FUNÇÃO DE SINCRONIZAÇÃO (BLING -> MONGODB) ---
+const analyticsSchema = new mongoose.Schema({
+    type: { 
+        type: String, 
+        required: true, 
+        enum: ['pageview', 'click_whatsapp'] 
+    },
+    location: { 
+        type: String, 
+        required: true, 
+        enum: ['sao_roque', 'cotia', 'ibiuna', 'geral'],
+        default: 'geral' 
+    },
+    isNewUser: { 
+        type: Boolean, 
+        required: true, 
+        default: false 
+    },
+    createdAt: { 
+        type: Date, 
+        default: Date.now 
+    }
+});
+analyticsSchema.index({ createdAt: 1 });
+const Analytics = mongoose.model('Analytics', analyticsSchema);
 
-// Substitua a função de Sincronização por esta no seu index.js:
+// --- FUNÇÃO DE SINCRONIZAÇÃO (BLING -> MONGODB) ---
 async function syncProductsFromBling() {
     console.log("🔄 Iniciando sincronização dinâmica por ID com Variações e Auto-Delete...");
     try {
@@ -93,7 +115,7 @@ async function syncProductsFromBling() {
 
         let accessToken = tokenData.access_token;
 
-        // --- RENOVAÇÃO DE TOKEN (MANTIDA) ---
+        // --- RENOVAÇÃO DE TOKEN ---
         if (!tokenData.expires_at || new Date(Date.now() + 60000) > tokenData.expires_at) {
             console.log("🔄 Token expirado ou próximo de expirar. Renovando acesso...");
             const credentials = Buffer.from(`${process.env.BLING_CLIENT_ID}:${process.env.BLING_CLIENT_SECRET}`).toString('base64');
@@ -110,7 +132,6 @@ async function syncProductsFromBling() {
             console.log("✅ Token Bling renovado com sucesso!");
         }
 
-        // 1. PASSO: Paginação para coletar tudo que está ativo no Bling
         let pagina = 1;
         let temMaisProdutos = true;
         let productsFromBling = [];
@@ -144,13 +165,11 @@ async function syncProductsFromBling() {
 
         console.log(`✅ Coleta concluída! Total bruto de itens estruturais: ${productsFromBling.length}`);
 
-        // 2. PASSO: Buscar depósitos ativos
         const responseDepositos = await axios.get('https://api.bling.com.br/Api/v3/depositos?situacao=1&limite=100', {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         const depositosAtivos = responseDepositos.data.data || [];
 
-        // Filtramos os produtos simples para gerar o mapa de estoque por lote via ID
         const produtosSimples = productsFromBling.filter(p => p.formato !== 'V');
         const estoqueMap = {};
 
@@ -170,7 +189,7 @@ async function syncProductsFromBling() {
                             if (item.produto && item.produto.id) {
                                 const prodId = String(item.produto.id);
                                 const saldoFisico = Number(item.saldoFisicoTotal || 0);
-                                  estoqueMap[prodId] = (estoqueMap[prodId] || 0) + saldoFisico;
+                                estoqueMap[prodId] = (estoqueMap[prodId] || 0) + saldoFisico;
                             }
                         });
                     } catch (errDep) { /* silencia */ }
@@ -183,9 +202,7 @@ async function syncProductsFromBling() {
         const idsBlingProcessados = []; 
         let contadorSimples = 0;
 
-        // 4. PASSO: Iterar sobre os produtos
         for (const p of productsFromBling) {
-            // Ignora filhos soltos na raiz da paginação (eles serão processados dentro dos seus respectivos pais)
             if (p.variacao && p.variacao.produtoPai) {
                 ignoredProducts.push({ nome: p.nome, motivo: "Ignorado por ser produto filho isolado" });
                 continue;
@@ -199,9 +216,7 @@ async function syncProductsFromBling() {
             let finalSub = null;
 
             // --- MAPEAMENTO DE CATEGORIAS ---
-            if ((productName.includes("TELA FRONTAL") || productName.includes("FRONTAL")) && 
-                !productName.includes("FLEX CÂMERA")
-            ) {
+            if ((productName.includes("TELA FRONTAL") || productName.includes("FRONTAL")) && !productName.includes("FLEX CÂMERA")) {
                 finalCat = "Telas";
                 if (productName.includes("IPHONE")) finalSub = "Telas Iphone";
                 else if (productName.includes("SAMSUNG")) finalSub = "Telas Samsung";
@@ -251,11 +266,7 @@ async function syncProductsFromBling() {
                 else if (productName.includes("ASUS") || productName.includes("ZENFONE")) finalSub = "Tampa Traseira Asus";
                 else if (productName.includes("LG")) finalSub = "Tampa Traseira LG";
                 else if (productName.includes("IPHONE")) finalSub = "Tampa Traseira Iphone";
-            } else if (
-                productName.includes("CABO") || productName.includes("CARREGADOR") || 
-                productName.includes("FONTE") || productName.includes("FONTE CARREGADOR") || 
-                productName.includes("FONE DE OUVIDO") || productName.includes("CAIXA DE SOM")
-            ) {
+            } else if (productName.includes("CABO") || productName.includes("CARREGADOR") || productName.includes("FONTE") || productName.includes("FONE DE OUVIDO") || productName.includes("CAIXA DE SOM")) {
                 finalCat = "Acessórios";
                 if (productName.includes("FONTE CARREGADOR") || productName.includes("FONTE")) finalSub = "Fontes";
                 else if (productName.includes("CARREGADOR")) finalSub = "Carregadores";
@@ -269,10 +280,8 @@ async function syncProductsFromBling() {
                 continue;
             }
 
-            // Adiciona o ID à lista de processados com sucesso nesta rodada
             idsBlingProcessados.push(currentBlingId);
 
-            // --- SE FOR PRODUTO PAI COM FILHOS (VARIAÇÕES) ---
             if (p.formato === 'V') {
                 let variationsMapped = [];
                 let estoqueTotalPai = 0;
@@ -280,7 +289,6 @@ async function syncProductsFromBling() {
 
                 try {
                     await new Promise(resolve => setTimeout(resolve, 350));
-
                     const responseVar = await axios.get(`https://api.bling.com.br/Api/v3/produtos/variacoes/${p.id}`, {
                         headers: { 'Authorization': `Bearer ${accessToken}` }
                     });
@@ -302,8 +310,7 @@ async function syncProductsFromBling() {
                                 saldosDep.forEach(item => {
                                     if (item.produto && item.produto.id) {
                                         const fId = String(item.produto.id);
-                                        const saldoFisico = Number(item.saldoFisicoTotal || 0);
-                                        estoqueFilhosMap[fId] = (estoqueFilhosMap[fId] || 0) + saldoFisico;
+                                        estoqueFilhosMap[fId] = (estoqueFilhosMap[fId] || 0) + Number(item.saldoFisicoTotal || 0);
                                     }
                                 });
                             } catch (e) { /* silencia */ }
@@ -359,9 +366,7 @@ async function syncProductsFromBling() {
                     updateOne: {
                         filter: { blingId: currentBlingId },
                         update: {
-                            // 🔄 ATUALIZA SEMPRE: Dados dinâmicos do Bling (Preço, Estoque, Variações)
                             $set: updateFields,
-                            // 🔐 PROTEGIDO: Nome original, Atributos e Imagem só salvam no primeiro insert (quando for novo)
                             $setOnInsert: { 
                                 name: p.nome,
                                 createdAt: new Date(), 
@@ -373,14 +378,12 @@ async function syncProductsFromBling() {
                     }
                 });
             } else {
-                // --- TRATAMENTO DE PRODUTO SIMPLES ---
                 const estoqueCalculado = estoqueMap[currentBlingId] || 0;
 
                 operations.push({
                     updateOne: {
                         filter: { blingId: currentBlingId },
                         update: {
-                            // 🔄 ATUALIZA SEMPRE: Dados dinâmicos do Bling do produto simples
                             $set: {
                                 blingId: currentBlingId,
                                 sku: skuFinal || `SIMPLE-${currentBlingId}`,
@@ -392,7 +395,6 @@ async function syncProductsFromBling() {
                                 variations: [],
                                 updatedAt: new Date()
                             },
-                            // 🔐 PROTEGIDO: O nome editado no painel, atributos e imagens ficam trancados contra o Bling
                             $setOnInsert: { 
                                 name: p.nome,
                                 createdAt: new Date(), 
@@ -411,7 +413,6 @@ async function syncProductsFromBling() {
             }
         }
 
-        // Executa as inserções e atualizações no Mongo
         if (operations.length > 0) {
             const result = await Product.bulkWrite(operations);
             console.log(`\n--- RELATÓRIO JACK PEÇAS ---`);
@@ -420,33 +421,25 @@ async function syncProductsFromBling() {
             console.log(`🔄 Atualizados no Mongo: ${result.modifiedCount}`);
             console.log(`----------------------------\n`);
 
-            // ♻️ LÓGICA DE LIMPEZA AUTOMÁTICA POR ID ♻️
             if (idsBlingProcessados.length > 0) {
                 const resultadoLimpeza = await Product.deleteMany({
                     blingId: { $not: { $in: idsBlingProcessados } }
                 });
                 if (resultadoLimpeza.deletedCount > 0) {
-                    console.log(`♻️ Auto-Clean: ${resultadoLimpeza.deletedCount} produtos antigos foram excluídos do banco por terem sido removidos do Bling.`);
+                    console.log(`♻️ Auto-Clean: ${resultadoLimpeza.deletedCount} produtos excluídos por não constarem no Bling.`);
                 }
             }
         }
 
-        // 🔍 EXIBIÇÃO DE PRODUTOS IGNORADOS
         if (ignoredProducts.length > 0) {
             console.log(`\n🚫 --- PRODUTOS IGNORADOS NA SINCRONIZAÇÃO (${ignoredProducts.length} itens) ---`);
             console.table(ignoredProducts);
             console.log(`-------------------------------------------------------------------------\n`);
-        } else {
-            console.log("✨ Nenhum produto foi ignorado nesta rodada!");
         }
-
     } catch (error) {
         console.error("❌ Erro na sincronização global:", error.response?.data || error.message);
     }
 }
-
-// Agendamento: A cada 1 hora
-// cron.schedule('0 * * * *', syncProductsFromBling);
 
 // --- MIDDLEWARES ---
 app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'], allowedHeaders: ['Content-Type', 'Authorization'] }));
@@ -480,7 +473,6 @@ const deleteCloudinaryImage = async (publicId) => {
 };
 
 // --- ROTAS DE AUTENTICAÇÃO BLING ---
-
 app.get('/auth/bling', (req, res) => {
     const clientId = process.env.BLING_CLIENT_ID;
     const redirectUri = encodeURIComponent(process.env.BLING_REDIRECT_URI);
@@ -491,50 +483,28 @@ app.get('/auth/bling', (req, res) => {
 app.get('/callback', async (req, res) => {
     const { code } = req.query;
     if (!code) return res.status(400).send("Código não encontrado.");
-
     try {
         const credentials = Buffer.from(`${process.env.BLING_CLIENT_ID}:${process.env.BLING_CLIENT_SECRET}`).toString('base64');
         const response = await axios.post('https://www.bling.com.br/Api/v3/oauth/token', 
-            new URLSearchParams({
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: process.env.BLING_REDIRECT_URI
-            }), {
-            headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
-
+            new URLSearchParams({ grant_type: 'authorization_code', code: code, redirect_uri: process.env.BLING_REDIRECT_URI }), 
+            { headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' } }
+        );
         const { access_token, refresh_token, expires_in } = response.data;
-        await BlingToken.findOneAndUpdate({}, {
-            access_token,
-            refresh_token,
-            expires_at: new Date(Date.now() + expires_in * 1000)
-        }, { upsert: true });
-
+        await BlingToken.findOneAndUpdate({}, { access_token, refresh_token, expires_at: new Date(Date.now() + expires_in * 1000) }, { upsert: true });
         res.send("<h1>✅ Autorizado!</h1><p>O Jack Peças já está conectado ao Bling.</p>");
-        syncProductsFromBling(); // Roda a primeira sincronização após autorizar
-    } catch (error) {
-        res.status(500).json(error.response?.data || error.message);
-    }
+        syncProductsFromBling();
+    } catch (error) { res.status(500).json(error.response?.data || error.message); }
 });
 
-// ⏱️ ROTA DE GATILHO PARA SINCRONIZAÇÃO EXTERNA (RENDER + CRON-JOB.ORG)
 app.post('/api/trigger-sync', async (req, res) => {
-    console.log("⏱️ Gatilho externo recebido! Iniciando sincronização do Bling...");
-    
-    // Chamamos a função sem o 'await' para responder a requisição imediatamente.
-    // Isso evita que o cron-job externo dê timeout enquanto o loop roda.
+    console.log("⏱️ Gatilho externo recebido! Iniciando sincronização...");
     syncProductsFromBling()
-        .then(() => console.log("✅ Sincronização de fundo concluída com sucesso."))
+        .then(() => console.log("✅ Sincronização de fundo concluída."))
         .catch(err => console.error("❌ Erro na sincronização de fundo:", err));
-
-    res.json({ 
-        message: "Sincronização disparada com sucesso! O processo está rodando em segundo plano.",
-        timestamp: new Date()
-    });
+    res.json({ message: "Sincronização disparada com sucesso!", timestamp: new Date() });
 });
 
 // --- ROTAS DE API (PRODUTOS) ---
-
 app.get('/api/products', async (req, res) => {
     try {
         const { page = 1, limit = 25, search, category, subcategory } = req.query;
@@ -551,96 +521,50 @@ app.get('/api/products', async (req, res) => {
             ];
         }
 
-        // 🎯 ALTERADO: .sort({ blingId: -1 }) garante que o ID maior (mais recente) venha primeiro!
         const [products, total] = await Promise.all([
             Product.find(finalQuery).sort({ blingId: -1 }).skip(skip).limit(parseInt(limit)).lean(),
             Product.countDocuments(finalQuery)
         ]);
-
         res.json({ products, total, pages: Math.ceil(total / limit), currentPage: parseInt(page) });
-    } catch (err) { 
-        res.status(500).json({ message: "Erro ao carregar produtos" }); 
-    }
+    } catch (err) { res.status(500).json({ message: "Erro ao carregar produtos" }); }
 });
 
-// AJUSTE NAS SUAS ROTAS MANUAIS DE PRODUTO (POST / PUT)
 app.post('/api/products', verifyToken, upload.single('image'), async (req, res) => {
     try {
         const productData = { ...req.body };
-
-        // 🔄 TRATAMENTO DAS VARIAÇÕES (JSON string para Array)
         if (typeof productData.variations === 'string') {
-            try {
-                productData.variations = JSON.parse(productData.variations);
-            } catch (e) {
-                productData.variations = [];
-            }
+            try { productData.variations = JSON.parse(productData.variations); } catch (e) { productData.variations = []; }
         }
-
-        // 🛠️ FIX "Iterator value": Garante que attributes seja um Objeto puro para o Mongoose Map
         if (productData.attributes) {
             if (typeof productData.attributes === 'string') {
-                try {
-                    productData.attributes = JSON.parse(productData.attributes);
-                } catch (e) {
-                    productData.attributes = {};
-                }
+                try { productData.attributes = JSON.parse(productData.attributes); } catch (e) { productData.attributes = {}; }
             }
-        } else {
-            productData.attributes = {};
-        }
+        } else { productData.attributes = {}; }
 
         if (req.file) productData.image = req.file.path;
-
         const newProduct = new Product(productData);
         await newProduct.save();
         res.status(201).json(newProduct);
-    } catch (err) {
-        console.error("Erro no POST /api/products:", err);
-        res.status(400).json({ error: err.message });
-    }
+    } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 app.put('/api/products/:id', verifyToken, upload.single('image'), async (req, res) => {
     try {
         const productData = { ...req.body };
-
-        // 🔄 TRATAMENTO DAS VARIAÇÕES (JSON string para Array)
         if (typeof productData.variations === 'string') {
-            try {
-                productData.variations = JSON.parse(productData.variations);
-            } catch (e) {
-                productData.variations = [];
-            }
+            try { productData.variations = JSON.parse(productData.variations); } catch (e) { productData.variations = []; }
         }
-
-        // 🛠️ FIX "Iterator value": Evita o erro de entrada do Map convertendo string para objeto JS puro
         if (productData.attributes) {
             if (typeof productData.attributes === 'string') {
-                try {
-                    productData.attributes = JSON.parse(productData.attributes);
-                } catch (e) {
-                    productData.attributes = {};
-                }
+                try { productData.attributes = JSON.parse(productData.attributes); } catch (e) { productData.attributes = {}; }
             }
-        } else {
-            productData.attributes = {};
-        }
+        } else { productData.attributes = {}; }
 
         if (req.file) productData.image = req.file.path;
-
-        // Atualiza usando o ID interno do MongoDB (_id) que o painel envia pela URL
         const updated = await Product.findByIdAndUpdate(req.params.id, productData, { new: true, runValidators: true });
-        
-        if (!updated) {
-            return res.status(404).json({ message: "Produto não encontrado para atualização." });
-        }
-
+        if (!updated) return res.status(404).json({ message: "Produto não encontrado." });
         res.json(updated);
-    } catch (err) {
-        console.error("Erro no PUT /api/products:", err);
-        res.status(400).json({ error: err.message });
-    }
+    } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 app.delete('/api/products/:id', verifyToken, async (req, res) => {
@@ -652,7 +576,7 @@ app.delete('/api/products/:id', verifyToken, async (req, res) => {
     } catch (err) { res.status(500).json({ message: "Erro ao excluir" }); }
 });
 
-// --- RESTANTE DAS ROTAS (MANTIDAS IGUAIS) ---
+// --- RESTANTE DAS ROTAS ---
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
     if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
@@ -662,16 +586,59 @@ app.post('/api/login', (req, res) => {
     res.status(401).json({ message: "E-mail ou senha incorretos." });
 });
 
+// 📊 ROTA DO DASHBOARD ATUALIZADA (PRODUTOS + FILTRO TEMPORAL DE ACESSOS)
 app.get('/api/dashboard/stats', async (req, res) => {
     try {
+        const { period } = req.query;
+        
+        // 1. Calcula o filtro de data dinâmica para o Analytics
+        let startDate = new Date();
+        if (period === 'today') {
+            startDate.setHours(0, 0, 0, 0);
+        } else if (period === '7days') {
+            startDate.setDate(startDate.getDate() - 7);
+        } else if (period === '15days') {
+            startDate.setDate(startDate.getDate() - 15);
+        } else {
+            startDate.setDate(startDate.getDate() - 30); // Default: 30 dias
+        }
+
+        const dateQuery = { createdAt: { $gte: startDate } };
+
+        // 2. Coleta métricas de acesso do banco
+        const totalVisits = await Analytics.countDocuments({ type: 'pageview', ...dateQuery });
+        const uniqueUsers = await Analytics.countDocuments({ type: 'pageview', isNewUser: true, ...dateQuery });
+        
+        const clickSaoRoque = await Analytics.countDocuments({ type: 'click_whatsapp', location: 'sao_roque', ...dateQuery });
+        const clickCotia = await Analytics.countDocuments({ type: 'click_whatsapp', location: 'cotia', ...dateQuery });
+        const clickIbiuna = await Analytics.countDocuments({ type: 'click_whatsapp', location: 'ibiuna', ...dateQuery });
+
+        // 3. Coleta os dados estáticos de produtos e categorias
         const totalProducts = await Product.countDocuments();
         const categories = await Category.find();
-        const stats = {};
+        const categoryStats = {};
         for (let cat of categories) {
-            stats[cat.name] = await Product.countDocuments({ category: cat.name });
+            categoryStats[cat.name] = await Product.countDocuments({ category: cat.name });
         }
-        res.json({ total: totalProducts, categories: stats });
-    } catch (err) { res.status(500).json({ message: "Erro ao carregar estatísticas" }); }
+
+        // Retorna a resposta unificada
+        res.json({ 
+            total: totalProducts, 
+            categories: categoryStats,
+            analytics: {
+                totalVisits,
+                uniqueUsers,
+                clicks: {
+                    sao_roque: clickSaoRoque,
+                    cotia: clickCotia,
+                    ibiuna: clickIbiuna
+                }
+            }
+        });
+    } catch (err) { 
+        console.error("Erro nas estatísticas:", err);
+        res.status(500).json({ message: "Erro ao carregar estatísticas" }); 
+    }
 });
 
 app.get('/api/attributes', async (req, res) => { res.json(await Attribute.find()); });
@@ -710,7 +677,6 @@ app.post('/api/products/batch', verifyToken, async (req, res) => {
         }
         
         const operations = products.map(p => {
-            // Se o produto vindo do lote tiver blingId, filtra por ele. Caso contrário, usa o SKU.
             const filterQuery = p.blingId ? { blingId: String(p.blingId) } : { sku: p.sku };
             return {
                 updateOne: {
@@ -724,8 +690,29 @@ app.post('/api/products/batch', verifyToken, async (req, res) => {
         const result = await Product.bulkWrite(operations);
         res.status(200).json({ message: "Lote processado com sucesso", detalhes: result });
     } catch (err) {
-        console.error("Erro no processamento em lote:", err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+// 📥 POST /api/analytics (SALVA OS ACESSOS ENVIADOS PELO CATÁLOGO)
+app.post('/api/analytics', async (req, res) => {
+    try {
+        const { type, location, isNewUser } = req.body;
+        if (!type || !location) {
+            return res.status(400).json({ error: 'Dados incompletos' });
+        }
+
+        const newEvent = new Analytics({
+            type,
+            location,
+            isNewUser: !!isNewUser
+        });
+
+        await newEvent.save();
+        return res.status(201).json({ success: true });
+    } catch (error) {
+        console.error('Erro ao salvar analytics:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 

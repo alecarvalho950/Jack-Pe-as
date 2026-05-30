@@ -153,7 +153,54 @@
         <div id="catalog-content" class="space-y-20 pb-20"></div>
         
         <div id="catalog-footer" class="pb-20 flex flex-col items-center gap-4"></div>
+        <div class="fixed bottom-6 right-6 z-[100] font-sans">
+    
+    <div id="whatsapp-menu" class="hidden opacity-0 scale-95 translate-y-4 transition-all duration-300 ease-out absolute bottom-16 right-0 w-72 bg-card border border-gray-800 rounded-2xl p-4 shadow-2xl gpu-card">
+        <div class="flex items-center gap-3 pb-3 mb-3 border-b border-gray-800">
+            <div>
+                <h4 class="text-xs font-black uppercase tracking-wider text-white">Canais de Venda</h4>
+                <p class="text-[10px] text-gray-500 font-bold uppercase">Selecione a unidade mais próxima</p>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <a href="https://wa.me/5511999999999?text=Olá!%20Estou%20vendo%20o%20catálogo%20e%20gostaria%20de%20falar%20com%20a%20loja%20de%20São%20Roque." target="_blank" 
+               class="flex items-center justify-between p-3 rounded-xl bg-dark/50 border border-gray-800/60 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group">
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-accent">Região 01</span>
+                    <p class="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Loja São Roque</p>
+                </div>
+                <span class="text-emerald-500 text-xs font-bold">Pedir Peça →</span>
+            </a>
+
+            <a href="https://wa.me/5511888888888?text=Olá!%20Estou%20vendo%20o%20catálogo%20e%20gostaria%20de%20falar%20com%20a%20loja%20de%20Cotia." target="_blank" 
+               class="flex items-center justify-between p-3 rounded-xl bg-dark/50 border border-gray-800/60 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group">
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-accent">Região 02</span>
+                    <p class="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Loja Cotia</p>
+                </div>
+                <span class="text-emerald-500 text-xs font-bold">Pedir Peça →</span>
+            </a>
+
+            <a href="https://wa.me/5511777777777?text=Olá!%20Estou%20vendo%20o%20catálogo%20e%20gostaria%20de%20falar%20com%20a%20loja%20de%20Ibiúna." target="_blank" 
+               class="flex items-center justify-between p-3 rounded-xl bg-dark/50 border border-gray-800/60 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group">
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-accent">Região 03</span>
+                    <p class="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Loja Ibiúna</p>
+                </div>
+                <span class="text-emerald-500 text-xs font-bold">Pedir Peça →</span>
+            </a>
+        </div>
+    </div>
+
+    <button onclick="toggleWhatsappMenu()" id="whatsapp-main-btn" class="w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 z-50 relative">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 fill-current" viewBox="0 0 24 24">
+            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397 0 11.966 0c3.178.001 6.169 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.902-11.91 11.902-2.01-.001-3.993-.51-5.741-1.486L0 24zm6.59-4.846c1.785 1.058 3.565 1.61 5.322 1.61 5.4 0 9.79-4.386 9.793-9.774.002-2.611-1.015-5.065-2.864-6.917C17.043 2.221 14.593 1.2 11.97 1.2c-5.405 0-9.794 4.387-9.797 9.776-.001 1.84.498 3.633 1.442 5.213l-1.03 3.755 3.862-1.011zm12.31-4.707c-.312-.156-1.847-.91-2.134-1.014-.286-.105-.495-.156-.704.156-.21.312-.81 1.014-.992 1.22-.183.208-.365.235-.677.08-1.554-.775-2.585-1.353-3.615-3.123-.273-.47.272-.436.78-1.45.084-.17.043-.314-.021-.444-.063-.13-.547-1.317-.749-1.802-.197-.474-.397-.41-.547-.417-.14-.007-.302-.008-.464-.008-.162 0-.426.06-.649.303-.222.242-.848.828-.848 2.019 0 1.191.867 2.34 1.049 2.583.182.243 1.705 2.603 4.132 3.652.578.249 1.03.398 1.382.511.58.184 1.11.158 1.528.096.467-.07 1.444-.59 1.648-1.16.204-.572.204-1.063.142-1.165-.062-.101-.227-.156-.54-.312z"/>
+        </svg>
+    </button>
+</div>
     </main>
     <script src="./js/main.js"></script>
+    <script src="js/analytics.js"></script>
 </body>
 </html>

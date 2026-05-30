@@ -32,128 +32,131 @@ const TAG_PALETTE = [
 ];
 
 async function init() {
-const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
-//const API_BASE_URL = "http://localhost:3000";
-  const overlay = document.getElementById('loading-overlay');
+    const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
+    const overlay = document.getElementById('loading-overlay');
 
-  showLocalLoading();
-  
-  try {
-    const searchInput = document.getElementById("public-search");
-    if (searchInput) {
-      searchInput.addEventListener("input", handleSearch);
+    showLocalLoading();
+    
+    try {
+        const searchInput = document.getElementById("public-search");
+        if (searchInput) {
+            searchInput.addEventListener("input", handleSearch);
+        }
+
+        const fetchOptions = {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        };
+
+        const [resCat, resProd] = await Promise.all([
+            fetch(`${API_BASE_URL}/api/categories`, fetchOptions),
+            fetch(`${API_BASE_URL}/api/products?limit=9999`, fetchOptions),
+        ]);
+
+        if (!resCat.ok || !resProd.ok) throw new Error("Erro na resposta do servidor");
+
+        categories = await resCat.json();
+        const prodData = await resProd.json();
+        allProducts = prodData.products || [];
+
+        renderQuickNav();
+        render();
+
+        if (overlay) {
+            overlay.classList.add('opacity-0');
+            setTimeout(() => overlay.remove(), 500);
+        }
+
+    } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+        const container = document.getElementById("catalog-content");
+        if (container) {
+            container.innerHTML = `<p class="text-red-500 text-center py-10 uppercase font-black text-xs">Erro ao conectar com o servidor.</p>`;
+        }
+        if (overlay) overlay.remove();
     }
-
-    const fetchOptions = {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    };
-
-    const [resCat, resProd] = await Promise.all([
-      fetch(`${API_BASE_URL}/api/categories`, fetchOptions),
-      fetch(`${API_BASE_URL}/api/products?limit=9999`, fetchOptions),
-    ]);
-
-    if (!resCat.ok || !resProd.ok) throw new Error("Erro na resposta do servidor");
-
-    categories = await resCat.json();
-    const prodData = await resProd.json();
-    allProducts = prodData.products || [];
-
-    renderQuickNav();
-    render();
-
-  if (overlay) {
-        overlay.classList.add('opacity-0');
-        setTimeout(() => overlay.remove(), 500);
-    }
-
-  } catch (err) {
-    console.error("Erro ao carregar dados:", err);
-    const container = document.getElementById("catalog-content");
-    if (container) {
-        container.innerHTML = `<p class="text-red-500 text-center py-10 uppercase font-black text-xs">Erro ao conectar com o servidor.</p>`;
-    }
-    if (overlay) overlay.remove();
-  }
 }
 
 function resetAll() {
-  document.getElementById("public-search").value = "";
-  activeFilters = {};
-  changeView("HOME");
+    document.getElementById("public-search").value = "";
+    activeFilters = {};
+    changeView("HOME");
 }
 
+// 🟢 MODIFICADO: Esconde categorias que não possuem produtos cadastrados
 function renderQuickNav() {
-  const nav = document.getElementById("quick-nav");
-  if (!nav) return;
+    const nav = document.getElementById("quick-nav");
+    if (!nav) return;
 
-  const isHomeActive = currentView === "HOME" || !activeCat;
+    const isHomeActive = currentView === "HOME" || !activeCat;
 
-  const styleInactive = "bg-accent/10 border border-accent/20 text-white hover:bg-accent/20";
-  const styleActive = "bg-accent border border-accent text-dark font-black shadow-lg shadow-accent/20";
+    const styleInactive = "bg-accent/10 border border-accent/20 text-white hover:bg-accent/20";
+    const styleActive = "bg-accent border border-accent text-dark font-black shadow-lg shadow-accent/20";
 
-  let html = `<button onclick="resetAll()" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${isHomeActive ? styleActive : styleInactive}">Tudo</button>`;
+    let html = `<button onclick="resetAll()" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${isHomeActive ? styleActive : styleInactive}">Tudo</button>`;
 
-  const categoriesList = Array.isArray(categories) ? categories : [];
+    const categoriesList = Array.isArray(categories) ? categories : [];
 
-  html += categoriesList
-    .map((cat) => {
-      const categoryName = typeof cat === 'object' && cat !== null ? (cat.name || cat.categoria || "") : cat;
-      
-      if (!categoryName) return ""; 
+    html += categoriesList
+        .map((cat) => {
+            const categoryName = typeof cat === 'object' && cat !== null ? (cat.name || cat.categoria || "") : cat;
+            
+            if (!categoryName) return ""; 
 
-      const isCurrentCat = !isHomeActive && activeCat && categoryName && activeCat.trim().toLowerCase() === categoryName.trim().toLowerCase();
-      
-      const currentStyle = isCurrentCat ? styleActive : styleInactive;
+            // 🔍 VALIDAÇÃO: Verifica se existe pelo menos um produto com esta categoria
+            const hasProducts = allProducts.some(p => p.category && p.category.trim().toLowerCase() === categoryName.trim().toLowerCase());
+            if (!hasProducts) return ""; // Ignora e não gera o botão
 
-      return `<button onclick="changeView('CATEGORY', '${categoryName}')" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${currentStyle}">${categoryName}</button>`;
-    })
-    .join("");
+            const isCurrentCat = !isHomeActive && activeCat && categoryName && activeCat.trim().toLowerCase() === categoryName.trim().toLowerCase();
+            const currentStyle = isCurrentCat ? styleActive : styleInactive;
 
-  nav.innerHTML = html;
+            return `<button onclick="changeView('CATEGORY', '${categoryName}')" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${currentStyle}">${categoryName}</button>`;
+        })
+        .join("");
+
+    nav.innerHTML = html;
 }
 
 function changeView(view, cat = null, sub = null) {
-  showLocalLoading(); 
-  
-  setTimeout(() => {
-      currentView = view;
-      activeCat = cat;
-      activeSub = sub;
-      if (view === "HOME") activeFilters = {};
-      currentPage = 1;
+    showLocalLoading(); 
+    
+    setTimeout(() => {
+        currentView = view;
+        activeCat = cat;
+        activeSub = sub;
+        if (view === "HOME") activeFilters = {};
+        currentPage = 1;
 
-      render();
-      renderQuickNav();
+        render();
+        renderQuickNav();
 
-      if (view !== "HOME") {
-        window.scrollTo({ top: 320, behavior: "smooth" });
-      }
-  }, 50);
+        if (view !== "HOME") {
+            window.scrollTo({ top: 320, behavior: "smooth" });
+        }
+    }, 50);
 }
 
 function handleSearch() {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    showLocalLoading();
-    setTimeout(() => {
-        currentPage = 1;
-        render();
-    }, 100);
-  }, 400);
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        showLocalLoading();
+        setTimeout(() => {
+            currentPage = 1;
+            render();
+        }, 100);
+    }, 400);
 }
 
 function handleSubFilter(sub) {
-  if (sub === "") changeView("CATEGORY", activeCat);
-  else changeView("SUBCATEGORY", activeCat, sub);
+    if (sub === "") changeView("CATEGORY", activeCat);
+    else changeView("SUBCATEGORY", activeCat, sub);
 }
 
 function setAttrFilter(key, val) {
-  if (val === "") delete activeFilters[key];
-  else activeFilters[key] = val;
-  currentPage = 1;
-  render();
+    if (val === "") delete activeFilters[key];
+    else activeFilters[key] = val;
+    currentPage = 1;
+    render();
 }
 
 function showLocalLoading() {
@@ -170,96 +173,90 @@ function showLocalLoading() {
 }
 
 function render() {
-  const container = document.getElementById("catalog-content");
-  const header = document.getElementById("view-header");
-  const footer = document.getElementById("catalog-footer");
-  const attrBox = document.getElementById("attribute-filters");
-  const brandBox = document.getElementById("brand-filter-container");
-  const searchInput = document.getElementById("public-search");
-  
-  if (!container) return;
+    const container = document.getElementById("catalog-content");
+    const header = document.getElementById("view-header");
+    const footer = document.getElementById("catalog-footer");
+    const attrBox = document.getElementById("attribute-filters");
+    const brandBox = document.getElementById("brand-filter-container");
+    const searchInput = document.getElementById("public-search");
+    
+    if (!container) return;
 
-  const isMobile = window.innerWidth < 768;
-  
-  const searchRaw = searchInput ? searchInput.value.toLowerCase().trim() : "";
+    const isMobile = window.innerWidth < 768;
+    const searchRaw = searchInput ? searchInput.value.toLowerCase().trim() : "";
 
-  // EM VEZ DE LIMPAR O CONTAINER AGORA, VAMOS MONTAR O HTML NESTA VARIÁVEL
-  let htmlOutput = "";
-  
-  // Limpamos apenas elementos de suporte
-  footer.innerHTML = "";
-  attrBox.innerHTML = "";
+    let htmlOutput = "";
+    footer.innerHTML = "";
+    attrBox.innerHTML = "";
 
-  // 1. Filtragem (Mantém sua lógica original)
-  let filtered = allProducts.filter((p) => {
-    let matchesSearch = true;
-    if (searchRaw) {
-      const keywords = searchRaw.split(/\s+/);
-      matchesSearch = keywords.every((word) => {
-        const s = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const regexPattern = new RegExp(`(^|\\s|[\\/\\-])(${s})($|\\s|[\\/\\-])`, "i");
-        return regexPattern.test(p.name);
-      });
-    }
-    const matchesCat = activeCat ? p.category === activeCat : true;
-    const matchesSub = activeSub ? p.subcategory === activeSub : true;
-    return matchesSearch && matchesCat && matchesSub;
-  });
-
-  // 2. Filtros de Atributos
-  Object.keys(activeFilters).forEach((key) => {
-    filtered = filtered.filter((p) => p.attributes && p.attributes[key] === activeFilters[key]);
-  });
-
-  // 🚫 Só mostra os seletores de atributos (Modelos, Cores, etc.) se tiver uma categoria ativa (sai do "Tudo")
-if (activeCat && currentView !== "HOME") {
-  renderAttributeSelectors(filtered, attrBox);
-} else {
-  attrBox.innerHTML = ""; // Garante que fica totalmente limpo na Home ("Tudo")
-}
-
-  if (activeCat) {
-    brandBox.classList.remove("hidden");
-    setupBrandSelect();
-  } else {
-    brandBox.classList.add("hidden");
-  }
-
-  const isFiltering = Object.keys(activeFilters).length > 0 || searchRaw.length > 0;
-
-  if (currentView === "HOME" && !isFiltering) {
-    header.classList.add("hidden");
-    categories.forEach((cat) => {
-      const catProducts = filtered.filter((p) => p.category === cat.name);
-      if (catProducts.length > 0) {
-        const diverse = catProducts.slice(0, isMobile ? 6 : 8);
-        htmlOutput += createSectionHTML(cat.name, diverse, "CATEGORY", cat.name);
-      }
+    let filtered = allProducts.filter((p) => {
+        let matchesSearch = true;
+        if (searchRaw) {
+            const keywords = searchRaw.split(/\s+/);
+            matchesSearch = keywords.every((word) => {
+                const s = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const regexPattern = new RegExp(`(^|\\s|[\\/\\-])(${s})($|\\s|[\\/\\-])`, "i");
+                return regexPattern.test(p.name);
+            });
+        }
+        const matchesCat = activeCat ? p.category === activeCat : true;
+        const matchesSub = activeSub ? p.subcategory === activeSub : true;
+        return matchesSearch && matchesCat && matchesSub;
     });
-  } else if (currentView === "CATEGORY" && !isFiltering) {
-    header.classList.remove("hidden");
-    document.getElementById("active-title").innerText = activeCat;
-    const catData = categories.find((c) => c.name === activeCat);
-    catData?.subcategories.forEach((sub) => {
-      const products = filtered.filter((p) => p.subcategory === sub);
-      if (products.length > 0) {
-        htmlOutput += createSectionHTML(`${activeCat} ${sub}`, products.slice(0, isMobile ? 6 : 8), "SUBCATEGORY", activeCat, sub);
-      }
-    });
-  } else {
-    header.classList.remove("hidden");
-    document.getElementById("active-title").innerText = activeSub ? `${activeCat} ${activeSub}` : activeCat || "Busca";
 
-    if (filtered.length === 0) {
-      htmlOutput = `<div class="py-20 text-center w-full"><p class="text-gray-500 font-black uppercase text-xs">Sem resultados.</p></div>`;
+    Object.keys(activeFilters).forEach((key) => {
+        filtered = filtered.filter((p) => p.attributes && p.attributes[key] === activeFilters[key]);
+    });
+
+    if (activeCat && currentView !== "HOME") {
+        renderAttributeSelectors(filtered, attrBox);
     } else {
-      const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-      const pageItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-      htmlOutput = `<div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-in">${pageItems.map(p => renderCard(p)).join("")}</div>`;
-      renderPager(currentPage, totalPages, filtered.length, footer);
+        attrBox.innerHTML = "";
     }
-  }
-  container.innerHTML = htmlOutput;
+
+    if (activeCat) {
+        brandBox.classList.remove("hidden");
+        setupBrandSelect();
+    } else {
+        brandBox.classList.add("hidden");
+    }
+
+    const isFiltering = Object.keys(activeFilters).length > 0 || searchRaw.length > 0;
+
+    if (currentView === "HOME" && !isFiltering) {
+        header.classList.add("hidden");
+        categories.forEach((cat) => {
+            const catProducts = filtered.filter((p) => p.category === cat.name);
+            if (catProducts.length > 0) {
+                const diverse = catProducts.slice(0, isMobile ? 6 : 8);
+                htmlOutput += createSectionHTML(cat.name, diverse, "CATEGORY", cat.name);
+            }
+        });
+    } else if (currentView === "CATEGORY" && !isFiltering) {
+        header.classList.remove("hidden");
+        document.getElementById("active-title").innerText = activeCat;
+        const catData = categories.find((c) => c.name === activeCat);
+        catData?.subcategories.forEach((sub) => {
+            // 🔍 VALIDAÇÃO: Filtra se há produtos correspondentes a essa subcategoria específica
+            const products = filtered.filter((p) => p.subcategory && p.subcategory.trim().toLowerCase() === sub.trim().toLowerCase());
+            if (products.length > 0) {
+                htmlOutput += createSectionHTML(`${activeCat} ${sub}`, products.slice(0, isMobile ? 6 : 8), "SUBCATEGORY", activeCat, sub);
+            }
+        });
+    } else {
+        header.classList.remove("hidden");
+        document.getElementById("active-title").innerText = activeSub ? `${activeCat} ${activeSub}` : activeCat || "Busca";
+
+        if (filtered.length === 0) {
+            htmlOutput = `<div class="py-20 text-center w-full"><p class="text-gray-500 font-black uppercase text-xs">Sem resultados.</p></div>`;
+        } else {
+            const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+            const pageItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+            htmlOutput = `<div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-in">${pageItems.map(p => renderCard(p)).join("")}</div>`;
+            renderPager(currentPage, totalPages, filtered.length, footer);
+        }
+    }
+    container.innerHTML = htmlOutput;
 }
 
 let lastWidth = window.innerWidth;
@@ -272,77 +269,75 @@ window.addEventListener("resize", () => {
 });
 
 function toggleFilters() {
-  const extra = document.getElementById("extra-filters");
-  extra.classList.toggle("hidden");
-  // Opcional: scroll suave se os filtros abrirem fora da tela
-  if (!extra.classList.contains("hidden")) {
-    extra.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
+    const extra = document.getElementById("extra-filters");
+    extra.classList.toggle("hidden");
+    if (!extra.classList.contains("hidden")) {
+        extra.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
 }
 
 function renderAttributeSelectors(products, container) {
-  if (!container) return;
-  const attrOptions = {};
-  products.forEach((p) => {
-    if (p.attributes) {
-      Object.entries(p.attributes).forEach(([k, v]) => {
-        if (!attrOptions[k]) attrOptions[k] = new Set();
-        attrOptions[k].add(v);
-      });
-    }
-  });
+    if (!container) return;
+    const attrOptions = {};
+    products.forEach((p) => {
+        if (p.attributes) {
+            Object.entries(p.attributes).forEach(([k, v]) => {
+                if (!attrOptions[k]) attrOptions[k] = new Set();
+                attrOptions[k].add(v);
+            });
+        }
+    });
 
-  container.innerHTML = "";
+    container.innerHTML = "";
 
-  Object.entries(attrOptions).forEach(([key, values]) => {
-    const select = document.createElement("select");
-    select.className = `bg-card border border-gray-700 rounded-lg px-3 py-2 pr-8 text-[10px] font-black uppercase outline-none focus:border-accent transition-all ${activeFilters[key] ? "border-accent text-accent" : "text-gray-400"}`;
+    Object.entries(attrOptions).forEach(([key, values]) => {
+        const select = document.createElement("select");
+        select.className = `bg-card border border-gray-700 rounded-lg px-3 py-2 pr-8 text-[10px] font-black uppercase outline-none focus:border-accent transition-all ${activeFilters[key] ? "border-accent text-accent" : "text-gray-400"}`;
 
-    select.onchange = (e) => setAttrFilter(key, e.target.value);
-    select.innerHTML =
-      `<option value="">${key}</option>` +
-      Array.from(values)
-        .sort()
-        .map(
-          (v) =>
-            `<option value="${v}" ${activeFilters[key] === v ? "selected" : ""}>${v}</option>`,
-        )
-        .join("");
-    container.appendChild(select);
-  });
+        select.onchange = (e) => setAttrFilter(key, e.target.value);
+        select.innerHTML =
+            `<option value="">${key}</option>` +
+            Array.from(values)
+                .sort()
+                .map(
+                    (v) => `<option value="${v}" ${activeFilters[key] === v ? "selected" : ""}>${v}</option>`,
+                )
+                .join("");
+        container.appendChild(select);
+    });
 }
 
+// 🟢 MODIFICADO: O select de subcategorias só exibe as que possuem produtos vinculados no estoque atual
 function setupBrandSelect() {
-  const subSelect = document.getElementById("sub-filter");
-  const subs = [
-    ...new Set(
-      allProducts
-        .filter((p) => p.category === activeCat)
-        .map((p) => p.subcategory),
-    ),
-  ];
-  subSelect.innerHTML =
-    `<option value="">Subcategoria</option>` +
-    subs
-      .map(
-        (s) =>
-          `<option value="${s}" ${activeSub === s ? "selected" : ""}>${s}</option>`,
-      )
-      .join("");
+    const subSelect = document.getElementById("sub-filter");
+    if (!subSelect) return;
+
+    const subs = [
+        ...new Set(
+            allProducts
+                .filter((p) => p.category && p.category.trim().toLowerCase() === activeCat.trim().toLowerCase() && p.subcategory)
+                .map((p) => p.subcategory),
+        ),
+    ];
+    
+    subSelect.innerHTML =
+        `<option value="">Subcategoria</option>` +
+        subs
+            .sort()
+            .map(
+                (s) => `<option value="${s}" ${activeSub === s ? "selected" : ""}>${s}</option>`,
+            )
+            .join("");
 }
 
 function getTagStyle(text) {
     if (!text) return "bg-gray-500/10 text-gray-400 border-gray-500/20";
-    
-    // Algoritmo simples de hash para converter texto em um índice da paleta
     let hash = 0;
     for (let i = 0; i < text.length; i++) {
         hash = text.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
     const index = Math.abs(hash) % TAG_PALETTE.length;
     const style = TAG_PALETTE[index];
-    
     return `${style.bg} ${style.text} ${style.border}`;
 }
 
@@ -350,19 +345,15 @@ function renderCard(p) {
     const img = p.image ? p.image : null;
     const hasVars = p.hasVariations && p.variations?.length > 0;
 
-    // Lógica para verificar o estoque geral do produto (ou se todas as variações estão zeradas)
     let isOutOfStock = false;
     if (hasVars) {
-        // Se tem variações, verifica se a soma de todos os estoques é zero
         const totalStock = p.variations.reduce((acc, v) => acc + (v.stock || 0), 0);
         isOutOfStock = totalStock <= 0;
     } else {
-        // Produto simples: considera a propriedade stock (ou estoque)
         const currentStock = p.stock !== undefined ? p.stock : (p.estoque !== undefined ? p.estoque : 0);
         isOutOfStock = currentStock <= 0;
     }
 
-    // Lógica para agrupar variações por tipo
     let variacoesAgrupadas = "";
     if (hasVars) {
         const grupos = {};
@@ -384,71 +375,45 @@ function renderCard(p) {
         ? Math.min(...p.variations.map((v) => v.price || p.price))
         : p.price;
 
-    // Classes dinâmicas para o card caso esteja sem estoque
     const stockCardClasses = isOutOfStock 
         ? "opacity-60 grayscale-[40%] border-gray-900 shadow-none pointer-events-none" 
         : "hover:border-accent/40 group shadow-lg";
 
     return `
         <div class="gpu-card bg-card border border-gray-800 rounded-3xl overflow-hidden flex flex-col h-full relative transition-all duration-300 ${stockCardClasses}">
-            
-            ${/* 🏷️ FAIXA DE SEM ESTOQUE COLOQUER EM CIMA DO CARD */
-              isOutOfStock 
-                ? `<div class="absolute top-3 left-3 z-10 bg-rose-600/90 border border-rose-500 text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-md shadow-md animate-pulse">
-                    Sem Estoque
-                   </div>`
+            ${isOutOfStock 
+                ? `<div class="absolute top-3 left-3 z-10 bg-rose-600/90 border border-rose-500 text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-md shadow-md animate-pulse">Aguardando reposição...</div>`
                 : ""
             }
-
             <div class="aspect-square bg-gray-900 overflow-hidden relative border-b border-gray-800/50">
-                ${
-                  img
-                    ? `<img src="${img}"
-                        alt="Produto: ${p.name} - Jack Peças" 
-                        loading="lazy" 
-                        decoding="async"
-                        width="400" height="400"
-                        class="w-full h-full object-cover ${!isOutOfStock ? 'group-hover:scale-110' : ''} transition-transform duration-700">`
+                ${img
+                    ? `<img src="${img}" alt="Produto: ${p.name} - Jack Peças" loading="lazy" decoding="async" width="400" height="400" class="w-full h-full object-cover ${!isOutOfStock ? 'group-hover:scale-110' : ''} transition-transform duration-700">`
                     : `<div class="w-full h-full flex items-center justify-center text-[9px] font-black text-gray-700 uppercase italic">S/ Imagem</div>`
                 }
             </div>
-
             <div class="p-4 md:p-5 flex flex-col flex-grow space-y-3 md:space-y-4">
-                
                 <h4 class="text-xs md:text-base font-bold text-white leading-tight ${!isOutOfStock ? 'group-hover:text-accent' : 'text-gray-400'} transition-colors duration-300 line-clamp-2 md:line-clamp-3">
                     ${p.name}
                 </h4>
-
                 <div class="flex flex-wrap gap-1.5 md:gap-2">
-                    ${
-                      p.attributes
+                    ${p.attributes
                         ? Object.entries(p.attributes)
                             .map(([key, val]) => {
-                              if (!val) return "";
-                              const badgeStyle = getTagStyle(val); 
-                              return `<span class="px-2 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[9px] font-bold border uppercase tracking-wide ${badgeStyle}">${val}</span>`;
+                                if (!val) return "";
+                                const badgeStyle = getTagStyle(val); 
+                                return `<span class="px-2 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[9px] font-bold border uppercase tracking-wide ${badgeStyle}">${val}</span>`;
                             })
                             .join("")
                         : ""
                     }
                 </div>
-
-                ${
-                  variacoesAgrupadas
-                    ? `
-                <div class="pt-1">
-                    <p class="text-[9px] md:text-[10px] text-gray-400 font-medium leading-relaxed italic">
-                        ${variacoesAgrupadas}
-                    </p>
-                </div>`
+                ${variacoesAgrupadas
+                    ? `<div class="pt-1"><p class="text-[9px] md:text-[10px] text-gray-400 font-medium leading-relaxed italic">${variacoesAgrupadas}</p></div>`
                     : ""
                 }
-
                 <div class="mt-auto pt-3 md:pt-5 border-t border-gray-800/50">
                     <div class="flex flex-col">
-                        <span class="text-[8px] md:text-[9px] font-black text-gray-500 uppercase tracking-tighter">
-                            ${hasVars ? 'A partir de' : 'Preço:'}
-                        </span>
+                        <span class="text-[8px] md:text-[9px] font-black text-gray-500 uppercase tracking-tighter">${hasVars ? 'A partir de' : 'Preço:'}</span>
                         <p class="text-xl md:text-2xl font-black ${isOutOfStock ? 'text-gray-500' : 'text-accent'} font-mono leading-none mt-1">
                             <span class="text-[10px] md:text-xs mr-0.5">R$</span>${parseFloat(displayPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </p>
@@ -472,27 +437,26 @@ function createSectionHTML(title, products, targetView, cat, sub = null) {
 }
 
 function renderGrid(products, container) {
-  const grid = document.createElement("div");
-  grid.className = "grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-in";
-  grid.innerHTML = products.map((p) => renderCard(p)).join("");
-  container.appendChild(grid);
+    const grid = document.createElement("div");
+    grid.className = "grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 animate-in";
+    grid.innerHTML = products.map((p) => renderCard(p)).join("");
+    container.appendChild(grid);
 }
 
 function renderEmpty(container) {
-  container.innerHTML = `<div class="py-20 text-center"><p class="text-gray-500 font-black uppercase text-xs">Sem resultados para os filtros selecionados.</p></div>`;
+    container.innerHTML = `<div class="py-20 text-center"><p class="text-gray-500 font-black uppercase text-xs">Sem resultados para os filtros selecionados.</p></div>`;
 }
 
 function renderPager(current, total, totalItems, footer) {
-  if (total <= 1) {
-    footer.innerHTML = `<p class="text-[10px] font-black text-gray-600 uppercase tracking-widest">${totalItems} PRODUTOS ENCONTRADOS</p>`;
-    return;
-  }
+    if (total <= 1) {
+        footer.innerHTML = `<p class="text-[10px] font-black text-gray-600 uppercase tracking-widest">${totalItems} PRODUTOS ENCONTRADOS</p>`;
+        return;
+    }
 
-  // Calcula o intervalo de itens sendo exibidos (ex: 1-20 de 100)
-  const startItem = (current - 1) * ITEMS_PER_PAGE + 1;
-  const endItem = Math.min(current * ITEMS_PER_PAGE, totalItems);
+    const startItem = (current - 1) * ITEMS_PER_PAGE + 1;
+    const endItem = Math.min(current * ITEMS_PER_PAGE, totalItems);
 
-  footer.innerHTML = `
+    footer.innerHTML = `
         <div class="flex flex-col items-center gap-4 w-full max-w-xs mx-auto">
             <div class="text-center space-y-1">
                 <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
@@ -528,10 +492,42 @@ function renderPager(current, total, totalItems, footer) {
     `;
 }
 
+function toggleWhatsappMenu() {
+    const menu = document.getElementById("whatsapp-menu");
+    const btn = document.getElementById("whatsapp-main-btn");
+    
+    if (!menu) return;
+
+    if (menu.classList.contains("hidden")) {
+        menu.classList.remove("hidden");
+        setTimeout(() => {
+            menu.classList.remove("opacity-0", "scale-95", "translate-y-4");
+            menu.classList.add("opacity-100", "scale-100", "translate-y-0");
+        }, 10);
+        if (btn) btn.style.transform = "rotate(15deg)";
+    } else {
+        menu.classList.remove("opacity-100", "scale-100", "translate-y-0");
+        menu.classList.add("opacity-0", "scale-95", "translate-y-4");
+        if (btn) btn.style.transform = "none";
+        setTimeout(() => {
+            menu.classList.add("hidden");
+        }, 300);
+    }
+}
+
+document.addEventListener("click", function(event) {
+    const menu = document.getElementById("whatsapp-menu");
+    const btn = document.getElementById("whatsapp-main-btn");
+    
+    if (menu && !menu.classList.contains("hidden") && !menu.contains(event.target) && !btn.contains(event.target)) {
+        toggleWhatsappMenu();
+    }
+});
+
 function goToPage(p) {
-  currentPage = p;
-  render();
-  window.scrollTo({ top: 400, behavior: "smooth" });
+    currentPage = p;
+    render();
+    window.scrollTo({ top: 400, behavior: "smooth" });
 }
 
 init();
