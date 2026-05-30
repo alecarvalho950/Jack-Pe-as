@@ -472,6 +472,25 @@ const deleteCloudinaryImage = async (publicId) => {
     try { await cloudinary.uploader.destroy(publicId); } catch (err) { console.error("Erro Cloudinary:", err.message); }
 };
 
+// Rota dedicada e leve para o Cron-Job automatizado
+app.get('/api/cron/sync', async (req, res) => {
+    try {
+        console.log("🔄 Cron-job iniciado: Sincronizando dados da JACK PEÇAS...");
+        
+        // Chame aqui a sua função interna de sincronização de estoque/dados
+        // Exemplo: await suaFuncaoDeSincronizacao();
+
+        // RETORNO CRUCIAL: Resposta ultra leve para o cron-job não falhar
+        return res.status(200).json({ 
+            success: true, 
+            message: "Sincronização concluída." 
+        });
+    } catch (error) {
+        console.error("❌ Erro na sincronização do Cron-job:", error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // --- ROTAS DE AUTENTICAÇÃO BLING ---
 app.get('/auth/bling', (req, res) => {
     const clientId = process.env.BLING_CLIENT_ID;

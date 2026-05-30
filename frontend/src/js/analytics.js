@@ -1,6 +1,7 @@
 // URL do seu servidor no Render
 const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
 //const API_BASE_URL = "http://localhost:3000";
+
 /**
  * Envia os dados de acesso de forma silenciosa para o Back-end
  * @param {string} type - 'pageview' ou 'click_whatsapp'
@@ -30,6 +31,7 @@ async function sendAnalyticsEvent(type, location = 'geral') {
                 isNewUser: isNewUser
             })
         });
+        console.log(`📊 Evento enviado com sucesso: ${type} -> ${location}`);
     } catch (error) {
         // Falha silenciosa para não quebrar o site do cliente se o servidor oscilar
         console.error("Analytics Error:", error);
@@ -42,26 +44,34 @@ document.addEventListener('DOMContentLoaded', () => {
     sendAnalyticsEvent('pageview');
 
     // 2. Captura os cliques nos botões do WhatsApp automaticamente
-    // (Ajuste os seletores ou IDs de acordo com os seus botões do WhatsApp)
     setupWhatsAppClickTrackers();
 });
 
 /**
- * Procura os botões do WhatsApp na tela e adiciona o evento de clique neles
+ * Procura os links do WhatsApp baseando-se no texto da mensagem contida no HREF
  */
 function setupWhatsAppClickTrackers() {
-    // Exemplo usando seletores hipotéticos. Você pode adaptar para a sua estrutura!
-    const btnSaoRoque = document.getElementById('btn-whatsapp-saoroque');
-    const btnCotia = document.getElementById('btn-whatsapp-cotia');
-    const btnIbiuna = document.getElementById('btn-whatsapp-ibiuna');
+    // Busca todas as tags <a> dentro do container de menu do WhatsApp
+    const whatsappLinks = document.querySelectorAll('#whatsapp-menu a');
 
-    if (btnSaoRoque) {
-        btnSaoRoque.addEventListener('click', () => sendAnalyticsEvent('click_whatsapp', 'sao_roque'));
-    }
-    if (btnCotia) {
-        btnCotia.addEventListener('click', () => sendAnalyticsEvent('click_whatsapp', 'cotia'));
-    }
-    if (btnIbiuna) {
-        btnIbiuna.addEventListener('click', () => sendAnalyticsEvent('click_whatsapp', 'ibiuna'));
-    }
+    whatsappLinks.forEach(link => {
+        const href = link.getAttribute('href') || '';
+        
+        // Mapeia a cidade baseando-se no texto de cada link do seu HTML
+        let location = null;
+        if (href.includes('São%20Roque')) {
+            location = 'sao_roque';
+        } else if (href.includes('Cotia')) {
+            location = 'cotia';
+        } else if (href.includes('Ibiúna')) {
+            location = 'ibiuna';
+        }
+
+        // Se identificou a localização, adiciona o escutador de clique
+        if (location) {
+            link.addEventListener('click', () => {
+                sendAnalyticsEvent('click_whatsapp', location);
+            });
+        }
+    });
 }
