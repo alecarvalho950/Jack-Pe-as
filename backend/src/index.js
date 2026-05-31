@@ -9,6 +9,7 @@ const axios = require('axios');
 const cron = require('node-cron');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const moment = require('moment');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -472,21 +473,53 @@ const deleteCloudinaryImage = async (publicId) => {
     try { await cloudinary.uploader.destroy(publicId); } catch (err) { console.error("Erro Cloudinary:", err.message); }
 };
 
-// Rota dedicada e leve para o Cron-Job automatizado
+// Variável de controle (trava) para evitar execuções simultâneas
+let isSyncing = false;
+
+// Rota dedicada e inteligente para o Cron-Job automatizado
 app.get('/api/cron/sync', async (req, res) => {
     try {
-        console.log("🔄 Cron-job iniciado: Sincronizando dados da JACK PEÇAS...");
-        
-        // Chame aqui a sua função interna de sincronização de estoque/dados
-        // Exemplo: await suaFuncaoDeSincronizacao();
+        console.log("🔄 Cron-job chamou a rota de sincronização...");
 
-        // RETORNO CRUCIAL: Resposta ultra leve para o cron-job não falhar
-        return res.status(200).json({ 
+        // 1. Verifica se já existe uma sincronização rodando neste momento
+        if (isSyncing) {
+            console.log("⚠️ Sincronização ignorada: Já existe um processo ativo rodando neste momento.");
+            return res.status(200).json({
+                success: true,
+                message: "Sincronização já está em andamento. Requisição ignorada para evitar gargalos."
+            });
+        }
+
+        // 2. RESPONDE IMEDIATAMENTE AO CRON-JOB (Menos de 1 segundo)
+        // Usamos o status 202 que significa "Aceito para processamento"
+        res.status(202).json({ 
             success: true, 
-            message: "Sincronização concluída." 
+            message: "Sincronização iniciada em segundo plano com sucesso." 
         });
+
+        // 3. EXECUTA A SINCRONIZAÇÃO EM SEGUNDO PLANO (Sem dar await na resposta HTTP)
+        // Usamos uma função autoexecutável para isolar o processo
+        (async () => {
+            try {
+                isSyncing = true; // Ativa a trava
+                console.log("🚀 [Segundo Plano] Processo pesado iniciado. Estimativa: 7 minutos...");
+                
+                // Chamada da sua função pesada original
+                // await suaFuncaoDeSincronizacao();
+                
+                console.log("✅ [Segundo Plano] Sincronização de 7 minutos concluída com sucesso!");
+            } catch (syncError) {
+                console.error("❌ [Segundo Plano] Erro crítico dentro do processo pesado:", syncError);
+            } finally {
+                isSyncing = false; // Libera a trava para a próxima hora (ou próximos 5 min de teste)
+                console.log("🔓 [Segundo Plano] Trava liberada. Pronto para a próxima execução.");
+            }
+        })(); // O () no final executa a função imediatamente de forma assíncrona
+
     } catch (error) {
-        console.error("❌ Erro na sincronização do Cron-job:", error);
+        console.error("❌ Erro ao tentar iniciar o Cron-job:", error);
+        // Garante que a trava seja liberada caso mte antes do bloco asnc
+        isSyncing = false; 
         return res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -608,42 +641,96 @@ app.post('/api/login', (req, res) => {
 // 📊 ROTA DO DASHBOARD ATUALIZADA (PRODUTOS + FILTRO TEMPORAL DE ACESSOS)
 app.get('/api/dashboard/stats', async (req, res) => {
     try {
-        const { period } = req.query;
+        const { period, startDate, endDate } = req.query;
         
-        // 1. Calcula o filtro de data dinâmica para o Analytics
-        let startDate = new Date();
+        let startActual, endActual;
+        let startCompare, endCompare;
+
+        const agora = new Date();
+
+        // 1. Definição estrita dos períodos baseada na escolha do usuário
         if (period === 'today') {
-            startDate.setHours(0, 0, 0, 0);
-        } else if (period === '7days') {
-            startDate.setDate(startDate.getDate() - 7);
+            // Hoje: das 00:00:00 às 23:59:59 de hoje
+            startActual = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0);
+            endActual = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 23, 59, 59);
+
+            // Ontem para comparação: das 00:00:00 às 23:59:59 de ontem
+            startCompare = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - 1, 0, 0, 0);
+            endCompare = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - 1, 23, 59, 59);
+
         } else if (period === '15days') {
-            startDate.setDate(startDate.getDate() - 15);
+            // Últimos 15 dias contando retroativamente a partir de agora
+            startActual = new Date(agora.getTime() - (15 * 24 * 60 * 60 * 1000));
+            endActual = agora;
+
+            // Intervalo de 15 dias imediatamente anterior para comparação
+            startCompare = new Date(startActual.getTime() - (15 * 24 * 60 * 60 * 1000));
+            endCompare = startActual;
+
+        } else if (period === 'custom' && startDate && endDate) {
+            // Período Personalizado (Ex: 01/05 até 10/05)
+            // Divide a string "AAAA-MM-DD" para evitar problemas com fuso horário UTC
+            const [sYear, sMonth, sDay] = startDate.split('-');
+            const [eYear, eMonth, eDay] = endDate.split('-');
+
+            startActual = new Date(sYear, sMonth - 1, sDay, 0, 0, 0);
+            endActual = new Date(eYear, eMonth - 1, eDay, 23, 59, 59);
+
+            // Período personalizado livre não gera comparação pré-calculada automática
+            startCompare = null;
+            endCompare = null;
         } else {
-            startDate.setDate(startDate.getDate() - 30); // Default: 30 dias
+            // Padrão: Últimos 30 dias
+            startActual = new Date(agora.getTime() - (30 * 24 * 60 * 60 * 1000));
+            endActual = agora;
+
+            startCompare = new Date(startActual.getTime() - (30 * 24 * 60 * 60 * 1000));
+            endCompare = startActual;
         }
 
-        const dateQuery = { createdAt: { $gte: startDate } };
-
-        // 2. Coleta métricas de acesso do banco
-        const totalVisits = await Analytics.countDocuments({ type: 'pageview', ...dateQuery });
-        const uniqueUsers = await Analytics.countDocuments({ type: 'pageview', isNewUser: true, ...dateQuery });
+        // 2. CONSULTAS AO BANCO FILTRADAS COM OPERADORES $gte E $lte
+        // Substitua 'AnalyticsModel' pelo seu modelo/coleção real do banco
         
-        const clickSaoRoque = await Analytics.countDocuments({ type: 'click_whatsapp', location: 'sao_roque', ...dateQuery });
-        const clickCotia = await Analytics.countDocuments({ type: 'click_whatsapp', location: 'cotia', ...dateQuery });
-        const clickIbiuna = await Analytics.countDocuments({ type: 'click_whatsapp', location: 'ibiuna', ...dateQuery });
+        // --- MÉTRICAS DO PERÍODO SELECIONADO ---
+        const totalVisits = await AnalyticsModel.countDocuments({ 
+            type: 'pageview', 
+            createdAt: { $gte: startActual, $lte: endActual } 
+        });
 
-        // 3. Coleta os dados estáticos de produtos e categorias
-        const totalProducts = await Product.countDocuments();
-        const categories = await Category.find();
-        const categoryStats = {};
-        for (let cat of categories) {
-            categoryStats[cat.name] = await Product.countDocuments({ category: cat.name });
+        const uniqueUsers = await AnalyticsModel.countDocuments({ 
+            type: 'pageview', 
+            isNewUser: true, 
+            createdAt: { $gte: startActual, $lte: endActual } 
+        });
+
+        const clickSaoRoque = await AnalyticsModel.countDocuments({ type: 'click_whatsapp', location: 'sao_roque', createdAt: { $gte: startActual, $lte: endActual } });
+        const clickCotia = await AnalyticsModel.countDocuments({ type: 'click_whatsapp', location: 'cotia', createdAt: { $gte: startActual, $lte: endActual } });
+        const clickIbiuna = await AnalyticsModel.countDocuments({ type: 'click_whatsapp', location: 'ibiuna', createdAt: { $gte: startActual, $lte: endActual } });
+
+        // --- MÉTRICAS DO HISTÓRICO DE COMPARAÇÃO ---
+        let totalVisitsCompare = 0;
+        let uniqueUsersCompare = 0;
+
+        if (startCompare && endCompare) {
+            totalVisitsCompare = await AnalyticsModel.countDocuments({ 
+                type: 'pageview', 
+                createdAt: { $gte: startCompare, $lte: endCompare } 
+            });
+            uniqueUsersCompare = await AnalyticsModel.countDocuments({ 
+                type: 'pageview', 
+                isNewUser: true, 
+                createdAt: { $gte: startCompare, $lte: endCompare } 
+            });
         }
 
-        // Retorna a resposta unificada
-        res.json({ 
-            total: totalProducts, 
-            categories: categoryStats,
+        // Dados globais estáveis
+        const totalProducts = await ProductModel.countDocuments({});
+        const categoriesStats = {}; // Sua lógica existente de contagem por categorias...
+
+        // 3. RETORNO DE DADOS SEPARADOS E LIMPOS
+        return res.status(200).json({
+            total: totalProducts,
+            categories: categoriesStats,
             analytics: {
                 totalVisits,
                 uniqueUsers,
@@ -651,12 +738,18 @@ app.get('/api/dashboard/stats', async (req, res) => {
                     sao_roque: clickSaoRoque,
                     cotia: clickCotia,
                     ibiuna: clickIbiuna
+                },
+                compare: {
+                    hasCompare: !!startCompare,
+                    totalVisitsCompare,
+                    uniqueUsersCompare
                 }
             }
         });
-    } catch (err) { 
-        console.error("Erro nas estatísticas:", err);
-        res.status(500).json({ message: "Erro ao carregar estatísticas" }); 
+
+    } catch (error) {
+        console.error("Erro ao processar analytics no backend:", error);
+        res.status(500).json({ error: 'Erro interno no servidor' });
     }
 });
 

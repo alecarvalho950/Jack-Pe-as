@@ -3,9 +3,20 @@ const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
 // const API_BASE_URL = "http://localhost:3000";
 
 async function loadStats() {
-    // Captura o valor atual do dropdown de período (se existir no HTML)
+    // Captura os elementos de filtro no HTML
     const periodSelect = document.getElementById('period-filter');
     const selectedPeriod = periodSelect ? periodSelect.value : '30days';
+
+    const customContainer = document.getElementById('custom-date-container');
+    const startDateEl = document.getElementById('start-date');
+    const endDateEl = document.getElementById('end-date');
+
+    // Controla a visibilidade dos campos de data manual
+    if (selectedPeriod === 'custom') {
+        if (customContainer) customContainer.className = "flex items-center gap-2 bg-gray-900 p-1.5 border border-gray-800 rounded-lg text-xs";
+    } else {
+        if (customContainer) customContainer.className = "hidden";
+    }
 
     // Seletores dos elementos do DOM
     const grid = document.getElementById('categories-grid');
@@ -17,6 +28,12 @@ async function loadStats() {
     const clickSaoRoqueEl = document.getElementById('click-sao-roque');
     const clickCotiaEl = document.getElementById('click-cotia');
     const clickIbiunaEl = document.getElementById('click-ibiuna');
+
+    // Elementos do Bloco Separado de Comparação
+    const compareCard = document.getElementById('compare-card');
+    const compareTitle = document.getElementById('compare-title');
+    const compareVisits = document.getElementById('compare-visits');
+    const compareUsers = document.getElementById('compare-users');
 
     // 1. ESTADO DE CARREGAMENTO (SPINNER E ACENOS)
     if (grid) {
@@ -38,8 +55,13 @@ async function loadStats() {
     try {
         const token = localStorage.getItem('admin_token');
 
-        // Passa o período selecionado como Query Parameter para a API
-        const response = await fetch(`${API_BASE_URL}/api/dashboard/stats?period=${selectedPeriod}`, {
+        // Contrói a string de URL passando as datas se for o caso
+        let url = `${API_BASE_URL}/api/dashboard/stats?period=${selectedPeriod}`;
+        if (selectedPeriod === 'custom' && startDateEl?.value && endDateEl?.value) {
+            url += `&startDate=${startDateEl.value}&endDate=${endDateEl.value}`;
+        }
+
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -57,7 +79,7 @@ async function loadStats() {
 
         const data = await response.json();
 
-        // 2. ATUALIZA OS CONTADORES GERAIS E ANALYTICS
+        // 2. INJETA OS NÚMEROS LIMPOS SEM TEXTOS ADICIONAIS OU PORCENTAGENS
         if (totalElement) totalElement.innerText = data.total || 0;
         
         if (data.analytics) {
@@ -69,9 +91,28 @@ async function loadStats() {
                 if (clickCotiaEl) clickCotiaEl.innerText = data.analytics.clicks.cotia ?? 0;
                 if (clickIbiunaEl) clickIbiunaEl.innerText = data.analytics.clicks.ibiuna ?? 0;
             }
+
+            // 3. GERENCIA O CARD COMPARAÇÃO SEPARADO NA DIREITA
+            if (data.analytics.compare && data.analytics.compare.hasCompare) {
+                if (compareCard) compareCard.classList.remove('hidden');
+                
+                if (selectedPeriod === 'today') {
+                    if (compareTitle) compareTitle.innerText = "📊 Histórico de Ontem";
+                } else if (selectedPeriod === '15days') {
+                    if (compareTitle) compareTitle.innerText = "📊 15 Dias Anteriores";
+                } else {
+                    if (compareTitle) compareTitle.innerText = "📊 30 Dias Anteriores";
+                }
+
+                if (compareVisits) compareVisits.innerText = data.analytics.compare.totalVisitsCompare ?? 0;
+                if (compareUsers) compareUsers.innerText = data.analytics.compare.uniqueUsersCompare ?? 0;
+            } else {
+                // Oculta completamente o card se for Período Personalizado
+                if (compareCard) compareCard.classList.add('hidden');
+            }
         }
 
-        // 3. RENDERIZAÇÃO DO GRID DE PRODUTOS POR CATEGORIA
+        // 4. RENDERIZAÇÃO DO GRID DE PRODUTOS POR CATEGORIA
         if (!grid) return;
         grid.innerHTML = '';
 
@@ -98,23 +139,13 @@ async function loadStats() {
         });
     } catch (err) {
         console.error("Erro ao carregar stats:", err);
-        if (grid) {
-            grid.innerHTML = `
-                <div class="col-span-full text-center py-10">
-                    <p class="text-red-500 font-bold uppercase tracking-widest text-sm">⚠️ Erro ao conectar com o servidor</p>
-                    <button onclick="loadStats()" class="mt-4 px-4 py-2 bg-gray-800 rounded-lg text-xs text-accent hover:bg-gray-700 transition uppercase font-bold">Tentar novamente</button>
-                </div>
-            `;
-        }
     }
 }
 
 // Inicialização do painel e registro do evento de mudança no filtro
 document.addEventListener('DOMContentLoaded', () => {
-    // Carrega os dados inicialmente
     loadStats();
 
-    // Se houver um select de período no HTML, escuta as mudanças dele
     const periodSelect = document.getElementById('period-filter');
     if (periodSelect) {
         periodSelect.addEventListener('change', loadStats);

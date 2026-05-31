@@ -102,48 +102,57 @@
     </header>
 
     <section class="mb-12">
-  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-    <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Métricas de Acessos</h3>
-    
+  <!-- Cabeçalho de Filtros -->
+<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+  <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Métricas de Acessos</h3>
+  
+  <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+    <div id="custom-date-container" class="hidden items-center gap-2 bg-gray-900 p-1.5 border border-gray-800 rounded-lg text-xs">
+      <input type="date" id="start-date" class="bg-transparent border-none text-white font-mono focus:outline-none px-2 text-xs">
+      <span class="text-gray-600 font-bold">até</span>
+      <input type="date" id="end-date" class="bg-transparent border-none text-white font-mono focus:outline-none px-2 text-xs">
+      <button onclick="loadStats()" class="bg-accent text-primary px-3 py-1 font-black uppercase rounded-md text-[10px] tracking-wider ml-1">Filtrar</button>
+    </div>
+
     <select id="period-filter" class="bg-gray-900 text-white rounded-lg px-3 py-2 border border-gray-800 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-accent">
-    <option value="today">Hoje</option>
-    <option value="7days">Últimos 7 dias</option>
-    <option value="15days">Últimos 15 dias</option>
-    <option value="30days" selected>Últimos 30 dias</option>
-</select>
+      <option value="today">Hoje</option>
+      <option value="15days">Últimos 15 dias</option>
+      <option value="30days" selected>Últimos 30 dias</option>
+      <option value="custom">📅 Período Personalizado</option>
+    </select>
   </div>
+</div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-    <div class="bg-card border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
-        <span class="text-[10px] font-black uppercase tracking-wider text-gray-500">Tráfego Geral</span>
-        <h3 id="total-visits" class="text-3xl font-mono font-black text-white mt-2">...</h3>
-        <p class="text-[10px] text-emerald-400 font-bold uppercase mt-1">Total de pageviews</p>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+    <div class="bg-card p-6 rounded-xl border border-gray-800 shadow-lg">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Tráfego Geral</p>
+        <h3 id="total-visits" class="text-3xl font-mono font-black text-white mt-2">0</h3>
+        <p class="text-[10px] text-emerald-500 font-bold uppercase mt-1">Total de Pageviews</p>
     </div>
 
-    <div class="bg-card border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
-        <span class="text-[10px] font-black uppercase tracking-wider text-accent">Novos Clientes</span>
-        <h3 id="unique-users" class="text-3xl font-mono font-black text-white mt-2">...</h3>
-        <p class="text-[10px] text-gray-500 font-bold uppercase mt-1">Visitantes Únicos</p>
+    <div class="bg-card p-6 rounded-xl border border-gray-800 shadow-lg">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Novos Clientes</p>
+        <h3 id="unique-users" class="text-3xl font-mono font-black text-white mt-2">0</h3>
+        <p class="text-[10px] text-indigo-400 font-bold uppercase mt-1">Visitantes Únicos</p>
     </div>
 
-    <div class="bg-card border border-gray-800 rounded-2xl p-5 relative overflow-hidden">
-        <span class="text-[10px] font-black uppercase tracking-wider text-emerald-500">Cliques WhatsApp</span>
-        <div class="mt-2 space-y-1.5 text-xs font-bold text-white">
-            <div class="flex justify-between border-b border-gray-800/50 pb-1">
-                <span class="text-gray-400">São Roque:</span> 
-                <span id="click-sao-roque" class="text-accent font-mono">...</span>
-            </div>
-            <div class="flex justify-between border-b border-gray-800/50 pb-1">
-                <span class="text-gray-400">Cotia:</span> 
-                <span id="click-cotia" class="text-accent font-mono">...</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="text-gray-400">Ibiúna:</span> 
-                <span id="click-ibiuna" class="text-accent font-mono">...</span>
-            </div>
+    <div class="bg-card p-6 rounded-xl border border-gray-800 shadow-lg">
+        <p class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">Cliques WhatsApp</p>
+        <div class="text-xs space-y-1 text-gray-300 font-medium">
+            <div class="flex justify-between"><span>São Roque:</span> <b id="click-sao-roque" class="text-white font-mono">0</b></div>
+            <div class="flex justify-between"><span>Cotia:</span> <b id="click-cotia" class="text-white font-mono">0</b></div>
+            <div class="flex justify-between"><span>Ibiúna:</span> <b id="click-ibiuna" class="text-white font-mono">0</b></div>
         </div>
     </div>
-  </div>
+
+    <div id="compare-card" class="bg-gradient-to-br from-gray-900 to-card p-6 rounded-xl border border-dashed border-gray-700 shadow-lg hidden">
+        <p id="compare-title" class="text-[10px] font-black text-accent uppercase tracking-widest">Comparativo</p>
+        <div class="text-xs space-y-1 text-gray-400 mt-2">
+            <div class="flex justify-between"><span>Visitas Período Ant.:</span> <b id="compare-visits" class="text-gray-300 font-mono">0</b></div>
+            <div class="flex justify-between"><span>Clientes Período Ant.:</span> <b id="compare-users" class="text-gray-300 font-mono">0</b></div>
+        </div>
+    </div>
+</div>
 </section>
 
     <section class="mb-10">
