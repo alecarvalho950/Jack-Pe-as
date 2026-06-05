@@ -13,22 +13,15 @@ const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
 document.addEventListener('DOMContentLoaded', async () => {
     let searchTimer;
     document.getElementById('search-input')?.addEventListener('input', (e) => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-        filterProducts();
-    }, 400); // Aguarda 300ms após a última tecla
-});
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            filterProducts();
+        }, 400);
+    });
     document.getElementById('filter-category')?.addEventListener('change', updateFilterSubcategories);
     document.getElementById('filter-subcategory')?.addEventListener('change', filterProducts);
 
     await loadInitialData();
-
-    const fileInput = document.getElementById('prod-file');
-    if (fileInput) {
-        fileInput.addEventListener('change', function () {
-            previewImage(this);
-        });
-    }
 });
 
 async function loadInitialData(page = 1) {
@@ -42,7 +35,7 @@ async function loadInitialData(page = 1) {
     if (tableBody) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="10" class="p-20 text-center">
+                <td colspan="7" class="p-20 text-center">
                     <div class="flex flex-col items-center justify-center gap-4">
                         <span class="loader"></span>
                         <p class="text-gray-400 animate-pulse font-bold text-sm tracking-widest">CARREGANDO PRODUTOS...</p>
@@ -84,7 +77,7 @@ async function loadInitialData(page = 1) {
         renderProducts();
     } catch (err) {
         if (tableBody) {
-            tableBody.innerHTML = `<tr><td colspan="10" class="p-10 text-center text-red-500">Erro ao conectar com o servidor.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="7" class="p-10 text-center text-red-500">Erro ao conectar com o servidor.</td></tr>`;
         }
     }
 }
@@ -116,6 +109,10 @@ function openForm() {
     document.getElementById('form-title').innerText = "Novo Produto";
     document.getElementById('btn-save-product').innerText = "Salvar Produto";
     clearForm();
+    
+    // Libera os campos para novos produtos
+    setInputLockState(false);
+    
     showFormUI();
 }
 
@@ -135,19 +132,51 @@ function clearForm() {
     document.getElementById('p-name').value = '';
     document.getElementById('p-sku').value = '';
     document.getElementById('p-price').value = '';
-    document.getElementById('p-stock').value = '';
+    
+    if (document.getElementById('p-stock-sao-roque')) document.getElementById('p-stock-sao-roque').value = '';
+    if (document.getElementById('p-stock-cotia')) document.getElementById('p-stock-cotia').value = '';
+    if (document.getElementById('p-stock-ibiuna')) document.getElementById('p-stock-ibiuna').value = '';
+    
     document.getElementById('p-category').value = '';
     document.getElementById('p-subcategory').innerHTML = '<option value="">Selecione a categoria primeiro</option>';
     document.getElementById('attributes-fields').innerHTML = '';
-    document.getElementById('prod-file').value = "";
-    document.getElementById('image-preview').innerHTML = `<span class="text-gray-600 text-xs italic">Sem foto</span>`;
     document.getElementById('p-has-variations').checked = false;
     document.getElementById('variations-list').innerHTML = '';
     document.getElementById('variations-container').classList.add('hidden');
     
-    const stockField = document.getElementById('p-stock').parentElement;
-    stockField.style.opacity = "1";
-    stockField.style.pointerEvents = "auto";
+    const storesFields = ['p-stock-sao-roque', 'p-stock-cotia', 'p-stock-ibiuna'];
+    storesFields.forEach(id => {
+        const fieldEl = document.getElementById(id)?.parentElement;
+        if (fieldEl) {
+            fieldEl.style.opacity = "1";
+            fieldEl.style.pointerEvents = "auto";
+        }
+    });
+}
+
+/**
+ * Controla se os campos de estoque e preço podem ser editados ou não.
+ */
+function setInputLockState(disabled) {
+    const fields = ['p-price', 'p-stock-sao-roque', 'p-stock-cotia', 'p-stock-ibiuna', 'p-has-variations'];
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.disabled = disabled;
+            // Se for checkbox e estiver bloqueado, desativa a div dele
+            if(el.type === 'checkbox') {
+                el.parentElement.style.opacity = disabled ? "0.5" : "1";
+                el.parentElement.style.pointerEvents = disabled ? "none" : "auto";
+            } else {
+                // Muda o visual de inputs de texto/número bloqueados
+                if (disabled) {
+                    el.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-800');
+                } else {
+                    el.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-800');
+                }
+            }
+        }
+    });
 }
 
 // --- FILTROS DINÂMICOS ---
@@ -186,47 +215,59 @@ function updateSubcategories(selectedSub = "") {
     }
 }
 
-function previewImage(input) {
-    const preview = document.getElementById('image-preview');
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = e => {
-            preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg">`;
-        };
-        reader.readAsDataURL(input.files[0]);
-    }
-}
-
 function toggleVariations() {
+    // Se estiver editando, não permite alternar variações manualmente
+    if (editingProductId) return;
+
     const hasVar = document.getElementById('p-has-variations').checked;
     const container = document.getElementById('variations-container');
-    const stockField = document.getElementById('p-stock').parentElement;
+    const storesFields = ['p-stock-sao-roque', 'p-stock-cotia', 'p-stock-ibiuna'];
 
     if (hasVar) {
         container.classList.remove('hidden');
-        stockField.style.opacity = "0.3";
-        stockField.style.pointerEvents = "none";
+        storesFields.forEach(id => {
+            const fieldEl = document.getElementById(id)?.parentElement;
+            if (fieldEl) {
+                fieldEl.style.opacity = "0.3";
+                fieldEl.style.pointerEvents = "none";
+            }
+        });
         if (document.getElementById('variations-list').children.length === 0) {
             addVariationRow();
         }
     } else {
         container.classList.add('hidden');
-        stockField.style.opacity = "1";
-        stockField.style.pointerEvents = "auto";
+        storesFields.forEach(id => {
+            const fieldEl = document.getElementById(id)?.parentElement;
+            if (fieldEl) {
+                fieldEl.style.opacity = "1";
+                fieldEl.style.pointerEvents = "auto";
+            }
+        });
     }
 }
 
-function addVariationRow(data = { type: 'Cor', value: '', stock: '', sku: '' }) {
+function addVariationRow(data = {}) {
     const list = document.getElementById('variations-list');
     const div = document.createElement('div');
-    div.className = "variation-row grid grid-cols-1 md:grid-cols-4 gap-3 bg-[#1a2233] p-4 rounded-xl border border-gray-800 mb-2";
+    div.className = "variation-row grid grid-cols-1 md:grid-cols-6 gap-3 bg-[#1a2233] p-4 rounded-xl border border-gray-800 mb-2";
+
+    const stockSR = data.stock_by_store?.SaoRoque ?? data.stockSaoRoque ?? data.stock ?? 0;
+    const stockCO = data.stock_by_store?.Cotia ?? data.stockCotia ?? 0;
+    const stockIB = data.stock_by_store?.Ibiuna ?? data.stockIbiuna ?? 0;
+
+    // Verifica se os campos devem estar travados (se o produto veio do Bling/Edição)
+    const isDisabled = editingProductId ? 'disabled' : '';
+    const inputClasses = editingProductId 
+        ? "v-stock w-full p-2 mt-1 rounded bg-gray-800 border border-gray-700 text-xs text-gray-400 outline-none cursor-not-allowed opacity-60"
+        : "v-stock w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent";
 
     div.innerHTML = `
         <div>
             <label class="text-[9px] text-gray-500 uppercase font-bold">Tipo</label>
             <input type="text" list="variation-types" placeholder="Ex: Versão" 
-                value="${data.type || 'Cor'}" 
-                class="v-type w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+                value="${data.type || 'Cor'}" ${isDisabled}
+                class="v-type w-full p-2 mt-1 rounded ${editingProductId ? 'bg-gray-800 text-gray-400' : 'bg-gray-900 text-white'} border border-gray-700 text-xs outline-none focus:border-accent">
             <datalist id="variation-types">
                 <option value="Cor">
                 <option value="Qualidade">
@@ -236,56 +277,53 @@ function addVariationRow(data = { type: 'Cor', value: '', stock: '', sku: '' }) 
         </div>
         <div>
             <label class="text-[9px] text-gray-500 uppercase font-bold">Valor</label>
-            <input type="text" placeholder="Ex: M15" value="${data.value || ''}" 
-                class="v-value w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+            <input type="text" placeholder="Ex: M15" value="${data.value || ''}" ${isDisabled}
+                class="v-value w-full p-2 mt-1 rounded ${editingProductId ? 'bg-gray-800 text-gray-400' : 'bg-gray-900 text-white'} border border-gray-700 text-xs outline-none focus:border-accent">
         </div>
         <div>
-            <label class="text-[9px] text-gray-500 uppercase font-bold">Estoque</label>
-            <input type="number" placeholder="0" value="${data.stock || ''}" 
-                class="v-stock w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+            <label class="text-[9px] text-orange-400 uppercase font-bold">Estoque S.R</label>
+            <input type="number" placeholder="0" value="${stockSR}" ${isDisabled} class="v-stock-sao-roque ${inputClasses}">
+        </div>
+        <div>
+            <label class="text-[9px] text-sky-400 uppercase font-bold">Estoque Cotia</label>
+            <input type="number" placeholder="0" value="${stockCO}" ${isDisabled} class="v-stock-cotia ${inputClasses}">
+        </div>
+        <div>
+            <label class="text-[9px] text-purple-400 uppercase font-bold">Estoque Ibiúna</label>
+            <input type="number" placeholder="0" value="${stockIB}" ${isDisabled} class="v-stock-ibiuna ${inputClasses}">
         </div>
         <div class="flex gap-2 items-end">
             <div class="flex-1">
                 <label class="text-[9px] text-gray-500 uppercase font-bold">SKU</label>
-                <input type="text" placeholder="Opcional" value="${data.sku || ''}" 
-                    class="v-sku w-full p-2 mt-1 rounded bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+                <input type="text" placeholder="Opcional" value="${data.sku || ''}" ${isDisabled}
+                    class="v-sku w-full p-2 mt-1 rounded ${editingProductId ? 'bg-gray-800 text-gray-400' : 'bg-gray-900 text-white'} border border-gray-700 text-xs outline-none focus:border-accent">
             </div>
-            <button type="button" onclick="this.closest('.variation-row').remove()" 
-                class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white p-2.5 rounded-lg transition-all mb-[1px]">✕</button>
+            ${!editingProductId ? `
+                <button type="button" onclick="this.closest('.variation-row').remove()" 
+                    class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white p-2.5 rounded-lg transition-all mb-[1px]">✕</button>
+            ` : `<div class="w-[38px]"></div>`}
         </div>
     `;
     list.appendChild(div);
+    
+    // Oculta botão de adicionar novas variações na tela de edição
+    const addVarBtn = document.getElementById('btn-add-variation');
+    if (addVarBtn) {
+        addVarBtn.style.display = editingProductId ? 'none' : 'block';
+    }
 }
 
-// Paleta de cores para os atributos dinâmicos
 const TAG_PALETTE = [
     { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
     { bg: 'bg-sky-500/10', text: 'text-sky-400', border: 'border-sky-500/20' },
     { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20' },
     { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/20' },
-    { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/20' },
-    { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20' },
-    { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20' },
-    { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/20' },
-    { bg: 'bg-lime-500/10', text: 'text-lime-400', border: 'border-lime-500/20' },
-    { bg: 'bg-fuchsia-500/10', text: 'text-fuchsia-400', border: 'border-fuchsia-500/20' },
-    { bg: 'bg-pink-500/10', text: 'text-pink-400', border: 'border-pink-500/20' },
-    { bg: 'bg-violet-500/10', text: 'text-violet-400', border: 'border-violet-500/20' },
-    { bg: 'bg-teal-500/10', text: 'text-teal-400', border: 'border-teal-500/20' },
-    { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
-    { bg: 'bg-blue-600/10', text: 'text-blue-400', border: 'border-blue-600/20' },
-    { bg: 'bg-yellow-500/10', text: 'text-yellow-300', border: 'border-yellow-500/20' },
-    { bg: 'bg-slate-400/10', text: 'text-slate-300', border: 'border-slate-400/20' },
-    { bg: 'bg-green-600/10', text: 'text-green-400', border: 'border-green-600/20' },
-    { bg: 'bg-zinc-400/10', text: 'text-zinc-300', border: 'border-zinc-400/20' },
-    { bg: 'bg-blue-400/10', text: 'text-blue-300', border: 'border-blue-400/20' }
+    { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/20' }
 ];
 
 function getTagStyle(text) {
     if (!text) return "bg-gray-500/10 text-gray-400 border-gray-500/20";
     const cleanText = text.toLowerCase();
-    
-    // Exceções manuais
     if (cleanText.includes('original')) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
     if (cleanText.includes('china')) return "bg-gray-500/10 text-gray-400 border-gray-500/20";
     
@@ -303,7 +341,6 @@ async function saveProduct() {
     const btnSave = document.getElementById('btn-save-product');
     const originalBtnText = btnSave.innerHTML;
     
-    // 1. Pegar dados básicos
     const name = document.getElementById('p-name').value;
     const category = document.getElementById('p-category').value;
     if (!name || !category) {
@@ -312,80 +349,70 @@ async function saveProduct() {
     }
 
     try {
-        // 2. BLOQUEIO VISUAL: Muda o botão para estado de carregamento
         btnSave.disabled = true;
         btnSave.classList.add('opacity-50', 'cursor-not-allowed');
         btnSave.innerHTML = `<svg class="animate-spin h-4 w-4 mr-2 border-t-2 border-white rounded-full inline-block" viewBox="0 0 24 24"></svg> SALVANDO...`;
 
-        const formData = new FormData();
         const sku = document.getElementById('p-sku').value;
         const price = document.getElementById('p-price').value || "0";
         const subcategory = document.getElementById('p-subcategory').value;
         const hasVariations = document.getElementById('p-has-variations').checked;
 
-        formData.append('name', name);
-        formData.append('sku', sku);
-        formData.append('category', category);
-        formData.append('subcategory', subcategory);
-        formData.append('price', price);
-        formData.append('hasVariations', hasVariations);
+        const productPayload = {
+            name,
+            sku,
+            category,
+            subcategory,
+            price: parseFloat(price),
+            hasVariations
+        };
 
-        // Lógica de Variações
         if (hasVariations) {
             const varRows = document.querySelectorAll('.variation-row');
             const variations = Array.from(varRows).map(row => ({
                 type: row.querySelector('.v-type').value,
                 value: row.querySelector('.v-value').value,
-                stock: parseInt(row.querySelector('.v-stock').value) || 0,
                 sku: row.querySelector('.v-sku').value,
-                price: parseFloat(price)
+                price: parseFloat(price),
+                stock_by_store: {
+                    SaoRoque: parseInt(row.querySelector('.v-stock-sao-roque').value) || 0,
+                    Cotia: parseInt(row.querySelector('.v-stock-cotia').value) || 0,
+                    Ibiuna: parseInt(row.querySelector('.v-stock-ibiuna').value) || 0
+                }
             }));
-            formData.append('variations', JSON.stringify(variations));
-            const totalStock = variations.reduce((acc, v) => acc + v.stock, 0);
-            formData.append('stock', totalStock);
+            
+            productPayload.variations = variations;
+            productPayload.stock_by_store = {
+                SaoRoque: variations.reduce((acc, v) => acc + v.stock_by_store.SaoRoque, 0),
+                Cotia: variations.reduce((acc, v) => acc + v.stock_by_store.Cotia, 0),
+                Ibiuna: variations.reduce((acc, v) => acc + v.stock_by_store.Ibiuna, 0)
+            };
         } else {
-            const simpleStock = document.getElementById('p-stock').value || "0";
-            formData.append('stock', simpleStock);
-            formData.append('variations', JSON.stringify([]));
+            productPayload.stock_by_store = {
+                SaoRoque: parseInt(document.getElementById('p-stock-sao-roque').value) || 0,
+                Cotia: parseInt(document.getElementById('p-stock-cotia').value) || 0,
+                Ibiuna: parseInt(document.getElementById('p-stock-ibiuna').value) || 0
+            };
+            productPayload.variations = [];
         }
 
-        // Atributos dinâmicos
         const attrs = {};
         document.querySelectorAll('.dynamic-attr').forEach(el => {
             if (el.value) attrs[el.getAttribute('data-name')] = el.value;
         });
-        formData.append('attributes', JSON.stringify(attrs));
+        productPayload.attributes = attrs;
 
-        // 3. OTIMIZAÇÃO DE IMAGEM: Comprimir antes de enviar
-        const fileInput = document.getElementById('prod-file');
-        if (fileInput?.files[0]) {
-            const imageFile = fileInput.files[0];
-            
-            // Opções de compressão (ajusta para no máximo 1MB e 1200px)
-            const options = {
-                maxSizeMB: 0.8,
-                maxWidthOrHeight: 1200,
-                useWebWorker: true
-            };
-
-            try {
-                const compressedFile = await imageCompression(imageFile, options);
-                formData.append('image', compressedFile, compressedFile.name);
-            } catch (error) {
-                console.error("Erro na compressão, enviando original...", error);
-                formData.append('image', imageFile);
-            }
-        }
-
-        // 4. ENVIO PARA O SERVIDOR
         const url = editingProductId ? `${API_BASE_URL}/api/products/${editingProductId}` : `${API_BASE_URL}/api/products`;
         const method = editingProductId ? 'PUT' : 'POST';
         const token = localStorage.getItem('admin_token');
 
         const res = await fetch(url, { 
             method, 
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData 
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(productPayload)
         });
 
         if (res.ok) {
@@ -401,7 +428,6 @@ async function saveProduct() {
         console.error(err);
         showNotification("Erro de conexão ou processamento", "error");
     } finally {
-        // 5. LIBERAR INTERFACE: Volta o botão ao normal
         btnSave.disabled = false;
         btnSave.classList.remove('opacity-50', 'cursor-not-allowed');
         btnSave.innerHTML = originalBtnText;
@@ -419,7 +445,17 @@ function editProduct(id) {
     document.getElementById('p-name').value = p.name || '';
     document.getElementById('p-sku').value = p.sku || '';
     document.getElementById('p-price').value = p.price || 0;
-    document.getElementById('p-stock').value = p.stock || 0;
+    
+    if (document.getElementById('p-stock-sao-roque')) {
+        document.getElementById('p-stock-sao-roque').value = p.stock_by_store?.SaoRoque ?? p.stockSaoRoque ?? 0;
+    }
+    if (document.getElementById('p-stock-cotia')) {
+        document.getElementById('p-stock-cotia').value = p.stock_by_store?.Cotia ?? p.stockCotia ?? 0;
+    }
+    if (document.getElementById('p-stock-ibiuna')) {
+        document.getElementById('p-stock-ibiuna').value = p.stock_by_store?.Ibiuna ?? p.stockIbiuna ?? 0;
+    }
+    
     document.getElementById('p-category').value = p.category || '';
 
     const varCheck = document.getElementById('p-has-variations');
@@ -436,16 +472,11 @@ function editProduct(id) {
         }
     } else {
         varCheck.checked = false;
-        toggleVariations();
+        document.getElementById('variations-container').classList.add('hidden');
     }
 
-    const preview = document.getElementById('image-preview');
-    if (p.image) {
-        const fullImageUrl = p.image.startsWith('http') ? p.image : `${API_BASE_URL}${p.image}`;
-        preview.innerHTML = `<img src="${fullImageUrl}" class="w-full h-full object-cover rounded-lg">`;
-    } else {
-        preview.innerHTML = `<span class="text-gray-600 text-xs italic">Sem foto</span>`;
-    }
+    // TRAVA os campos de estoque e preço para edição
+    setInputLockState(true);
 
     updateSubcategories(p.subcategory);
 
@@ -491,24 +522,34 @@ function renderProducts() {
     if (!container) return;
 
     if (allProducts.length === 0) {
-        container.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-gray-500 italic">Nenhum produto encontrado.</td></tr>`;
+        container.innerHTML = `<tr><td colspan="7" class="p-10 text-center text-gray-500 italic">Nenhum produto encontrado.</td></tr>`;
         return;
     }
 
     container.innerHTML = allProducts.map(p => {
-        const imagePath = p.image ? p.image : null;
         const hasVars = p.hasVariations && p.variations?.length > 0;
 
-        // --- LÓGICA DE ATRIBUTOS DINÂMICOS ---
-        // Transforma o objeto { Marca: 'Apple', Modelo: 'X' } em HTML de badges
+        let stSaoRoque = 0;
+        let stCotia = 0;
+        let stIbiuna = 0;
+
+        if (hasVars) {
+            p.variations.forEach(v => {
+                stSaoRoque += v.stock_by_store?.SaoRoque ?? v.stockSaoRoque ?? 0;
+                stCotia += v.stock_by_store?.Cotia ?? v.stockCotia ?? 0;
+                stIbiuna += v.stock_by_store?.Ibiuna ?? v.stockIbiuna ?? 0;
+            });
+        } else {
+            stSaoRoque = p.stock_by_store?.SaoRoque ?? p.stockSaoRoque ?? 0;
+            stCotia = p.stock_by_store?.Cotia ?? p.stockCotia ?? 0;
+            stIbiuna = p.stock_by_store?.Ibiuna ?? p.stockIbiuna ?? 0;
+        }
+
         const attributeBadges = p.attributes ? Object.entries(p.attributes)
             .map(([key, value]) => {
                 if (!value) return ''; 
-                // Chamada da função de cor automática
                 const badgeStyle = getTagStyle(value);
-                return `<span class="${badgeStyle} text-[9px] px-1.5 py-0.5 rounded border mr-1 mt-1 inline-block uppercase font-bold">
-                            ${value}
-                        </span>`;
+                return `<span class="${badgeStyle} text-[9px] px-1.5 py-0.5 rounded border mr-1 mt-1 inline-block uppercase font-bold">${value}</span>`;
             }).join('') : '';
 
         const arrowIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
@@ -520,32 +561,38 @@ function renderProducts() {
             <td class="p-4">
                 <div class="flex items-center gap-4">
                     <div class="w-6 flex justify-center">
-                        ${hasVars ? `<button onclick="toggleVariationRows('${p._id}', this)" class="text-gray-500 hover:text-accent flex items-center justify-center transition-all">
-                            ${arrowIcon}
-                        </button>` : ''}
-                    </div>
-                    <div class="w-12 h-12 rounded-lg bg-gray-900 border border-gray-700 overflow-hidden flex-shrink-0">
-                        ${p.image ? `<img src="${p.image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-[8px] text-gray-600 font-bold p-1 text-center">SEM FOTO</div>`}
+                        ${hasVars ? `<button onclick="toggleVariationRows('${p._id}', this)" class="text-gray-500 hover:text-accent flex items-center justify-center transition-all">${arrowIcon}</button>` : ''}
                     </div>
                     <div>
                         <div class="flex items-center gap-2 flex-wrap">
                             <span class="text-sm font-bold text-white group-hover:text-accent transition-colors">${p.name}</span>
                         </div>
                         <div class="text-[10px] text-gray-500 uppercase tracking-tight">${p.category} • ${p.subcategory || 'Geral'}</div>
-                        
-                        <div class="flex flex-wrap mt-1">
-                            ${attributeBadges}
-                        </div>
+                        <div class="flex flex-wrap mt-1">${attributeBadges}</div>
                     </div>
                 </div>
             </td>
             <td class="p-4 text-center font-mono text-xs text-gray-400">${p.sku || '---'}</td>
+            
             <td class="p-4 text-center">
-                <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${p.stock > 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'} border border-current">
-                    ${hasVars ? '<span class="opacity-50 mr-1 text-gray-400">TOTAL:</span>' : ''}${p.stock}
+                <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${stSaoRoque > 0 ? 'bg-orange-500/10 text-orange-400' : 'bg-red-500/10 text-red-400'} border border-current">
+                    ${hasVars ? '<span class="opacity-40 mr-0.5 text-gray-400">Total:</span>' : ''}${stSaoRoque}
                 </span>
             </td>
-            <td class="p-4 text-center font-black text-white text-sm">R$ ${parseFloat(p.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+            
+            <td class="p-4 text-center">
+                <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${stCotia > 0 ? 'bg-sky-500/10 text-sky-400' : 'bg-red-500/10 text-red-400'} border border-current">
+                    ${hasVars ? '<span class="opacity-40 mr-0.5 text-gray-400">Total:</span>' : ''}${stCotia}
+                </span>
+            </td>
+            
+            <td class="p-4 text-center">
+                <span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${stIbiuna > 0 ? 'bg-purple-500/10 text-purple-400' : 'bg-red-500/10 text-red-400'} border border-current">
+                    ${hasVars ? '<span class="opacity-40 mr-0.5 text-gray-400">Total:</span>' : ''}${stIbiuna}
+                </span>
+            </td>
+
+            <td class="p-4 text-center font-black text-white text-sm">R$ ${parseFloat(p.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
             <td class="p-4 text-right">
                 <div class="flex justify-end gap-1">
                     <button onclick="editProduct('${p._id}')" class="p-2 hover:bg-accent/20 text-gray-400 hover:text-accent rounded-lg transition-colors">${editIcon}</button>
@@ -556,12 +603,16 @@ function renderProducts() {
 
         if (hasVars) {
             p.variations.forEach(v => {
+                const vSR = v.stock_by_store?.SaoRoque ?? v.stockSaoRoque ?? 0;
+                const vCO = v.stock_by_store?.Cotia ?? v.stockCotia ?? 0;
+                const vIB = v.stock_by_store?.Ibiuna ?? v.stockIbiuna ?? 0;
+
                 rowsHtml += `
         <tr class="child-of-${p._id} hidden bg-black/20 border-b border-gray-800/30">
-            <td class="p-2 pl-12"> <div class="flex items-center gap-3 relative">
+            <td class="p-2 pl-12"> 
+                <div class="flex items-center gap-3 relative">
                     <div class="absolute -left-6 top-0 bottom-0 w-px bg-gray-700"></div>
                     <div class="absolute -left-6 top-1/2 w-4 h-px bg-gray-700"></div>
-                    
                     <div class="text-[11px] flex items-center gap-2">
                         <span class="font-bold text-accent uppercase">${v.type}:</span>
                         <span class="text-gray-300">${v.value}</span>
@@ -569,11 +620,9 @@ function renderProducts() {
                 </div>
             </td>
             <td class="p-2 text-center font-mono text-[10px] text-gray-500">${v.sku || '---'}</td>
-            <td class="p-2 text-center">
-                <span class="text-[10px] text-gray-400 bg-gray-900 px-2 py-0.5 rounded-full border border-gray-800">
-                    ${v.stock} un
-                </span>
-            </td>
+            <td class="p-2 text-center text-[10px] text-orange-400 font-medium">${vSR} un</td>
+            <td class="p-2 text-center text-[10px] text-sky-400 font-medium">${vCO} un</td>
+            <td class="p-2 text-center text-[10px] text-purple-400 font-medium">${vIB} un</td>
             <td colspan="2" class="p-2"></td> </tr>`;
             });
         }
@@ -592,7 +641,6 @@ function toggleVariationRows(productId, btn) {
         row.classList.toggle('table-row', isHidden);
     });
     
-    // Gira o ícone SVG que está dentro do botão
     btn.classList.toggle('rotate-90', isHidden);
 }
 
@@ -619,33 +667,32 @@ function renderPaginationControls() {
     const pages = getPages();
     nav.className = "flex flex-col md:flex-row items-center justify-between gap-6 mt-8 pb-10 pt-6 border-t border-gray-800";
 
-   // Dentro de renderPaginationControls:
-const iconLeft = `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
-const iconRight = `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
+    const iconLeft = `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
+    const iconRight = `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
 
-nav.innerHTML = `
-    <div class="text-xs text-gray-500 font-medium order-2 md:order-1">
-        Exibindo <span class="text-white">${startItem}-${endItem}</span> de <span class="text-white">${totalItems}</span> resultados
-    </div>
-    <div class="flex items-center gap-2 order-1 md:order-2">
-        <button onclick="loadInitialData(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
-            class="p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-10 text-accent transition-all">
-            ${iconLeft}
-        </button>
-        
-        <div class="flex items-center gap-1.5">
-            ${pages.map(p => {
-                if (p === '...') return `<span class="px-2 text-gray-600 font-bold">...</span>`;
-                return `<button onclick="loadInitialData(${p})" class="w-10 h-10 rounded-xl text-xs font-bold border ${p === currentPage ? 'bg-accent text-black border-accent' : 'bg-gray-900 text-gray-400 border-gray-800 hover:text-white'}">${p}</button>`;
-            }).join('')}
+    nav.innerHTML = `
+        <div class="text-xs text-gray-500 font-medium order-2 md:order-1">
+            Exibindo <span class="text-white">${startItem}-${endItem}</span> de <span class="text-white">${totalItems}</span> resultados
         </div>
+        <div class="flex items-center gap-2 order-1 md:order-2">
+            <button onclick="loadInitialData(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
+                class="p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-10 text-accent transition-all">
+                ${iconLeft}
+            </button>
+            
+            <div class="flex items-center gap-1.5">
+                ${pages.map(p => {
+                    if (p === '...') return `<span class="px-2 text-gray-600 font-bold">...</span>`;
+                    return `<button onclick="loadInitialData(${p})" class="w-10 h-10 rounded-xl text-xs font-bold border ${p === currentPage ? 'bg-accent text-black border-accent' : 'bg-gray-900 text-gray-400 border-gray-800 hover:text-white'}">${p}</button>`;
+                }).join('')}
+            </div>
 
-        <button onclick="loadInitialData(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''} 
-            class="p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-10 text-accent transition-all">
-            ${iconRight}
-        </button>
-    </div>
-`;
+            <button onclick="loadInitialData(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''} 
+                class="p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-10 text-accent transition-all">
+                ${iconRight}
+            </button>
+        </div>
+    `;
 }
 
 function deleteProduct(id) {
@@ -669,17 +716,13 @@ async function confirmDelete() {
     try {
         if (btnConfirm) {
             btnConfirm.disabled = true;
-            btnConfirm.innerHTML = `
-                <span class="inline-block animate-spin mr-2">⏳</span> EXCLUINDO...
-            `;
+            btnConfirm.innerHTML = `<span class="inline-block animate-spin mr-2">⏳</span> EXCLUINDO...`;
             btnConfirm.classList.replace('bg-red-600', 'bg-red-800');
         }
 
         const res = await fetch(`${API_BASE_URL}/api/products/${productToDeleteId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (res.ok) {
@@ -746,7 +789,6 @@ async function handleUniversalUpload(event) {
             const sheetName = workbook.SheetNames[0];
             const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-            // Dicionário para organizar pais e filhos antes de enviar
             const productsMap = {};
             let currentParentSku = null;
 
@@ -754,29 +796,26 @@ async function handleUniversalUpload(event) {
                 const tipo = (row.Tipo || 'Simples').trim();
                 const sku = String(row.SKU || `AUTO-${index}`).trim();
                 
-                // Tratamento de Preço (Brasileiro -> Decimal)
                 let precoFinal = 0;
-if (row.Preço) {
-    let pRaw = String(row.Preço).replace('R$', '').trim();
-    
-    // Se houver vírgula e ponto (ex: 1.200,50), removemos o ponto e trocamos a vírgula por ponto
-    if (pRaw.includes(',') && pRaw.includes('.')) {
-        pRaw = pRaw.replace(/\./g, '').replace(',', '.');
-    } 
-    // Se houver apenas vírgula (ex: 214,29), trocamos por ponto
-    else if (pRaw.includes(',')) {
-        pRaw = pRaw.replace(',', '.');
-    }
-    
-    precoFinal = parseFloat(pRaw) || 0;
-}
+                if (row.Preço) {
+                    let pRaw = String(row.Preço).replace('R$', '').trim();
+                    if (pRaw.includes(',') && pRaw.includes('.')) {
+                        pRaw = pRaw.replace(/\./g, '').replace(',', '.');
+                    } else if (pRaw.includes(',')) {
+                        pRaw = pRaw.replace(',', '.');
+                    }
+                    precoFinal = parseFloat(pRaw) || 0;
+                }
 
-                // Estrutura base do produto
                 const p = {
                     sku: sku,
                     name: row["Nome do Produto"] || "Sem Nome",
                     price: precoFinal,
-                    stock: parseInt(row.Estoque) || 0,
+                    stock_by_store: {
+                        SaoRoque: parseInt(row.SaoRoque || row.Estoque) || 0,
+                        Cotia: parseInt(row.Cotia) || 0,
+                        Ibiuna: parseInt(row.Ibiuna) || 0
+                    },
                     category: row.Categoria || "Telas",
                     subcategory: row.Subcategoria || "Iphone",
                     attributes: {}, 
@@ -784,7 +823,7 @@ if (row.Preço) {
                     hasVariations: false
                 };
 
-                const camposFixos = ['SKU', 'Nome do Produto', 'Tipo', 'Preço', 'Estoque', 'Categoria', 'Subcategoria'];
+                const camposFixos = ['SKU', 'Nome do Produto', 'Tipo', 'Preço', 'Estoque', 'Categoria', 'Subcategoria', 'SaoRoque', 'Cotia', 'Ibiuna'];
                 Object.keys(row).forEach(key => {
                     if (!camposFixos.includes(key) && row[key] !== undefined && row[key] !== "") {
                         p.attributes[key] = String(row[key]).trim();
@@ -793,41 +832,37 @@ if (row.Preço) {
 
                 if (tipo === 'Pai') {
                     p.hasVariations = true;
-                    p.stock = 0;
+                    p.stock_by_store = { SaoRoque: 0, Cotia: 0, Ibiuna: 0 };
                     currentParentSku = sku;
                     productsMap[sku] = p;
-                } 
-               else if (tipo === 'Var' && currentParentSku && productsMap[currentParentSku]) {
-    let nomeCompleto = p.name;
-    let tipoVar = 'Cor'; 
-    let valorVar = nomeCompleto;
+                } else if (tipo === 'Var' && currentParentSku && productsMap[currentParentSku]) {
+                    let nomeCompleto = p.name;
+                    let tipoVar = 'Cor'; 
+                    let valorVar = nomeCompleto;
 
-    if (nomeCompleto.includes(':')) {
-        const partes = nomeCompleto.split(':');
-        tipoVar = partes[0].trim(); 
-        valorVar = partes[1].trim(); 
-    }
-    
-    productsMap[currentParentSku].variations.push({
-        sku: p.sku,
-        type: tipoVar, 
-        value: valorVar,
-        price: p.price,
-        stock: p.stock
-    });
-    
-    // Soma o estoque no pai normalmente
-    productsMap[currentParentSku].stock += p.stock;
-}
-                else {
-                    // Produto Simples
+                    if (nomeCompleto.includes(':')) {
+                        const partes = nomeCompleto.split(':');
+                        tipoVar = partes[0].trim(); 
+                        valorVar = partes[1].trim(); 
+                    }
+                    
+                    productsMap[currentParentSku].variations.push({
+                        sku: p.sku,
+                        type: tipoVar, 
+                        value: valorVar,
+                        price: p.price,
+                        stock_by_store: p.stock_by_store
+                    });
+                    
+                    productsMap[currentParentSku].stock_by_store.SaoRoque += p.stock_by_store.SaoRoque;
+                    productsMap[currentParentSku].stock_by_store.Cotia += p.stock_by_store.Cotia;
+                    productsMap[currentParentSku].stock_by_store.Ibiuna += p.stock_by_store.Ibiuna;
+                } else {
                     productsMap[sku] = p;
                 }
             });
 
             const toSend = Object.values(productsMap);
-            console.log("📦 Lote final para sincronização:", toSend);
-            
             await sendBatch(toSend);
 
         } catch (err) {
@@ -838,6 +873,7 @@ if (row.Preço) {
     };
     reader.readAsArrayBuffer(file);
 }
+
 async function sendBatch(products) {
     const token = localStorage.getItem('admin_token');
     try {
@@ -845,7 +881,7 @@ async function sendBatch(products) {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` // --- ADICIONADO ---
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ products })
         });
@@ -866,6 +902,6 @@ async function sendBatch(products) {
         }
     } catch (err) {
         alert("Erro no servidor: " + err.message);
-        document.getElementById('upload-status').innerText = "❌ Eredro na sincronização.";
+        document.getElementById('upload-status').innerText = "❌ Erro na sincronização.";
     }
 }

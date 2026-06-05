@@ -4,16 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <title>Cátalogo | Jack Peças</title>
+    <title>Catálogo | Jack Peças</title>
 
     <meta name="google-site-verification" content="0HDoyvuwkkQdC4Yc5IzoxrVXN-4NJcR7D1_QmRN2FvI" />
-
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://jack-pe-as.vercel.app/">
     <meta property="og:title" content="Jack Peças">
     <meta property="og:description" content="Qualidade em cada componente. Telas Displays, Baterias, Acessórios e Peças de Reposição com o melhor preço.">
     <meta property="og:image" content="https://res.cloudinary.com/drdu6ryip/image/upload/v1771644115/logo_f65eyc.png">
-
     <meta name="description" content="O melhor catálogo de peças para celulares: Telas Displays, Baterias e Acessórios. Qualidade garantida com Jack Peças.">
     <meta name="keywords" content="peças de celular, jack pecas cotia, jack pecas sao roque, jack pecas ibiuna, jackpecas, distribuidora jackpecas, distribuidora jack pecas, display atacado, baterias de celular, jack peças, acessórios mobile, manutenção de celular, jack pecas, tela display, tela para celular, distribuidora telas de celular, distribuidora de peças de celular, fonrcedor telas displays, forncedor telas de celular, fornecedor baterias de celular, fornecedor acessórios para celular">
     <meta name="robots" content="index, follow">
@@ -46,17 +44,10 @@
             backface-visibility: hidden;
             -webkit-backface-visibility: hidden;
             transform: translateZ(0);
-            -webkit-transform: translateZ(0);
         }
 
-        #catalog-content {
-            contain: paint;
-            min-height: 100vh;
-        }
-
-        .text-gray-500 {
-            color: #a1a1aa !important;
-        }
+        #catalog-content { contain: paint; min-height: 100vh; }
+        .text-gray-500 { color: #a1a1aa !important; }
 
         #filter-bar {
             background-color: rgba(10, 15, 26, 1) !important;
@@ -69,22 +60,53 @@
         }
 
         .loader {
-            width: 48px;
-            height: 48px;
+            width: 48px; height: 48px;
             border: 3px solid rgba(255, 255, 255, 0.1);
-            border-bottom-color: #fbbf24; /* Cor Accent */
+            border-bottom-color: #fbbf24;
             border-radius: 50%;
             display: inline-block;
             animation: rotation 1s linear infinite;
         }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        /* Badge do carrinho */
+        #cart-badge { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        #cart-badge.bump { transform: scale(1.5); }
     </style>
 </head>
-<body class="min-h-screen flex flex-col font-sans">
+<body class="min-h-screen flex flex-col font-sans relative overflow-x-hidden">
+
+    <!-- ══════════════════════════════════════════════
+         BARRA DE TOPO: LOJA ATIVA + BOTÃO DO CARRINHO
+         ══════════════════════════════════════════════ -->
+    <div class="w-full bg-[#0d1120] border-b border-gray-800/80 px-4 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-50">
+
+        <!-- Indicador de loja ativa (clicável para trocar) -->
+        <button onclick="openStoreSelector()"
+            class="flex items-center gap-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-accent/40 rounded-xl px-3 py-2 transition-all active:scale-95 group">
+            <span class="relative flex h-2 w-2 shrink-0">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <div class="text-left leading-none">
+                <p class="text-[8px] font-black text-gray-500 uppercase tracking-widest">Loja ativa</p>
+                <p id="top-store-name" class="text-[11px] font-black text-white uppercase tracking-wider mt-0.5 group-hover:text-accent transition-colors">Selecionar →</p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-gray-600 group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
+
+        <!-- Botão carrinho na topbar -->
+        <button onclick="toggleCartPanel()"
+            class="relative flex items-center gap-2 bg-accent/10 hover:bg-accent border border-accent/30 hover:border-accent text-accent hover:text-dark font-black text-[10px] uppercase tracking-wider px-3 py-2 rounded-xl transition-all active:scale-95 group">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            <span>Carrinho</span>
+            <span id="cart-badge" class="bg-rose-500 text-white text-[10px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center hidden">0</span>
+        </button>
+    </div>
 
     <nav class="py-8 text-center">
         <h1 onclick="resetAll()" class="text-3xl font-black tracking-[0.2em] text-white cursor-pointer uppercase italic inline-block">
@@ -101,105 +123,150 @@
             <p class="text-gray-500 text-[10px] md:text-xs font-black uppercase tracking-[0.4em]">
                 Displays • Baterias • Acessórios • Reposição
             </p>
-            
             <div class="relative max-w-2xl mx-auto mt-10">
-                <input type="text" id="public-search" oninput="handleSearch()" placeholder="O QUE VOCÊ PROCURA HOJE?" class="w-full bg-card border border-gray-800 rounded-2xl py-5 px-14 text-xs font-bold focus:border-accent outline-none transition-all shadow-2xl">
+                <input type="text" id="public-search" oninput="handleSearch()" placeholder="O QUE VOCÊ PROCURA HOJE?"
+                    class="w-full bg-card border border-gray-800 rounded-2xl py-5 px-14 text-xs font-bold focus:border-accent outline-none transition-all shadow-2xl">
                 <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-accent/50">
-    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-</div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                    </svg>
+                </div>
             </div>
         </div>
     </header>
 
-    <main class="flex-grow w-full max-w-7xl mx-auto px-4">
-        
-        <div id="filter-bar" class="sticky top-0 z-50 bg-dark/95 backdrop-blur-md border-b border-gray-800 px-4 py-3 -mx-4 mb-6">
-    <div class="max-w-7xl mx-auto space-y-3">
-        
-        <div class="flex items-center gap-2">
-            <div id="quick-nav" class="flex-grow flex gap-2 overflow-x-auto hide-scroll pb-1">
-                </div>
+    <main class="flex-grow w-full max-w-7xl mx-auto px-4 relative">
 
-            <button onclick="toggleFilters()" class="flex items-center gap-2 bg-accent/10 border border-accent/20 text-accent px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all active:scale-95">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                </svg>
-                Filtros
-            </button>
-        </div>
-
-        <div id="extra-filters" class="hidden animate-in pt-2 border-t border-gray-800/50">
-            <div class="flex flex-wrap gap-2 items-center">
-                <div id="brand-filter-container" class="hidden">
-                    <select id="sub-filter" onchange="handleSubFilter(this.value)" 
-                        class="bg-card border border-gray-700 rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none focus:border-accent min-w-[100px]">
-                        <option value="">Marca</option>
-                    </select>
+        <div id="filter-bar" class="sticky top-[49px] z-40 bg-dark/95 border-b border-gray-800 px-4 py-3 -mx-4 mb-6">
+            <div class="max-w-7xl mx-auto space-y-3">
+                <div class="flex items-center gap-2">
+                    <div id="quick-nav" class="flex-grow flex gap-2 overflow-x-auto hide-scroll pb-1"></div>
+                    <button onclick="toggleFilters()" class="flex items-center gap-2 bg-accent/10 border border-accent/20 text-accent px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                        Filtros
+                    </button>
                 </div>
-                <div id="attribute-filters" class="flex flex-wrap gap-2">
+                <div id="extra-filters" class="hidden animate-in pt-2 border-t border-gray-800/50">
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <div id="brand-filter-container" class="hidden">
+                            <select id="sub-filter" onchange="handleSubFilter(this.value)"
+                                class="bg-card border border-gray-700 rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none focus:border-accent min-w-[100px]">
+                                <option value="">Marca</option>
+                            </select>
+                        </div>
+                        <div id="attribute-filters" class="flex flex-wrap gap-2"></div>
+                        <button onclick="resetAll()" class="ml-auto text-[10px] font-black text-gray-500 hover:text-white uppercase px-2">Limpar</button>
                     </div>
-                <button onclick="resetAll()" class="ml-auto text-[10px] font-black text-gray-500 hover:text-white uppercase px-2">
-                    Limpar
-                </button>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
         <div id="view-header" class="mb-10 hidden animate-in">
             <h2 id="active-title" class="text-2xl font-black uppercase italic tracking-tight border-l-4 border-accent pl-4"></h2>
         </div>
 
         <div id="catalog-content" class="space-y-20 pb-20"></div>
-        
         <div id="catalog-footer" class="pb-20 flex flex-col items-center gap-4"></div>
-        <div class="fixed bottom-6 right-6 z-[100] font-sans">
-    
-    <div id="whatsapp-menu" class="hidden opacity-0 scale-95 translate-y-4 transition-all duration-300 ease-out absolute bottom-16 right-0 w-72 bg-card border border-gray-800 rounded-2xl p-4 shadow-2xl gpu-card">
-        <div class="flex items-center gap-3 pb-3 mb-3 border-b border-gray-800">
-            <div>
-                <h4 class="text-xs font-black uppercase tracking-wider text-white">Canais de Venda</h4>
-                <p class="text-[10px] text-gray-500 font-bold uppercase">Selecione a unidade mais próxima</p>
+
+        <!-- ══════════════════════════════════════════
+             PAINEL LATERAL DO CARRINHO (DRAWER)
+             ══════════════════════════════════════════ -->
+
+        <!-- Backdrop escuro -->
+        <div id="cart-backdrop" onclick="toggleCartPanel()"
+            class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] hidden opacity-0 transition-opacity duration-300">
+        </div>
+
+        <!-- Drawer -->
+        <div id="cart-panel"
+            class="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-card border-l border-gray-800 z-[70] shadow-2xl flex flex-col translate-x-full transition-transform duration-300 ease-in-out gpu-card">
+
+            <!-- Header -->
+            <div class="p-5 border-b border-gray-800 flex items-center justify-between shrink-0">
+                <div>
+                    <h3 class="text-sm font-black uppercase tracking-wider text-white">Seu Pedido</h3>
+                    <p id="cart-store-label" class="text-[10px] font-black text-accent uppercase tracking-widest mt-0.5">—</p>
+                </div>
+                <button onclick="toggleCartPanel()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors text-gray-400 hover:text-white">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Lista de itens -->
+            <div id="cart-items-list" class="flex-grow overflow-y-auto p-5 space-y-3 hide-scroll bg-dark/20">
+                <div class="text-center py-12 text-gray-500 font-bold uppercase text-xs tracking-wider">
+                    Seu carrinho está vazio.
+                </div>
+            </div>
+
+            <!-- Footer com totais e botão -->
+            <div class="p-5 border-t border-gray-800 bg-dark/80 space-y-4 shrink-0">
+                <div class="flex items-center justify-between font-black uppercase text-xs tracking-wider">
+                    <span class="text-gray-400">Total de itens:</span>
+                    <span id="cart-total-qty" class="text-white">0</span>
+                </div>
+                <div class="flex items-center justify-between font-black uppercase text-sm">
+                    <span class="text-gray-400">Valor total:</span>
+                    <span id="cart-total-price" class="text-accent text-xl font-black font-mono">R$ 0,00</span>
+                </div>
+                <button onclick="checkoutCart()"
+                    class="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-white font-black text-xs uppercase tracking-widest py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20">
+                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397 0 11.966 0c3.178.001 6.169 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.902-11.91 11.902-2.01-.001-3.993-.51-5.741-1.486L0 24zm6.59-4.846c1.785 1.058 3.565 1.61 5.322 1.61 5.4 0 9.79-4.386 9.793-9.774.002-2.611-1.015-5.065-2.864-6.917C17.043 2.221 14.593 1.2 11.97 1.2c-5.405 0-9.794 4.387-9.797 9.776-.001 1.84.498 3.633 1.442 5.213l-1.03 3.755 3.862-1.011zm12.31-4.707c-.312-.156-1.847-.91-2.134-1.014-.286-.105-.495-.156-.704.156-.21.312-.81 1.014-.992 1.22-.183.208-.365.235-.677.08-1.554-.775-2.585-1.353-3.615-3.123-.273-.47.272-.436.78-1.45.084-.17.043-.314-.021-.444-.063-.13-.547-1.317-.749-1.802-.197-.474-.397-.41-.547-.417-.14-.007-.302-.008-.464-.008-.162 0-.426.06-.649.303-.222.242-.848.828-.848 2.019 0 1.191.867 2.34 1.049 2.583.182.243 1.705 2.603 4.132 3.652.578.249 1.03.398 1.382.511.58.184 1.11.158 1.528.096.467-.07 1.444-.59 1.648-1.16.204-.572.204-1.063.142-1.165-.062-.101-.227-.156-.54-.312z"/>
+                    </svg>
+                    Enviar Pedido
+                </button>
+                <button onclick="clearCart()" class="w-full bg-rose-500 hover:bg-rose-400 text-xs font-black text-white rounded-xl py-4 uppercase tracking-widest transition-colors">
+                    Limpar carrinho
+                </button>
             </div>
         </div>
 
-        <div class="space-y-2">
-            <a href="https://wa.me/5511941743113?text=Olá!%20Estou%20vendo%20o%20catálogo%20e%20gostaria%20de%20falar%20com%20a%20loja%20de%20São%20Roque." target="_blank" 
-               class="flex items-center justify-between p-3 rounded-xl bg-dark/50 border border-gray-800/60 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group">
-                <div>
-                    <span class="text-[10px] font-black uppercase tracking-wider text-accent">Região 01</span>
-                    <p class="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Loja São Roque</p>
-                </div>
-                <span class="text-emerald-500 text-xs font-bold">Pedir Peça →</span>
-            </a>
+        <!-- ══════════════════════════════════════════
+             MODAL SELETOR DE LOJA
+             ══════════════════════════════════════════ -->
+        <div id="store-selector-backdrop"
+            class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300 hidden opacity-0">
+            <div id="store-modal-card"
+                class="bg-gradient-to-b from-card to-card/90 border border-gray-800 rounded-3xl p-6 w-full max-w-md shadow-2xl text-center space-y-6 transform scale-95 transition-transform duration-300">
 
-            <a href="https://wa.me/5511943924756?text=Olá!%20Estou%20vendo%20o%20catálogo%20e%20gostaria%20de%20falar%20com%20a%20loja%20de%20Cotia." target="_blank" 
-               class="flex items-center justify-between p-3 rounded-xl bg-dark/50 border border-gray-800/60 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group">
                 <div>
-                    <span class="text-[10px] font-black uppercase tracking-wider text-accent">Região 02</span>
-                    <p class="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Loja Cotia</p>
+                    <nav class="py-8 text-center">
+                        <h1 onclick="resetAll()" class="text-3xl font-black tracking-[0.2em] text-white cursor-pointer uppercase italic inline-block">
+                            JACK<span class="text-accent">PEÇAS</span>
+                        </h1>
+                    </nav>
+                    <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-1">Escolha a loja mais próxima da sua localização</p>
                 </div>
-                <span class="text-emerald-500 text-xs font-bold">Pedir Peça →</span>
-            </a>
 
-            <a href="https://wa.me/5511943908395?text=Olá!%20Estou%20vendo%20o%20catálogo%20e%20gostaria%20de%20falar%20com%20a%20loja%20de%20Ibiúna." target="_blank" 
-               class="flex items-center justify-between p-3 rounded-xl bg-dark/50 border border-gray-800/60 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all group">
-                <div>
-                    <span class="text-[10px] font-black uppercase tracking-wider text-accent">Região 03</span>
-                    <p class="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">Loja Ibiúna</p>
+                <div class="flex flex-col gap-3">
+                    <button onclick="selectStore('São Roque')"
+                        class="w-full bg-dark/60 hover:bg-accent border border-gray-800 hover:border-transparent text-gray-200 hover:text-dark font-black uppercase text-xs tracking-wider py-4 px-5 rounded-2xl flex items-center justify-between transition-all group active:scale-[0.98]">
+                        <span>Unidade São Roque</span>
+                        <span class="text-[9px] bg-card text-gray-400 group-hover:bg-dark group-hover:text-accent font-black px-2 py-1 rounded-md transition-colors">Selecionar</span>
+                    </button>
+                    <button onclick="selectStore('Cotia')"
+                        class="w-full bg-dark/60 hover:bg-accent border border-gray-800 hover:border-transparent text-gray-200 hover:text-dark font-black uppercase text-xs tracking-wider py-4 px-5 rounded-2xl flex items-center justify-between transition-all group active:scale-[0.98]">
+                        <span>Unidade Cotia</span>
+                        <span class="text-[9px] bg-card text-gray-400 group-hover:bg-dark group-hover:text-accent font-black px-2 py-1 rounded-md transition-colors">Selecionar</span>
+                    </button>
+                    <button onclick="selectStore('Ibiúna')"
+                        class="w-full bg-dark/60 hover:bg-accent border border-gray-800 hover:border-transparent text-gray-200 hover:text-dark font-black uppercase text-xs tracking-wider py-4 px-5 rounded-2xl flex items-center justify-between transition-all group active:scale-[0.98]">
+                        <span>Unidade Ibiúna</span>
+                        <span class="text-[9px] bg-card text-gray-400 group-hover:bg-dark group-hover:text-accent font-black px-2 py-1 rounded-md transition-colors">Selecionar</span>
+                    </button>
                 </div>
-                <span class="text-emerald-500 text-xs font-bold">Pedir Peça →</span>
-            </a>
+
+                <p class="text-[8px] font-black text-gray-600 uppercase tracking-widest">Jack Peças Distribuidora © 2026</p>
+            </div>
         </div>
-    </div>
 
-    <button onclick="toggleWhatsappMenu()" id="whatsapp-main-btn" class="w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 z-50 relative">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 fill-current" viewBox="0 0 24 24">
-            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397 0 11.966 0c3.178.001 6.169 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.902-11.91 11.902-2.01-.001-3.993-.51-5.741-1.486L0 24zm6.59-4.846c1.785 1.058 3.565 1.61 5.322 1.61 5.4 0 9.79-4.386 9.793-9.774.002-2.611-1.015-5.065-2.864-6.917C17.043 2.221 14.593 1.2 11.97 1.2c-5.405 0-9.794 4.387-9.797 9.776-.001 1.84.498 3.633 1.442 5.213l-1.03 3.755 3.862-1.011zm12.31-4.707c-.312-.156-1.847-.91-2.134-1.014-.286-.105-.495-.156-.704.156-.21.312-.81 1.014-.992 1.22-.183.208-.365.235-.677.08-1.554-.775-2.585-1.353-3.615-3.123-.273-.47.272-.436.78-1.45.084-.17.043-.314-.021-.444-.063-.13-.547-1.317-.749-1.802-.197-.474-.397-.41-.547-.417-.14-.007-.302-.008-.464-.008-.162 0-.426.06-.649.303-.222.242-.848.828-.848 2.019 0 1.191.867 2.34 1.049 2.583.182.243 1.705 2.603 4.132 3.652.578.249 1.03.398 1.382.511.58.184 1.11.158 1.528.096.467-.07 1.444-.59 1.648-1.16.204-.572.204-1.063.142-1.165-.062-.101-.227-.156-.54-.312z"/>
-        </svg>
-    </button>
-</div>
     </main>
+
     <script src="./js/main.js"></script>
     <script src="js/analytics.js"></script>
 </body>

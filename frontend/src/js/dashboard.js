@@ -2,8 +2,8 @@
 const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
 // const API_BASE_URL = "http://localhost:3000";
 
+
 async function loadStats() {
-    // Captura os elementos de filtro no HTML
     const periodSelect = document.getElementById('period-filter');
     const selectedPeriod = periodSelect ? periodSelect.value : '30days';
 
@@ -11,31 +11,29 @@ async function loadStats() {
     const startDateEl = document.getElementById('start-date');
     const endDateEl = document.getElementById('end-date');
 
-    // Controla a visibilidade dos campos de data manual
     if (selectedPeriod === 'custom') {
         if (customContainer) customContainer.className = "flex items-center gap-2 bg-gray-900 p-1.5 border border-gray-800 rounded-lg text-xs";
     } else {
         if (customContainer) customContainer.className = "hidden";
     }
 
-    // Seletores dos elementos do DOM
     const grid = document.getElementById('categories-grid');
     const totalElement = document.getElementById('total-count');
     
-    // Elementos dos Cards de Analytics
     const totalVisitsEl = document.getElementById('total-visits');
     const uniqueUsersEl = document.getElementById('unique-users');
-    const clickSaoRoqueEl = document.getElementById('click-sao-roque');
-    const clickCotiaEl = document.getElementById('click-cotia');
-    const clickIbiunaEl = document.getElementById('click-ibiuna');
+    
+    // NOVOS SELETORES ADAPTADOS PARA AS LOJAS
+ // Troque as variáveis de captura por:
+const clickSaoRoqueEl = document.getElementById('click-sao-roque');
+const clickCotiaEl = document.getElementById('click-cotia');
+const clickIbiunaEl = document.getElementById('click-ibiuna');
 
-    // Elementos do Bloco Separado de Comparação
     const compareCard = document.getElementById('compare-card');
     const compareTitle = document.getElementById('compare-title');
     const compareVisits = document.getElementById('compare-visits');
     const compareUsers = document.getElementById('compare-users');
 
-    // 1. ESTADO DE CARREGAMENTO (SPINNER E ACENOS)
     if (grid) {
         grid.innerHTML = `
             <div class="col-span-full flex flex-col items-center justify-center py-20 gap-4">
@@ -55,7 +53,6 @@ async function loadStats() {
     try {
         const token = localStorage.getItem('admin_token');
 
-        // Contrói a string de URL passando as datas se for o caso
         let url = `${API_BASE_URL}/api/dashboard/stats?period=${selectedPeriod}`;
         if (selectedPeriod === 'custom' && startDateEl?.value && endDateEl?.value) {
             url += `&startDate=${startDateEl.value}&endDate=${endDateEl.value}`;
@@ -74,25 +71,24 @@ async function loadStats() {
                 window.location.href = 'login.html';
                 return;
             }
-            throw new Error('Falha ao carregar estatísticas');
+            throw new Error('Falha ao carregar estatísticas do servidor');
         }
 
         const data = await response.json();
 
-        // 2. INJETA OS NÚMEROS LIMPOS SEM TEXTOS ADICIONAIS OU PORCENTAGENS
         if (totalElement) totalElement.innerText = data.total || 0;
         
         if (data.analytics) {
             if (totalVisitsEl) totalVisitsEl.innerText = data.analytics.totalVisits ?? 0;
             if (uniqueUsersEl) uniqueUsersEl.innerText = data.analytics.uniqueUsers ?? 0;
             
-            if (data.analytics.clicks) {
-                if (clickSaoRoqueEl) clickSaoRoqueEl.innerText = data.analytics.clicks.sao_roque ?? 0;
-                if (clickCotiaEl) clickCotiaEl.innerText = data.analytics.clicks.cotia ?? 0;
-                if (clickIbiunaEl) clickIbiunaEl.innerText = data.analytics.clicks.ibiuna ?? 0;
+            // POPULA OS DADOS REAIS REPASSADOS PELO BACKEND
+            if (data.analytics.stores) {
+                if (clickSaoRoqueEl) clickSaoRoqueEl.innerText = data.analytics.stores.sao_roque ?? 0;
+                if (clickCotiaEl) clickCotiaEl.innerText = data.analytics.stores.cotia ?? 0;
+                if (clickIbiunaEl) clickIbiunaEl.innerText = data.analytics.stores.ibiuna ?? 0;
             }
 
-            // 3. GERENCIA O CARD COMPARAÇÃO SEPARADO NA DIREITA
             if (data.analytics.compare && data.analytics.compare.hasCompare) {
                 if (compareCard) compareCard.classList.remove('hidden');
                 
@@ -107,12 +103,10 @@ async function loadStats() {
                 if (compareVisits) compareVisits.innerText = data.analytics.compare.totalVisitsCompare ?? 0;
                 if (compareUsers) compareUsers.innerText = data.analytics.compare.uniqueUsersCompare ?? 0;
             } else {
-                // Oculta completamente o card se for Período Personalizado
                 if (compareCard) compareCard.classList.add('hidden');
             }
         }
 
-        // 4. RENDERIZAÇÃO DO GRID DE PRODUTOS POR CATEGORIA
         if (!grid) return;
         grid.innerHTML = '';
 
@@ -125,7 +119,6 @@ async function loadStats() {
 
         categoryNames.forEach(catName => {
             const count = data.categories[catName];
-            
             grid.innerHTML += `
                 <div class="bg-[#111827] p-6 rounded-xl border border-gray-800 hover:border-accent transition group shadow-lg">
                     <div class="flex justify-between items-start">
@@ -139,13 +132,25 @@ async function loadStats() {
         });
     } catch (err) {
         console.error("Erro ao carregar stats:", err);
+        if (grid) {
+            grid.innerHTML = `
+                <div class="col-span-full flex flex-col items-center justify-center py-12 gap-2 text-red-500">
+                    <p class="font-bold text-sm tracking-wide uppercase">Não foi possível carregar os dados das categorias.</p>
+                    <button onclick="loadStats()" class="mt-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg border border-gray-700 font-bold transition">Tentar Novamente</button>
+                </div>
+            `;
+        }
+        if (totalElement) totalElement.innerText = "0";
+        if (totalVisitsEl) totalVisitsEl.innerText = "0";
+        if (uniqueUsersEl) uniqueUsersEl.innerText = "0";
+        if (clickSaoRoqueEl) clickSaoRoqueEl.innerText = "0";
+        if (clickCotiaEl) clickCotiaEl.innerText = "0";
+        if (clickIbiunaEl) clickIbiunaEl.innerText = "0";
     }
 }
 
-// Inicialização do painel e registro do evento de mudança no filtro
 document.addEventListener('DOMContentLoaded', () => {
     loadStats();
-
     const periodSelect = document.getElementById('period-filter');
     if (periodSelect) {
         periodSelect.addEventListener('change', loadStats);
