@@ -3,25 +3,18 @@
 
 <head>
     <meta charset="UTF-8">
-
     <meta name="robots" content="noindex, nofollow">
     <meta name="googlebot" content="noindex, nofollow">
-
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0A0F1E">
-
     <title>Produtos | Jack Peças</title>
     <link rel="icon" type="image/png" href="https://res.cloudinary.com/drdu6ryip/image/upload/v1771549494/icone-jackpecas_q6vq4a.png">
     <link rel="apple-touch-icon" href="https://res.cloudinary.com/drdu6ryip/image/upload/v1771549494/icone-jackpecas_q6vq4a.png">
-
     <script src="/frontend/src/js/guard.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -32,189 +25,186 @@
         }
     </script>
     <style>
-    .loader {
-            width: 32px;
-            height: 32px;
+        .loader {
+            width: 32px; height: 32px;
             border: 3px solid #FFF;
             border-bottom-color: #fbbf24;
             border-radius: 50%;
             display: inline-block;
             animation: rotation 1s linear infinite;
         }
-
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .loading-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            gap: 12px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 40px; gap: 12px;
         }
 
-        #product-list-body td {
-            vertical-align: middle;
-        }
-</style>
+        #product-list-body td { vertical-align: middle; }
+    </style>
 </head>
 
 <body class="bg-primary text-white min-h-screen flex">
 
+    <!-- SIDEBAR -->
     <aside class="w-64 bg-[#111827] border-r border-gray-800 p-6 flex flex-col fixed h-full z-10">
         <h2 class="text-2xl font-bold text-accent mb-10 text-center uppercase tracking-tighter">Jack Peças</h2>
-       <nav id="main-nav" class="flex-1 space-y-2">
-    <a href="dashboard.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
-        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="15" rx="1"/></svg>
-        </div>
-        <span class="text-sm font-medium">Dashboard</span>
-    </a>
-
-    <a href="products.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
-        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-        </div>
-        <span class="text-sm font-medium">Produtos</span>
-    </a>
-
-    <a href="categories.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
-        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/><path d="M12 4v2"/><path d="M16 4v2"/><path d="M8 4v4"/></svg>
-        </div>
-        <span class="text-sm font-medium">Categorias</span>
-    </a>
-
-    <a href="attributes.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
-        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
-        </div>
-        <span class="text-sm font-medium">Atributos</span>
-    </a>
-</nav>
+        <nav id="main-nav" class="flex-1 space-y-2">
+            <a href="dashboard.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="15" rx="1"/></svg>
+                </div>
+                <span class="text-sm font-medium">Dashboard</span>
+            </a>
+            <a href="products.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                </div>
+                <span class="text-sm font-medium">Produtos</span>
+            </a>
+            <a href="categories.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/><path d="M12 4v2"/><path d="M16 4v2"/><path d="M8 4v4"/></svg>
+                </div>
+                <span class="text-sm font-medium">Categorias</span>
+            </a>
+            <a href="attributes.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+                </div>
+                <span class="text-sm font-medium">Atributos</span>
+            </a>
+        </nav>
         <button onclick="logout()" class="group mt-4 flex items-center gap-3 p-3 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-all duration-200 w-full text-left font-medium">
-    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-red-900/40 transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-    </div>
-    <span class="text-sm uppercase tracking-wider">Sair</span>
-</button>
+            <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-red-900/40 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </div>
+            <span class="text-sm uppercase tracking-wider">Sair</span>
+        </button>
     </aside>
 
     <main class="flex-1 ml-64 p-8">
         <div class="max-w-7xl mx-auto">
 
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                <div>
-                    <h1 class="text-3xl font-bold text-accent uppercase tracking-widest">Produtos</h1>
-                    <p id="upload-status" class="text-[10px] text-gray-500 uppercase font-bold mt-1 tracking-tighter"></p>
-                </div>
-
-                <div class="flex items-center gap-3">
-                    <button onclick="openForm()" id="btn-open-form"
-                        class="bg-accent text-black font-black px-6 py-3.5 rounded-xl hover:bg-yellow-500 transition shadow-lg active:scale-95 flex items-center gap-2 text-sm uppercase">
-                        <span class="text-xl leading-none">+</span>
-                        <span>Novo Produto</span>
-                    </button>
-                </div>
+            <!-- CABEÇALHO: apenas título, sem botões de ação -->
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-accent uppercase tracking-widest">Produtos</h1>
+                <p class="text-[10px] text-gray-500 uppercase font-bold mt-1 tracking-tighter">
+                    Gerencie os atributos dos produtos sincronizados pelo Bling
+                </p>
             </div>
 
+            <!-- FORMULÁRIO DE EDIÇÃO (abre apenas ao clicar em editar) -->
             <section id="product-form-container"
                 class="hidden bg-[#111827] p-8 rounded-2xl border border-gray-700 mb-10 shadow-xl">
-                <h2 id="form-title" class="text-xl font-bold mb-6 text-white uppercase tracking-tight">Cadastro de Produto</h2>
+
+                <div class="flex items-center justify-between mb-6">
+                    <h2 id="form-title" class="text-xl font-bold text-white uppercase tracking-tight">Editando Produto</h2>
+                    <!-- Badge indicando que só atributos são editáveis -->
+                    <span class="text-[10px] font-black uppercase tracking-widest bg-accent/10 text-accent border border-accent/30 px-3 py-1.5 rounded-lg">
+                        Estoque e preço gerenciados pelo Bling
+                    </span>
+                </div>
 
                 <div class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Nome: só leitura -->
                         <div class="md:col-span-2">
                             <label class="text-[10px] text-gray-400 uppercase font-bold">Nome do Produto</label>
-                            <input type="text" id="p-name" placeholder="Ex: Tela iPhone 13"
-                                class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            <input type="text" id="p-name" readonly
+                                class="w-full p-3 mt-1 rounded bg-gray-900 border border-gray-700 outline-none text-gray-400 cursor-not-allowed opacity-60">
                         </div>
+                        <!-- SKU: só leitura -->
                         <div>
                             <label class="text-[10px] text-gray-400 uppercase font-bold">SKU</label>
-                            <input type="text" id="p-sku" placeholder="SKU-123"
-                                class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            <input type="text" id="p-sku" readonly
+                                class="w-full p-3 mt-1 rounded bg-gray-900 border border-gray-700 outline-none text-gray-400 cursor-not-allowed opacity-60">
                         </div>
+                        <!-- Preço: só leitura -->
                         <div>
                             <label class="text-[10px] text-gray-400 uppercase font-bold">Preço (R$)</label>
-                            <input type="number" id="p-price" step="0.01" placeholder="0,00"
-                                class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            <input type="number" id="p-price" readonly
+                                class="w-full p-3 mt-1 rounded bg-gray-900 border border-gray-700 outline-none text-gray-400 cursor-not-allowed opacity-60">
                         </div>
+                        <!-- Categoria: só leitura -->
                         <div>
                             <label class="text-[10px] text-gray-400 uppercase font-bold">Categoria</label>
-                            <select id="p-category" onchange="updateSubcategories()"
-                                class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            <select id="p-category" disabled onchange="updateSubcategories()"
+                                class="w-full p-3 mt-1 rounded bg-gray-900 border border-gray-700 outline-none text-gray-400 cursor-not-allowed opacity-60">
                                 <option value="">Selecione...</option>
                             </select>
                         </div>
+                        <!-- Subcategoria: só leitura -->
                         <div>
                             <label class="text-[10px] text-gray-400 uppercase font-bold">Subcategoria</label>
-                            <select id="p-subcategory"
-                                class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
-                                <option value="">Selecione a categoria...</option>
+                            <select id="p-subcategory" disabled
+                                class="w-full p-3 mt-1 rounded bg-gray-900 border border-gray-700 outline-none text-gray-400 cursor-not-allowed opacity-60">
+                                <option value="">—</option>
                             </select>
                         </div>
                     </div>
 
+                    <!-- Estoques por loja: só leitura -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                         <div>
-                            <label class="text-[10px] text-gray-400 uppercase font-bold">Estoque São Roque</label>
-                            <input type="number" id="p-stock-saoroque" placeholder="0" value="0"
-                                class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            <label class="text-[10px] text-orange-400 uppercase font-bold">Estoque São Roque</label>
+                            <input type="number" id="p-stock-sao-roque" readonly
+                                class="w-full p-3 mt-1 rounded bg-gray-900 border border-gray-700 outline-none text-gray-400 cursor-not-allowed opacity-60">
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-400 uppercase font-bold">Estoque Cotia</label>
-                            <input type="number" id="p-stock-cotia" placeholder="0" value="0"
-                                class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            <label class="text-[10px] text-sky-400 uppercase font-bold">Estoque Cotia</label>
+                            <input type="number" id="p-stock-cotia" readonly
+                                class="w-full p-3 mt-1 rounded bg-gray-900 border border-gray-700 outline-none text-gray-400 cursor-not-allowed opacity-60">
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-400 uppercase font-bold">Estoque Ibiúna</label>
-                            <input type="number" id="p-stock-ibiuna" placeholder="0" value="0"
-                                class="w-full p-3 mt-1 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
+                            <label class="text-[10px] text-purple-400 uppercase font-bold">Estoque Ibiúna</label>
+                            <input type="number" id="p-stock-ibiuna" readonly
+                                class="w-full p-3 mt-1 rounded bg-gray-900 border border-gray-700 outline-none text-gray-400 cursor-not-allowed opacity-60">
                         </div>
                     </div>
 
+                    <!-- Atributos técnicos: EDITÁVEIS -->
                     <div id="dynamic-attributes-container" class="mt-4 pt-4 border-t border-gray-800 hidden">
-                        <h3 class="text-[10px] text-accent uppercase mb-3 font-bold tracking-widest">Atributos Técnicos</h3>
+                        <h3 class="text-[10px] text-accent uppercase mb-3 font-bold tracking-widest">
+                            Atributos Técnicos
+                            <span class="ml-2 text-emerald-400 normal-case tracking-normal font-semibold">(editável)</span>
+                        </h3>
                         <div id="attributes-fields" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
                     </div>
                 </div>
 
-                <div class="mt-6 border-t border-gray-800 pt-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-3">
-                            <input type="checkbox" id="p-has-variations" onchange="toggleVariations()" class="w-5 h-5 accent-accent">
-                            <label for="p-has-variations" class="text-sm font-bold uppercase text-accent cursor-pointer">Este produto possui variações?</label>
-                        </div>
+                <!-- Variações: só leitura -->
+                <div class="mt-6 border-t border-gray-800 pt-6" id="variations-section">
+                    <div class="flex items-center gap-3 mb-4 opacity-50">
+                        <input type="checkbox" id="p-has-variations" disabled class="w-5 h-5 accent-accent">
+                        <label class="text-sm font-bold uppercase text-accent cursor-not-allowed">Este produto possui variações</label>
                     </div>
-
                     <div id="variations-container" class="hidden space-y-4 bg-gray-900/50 p-6 rounded-2xl border border-gray-700 shadow-inner">
-                        <div class="flex items-center justify-between border-b border-gray-800 pb-3 mb-4">
-                            <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Gerenciar Variedades (Cores/Modelos)</h3>
-                            <button type="button" onclick="addVariationRow()" class="bg-white/10 hover:bg-accent hover:text-black transition-all px-3 py-1 rounded-lg text-[10px] font-bold uppercase">
-                                + Adicionar Item
-                            </button>
+                        <div class="pb-3 mb-4 border-b border-gray-800">
+                            <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Variações do Produto</h3>
                         </div>
-                        
-                        <div id="variations-list" class="space-y-3">
-                        </div>
+                        <div id="variations-list" class="space-y-3"></div>
                     </div>
                 </div>
 
                 <div class="mt-8 flex justify-end gap-4 border-t border-gray-800 pt-6">
                     <button onclick="closeForm()"
-                        class="text-gray-400 hover:text-white font-bold px-6 py-3 uppercase tracking-widest transition text-xs">Cancelar</button>
+                        class="text-gray-400 hover:text-white font-bold px-6 py-3 uppercase tracking-widest transition text-xs">
+                        Cancelar
+                    </button>
                     <button onclick="saveProduct()" id="btn-save-product"
-                        class="bg-accent text-black font-black px-10 py-4 rounded-xl uppercase tracking-widest hover:scale-105 transition shadow-lg text-xs">Salvar Produto</button>
+                        class="bg-accent text-black font-black px-10 py-4 rounded-xl uppercase tracking-widest hover:scale-105 transition shadow-lg text-xs">
+                        Salvar Atributos
+                    </button>
                 </div>
             </section>
 
+            <!-- FILTROS -->
             <div class="flex flex-col md:flex-row gap-4 mb-8">
                 <div class="flex-1 relative">
                     <input type="text" id="search-input" oninput="filterProducts()" placeholder="Buscar por nome..."
@@ -233,46 +223,31 @@
                 </select>
             </div>
 
+            <!-- TABELA -->
             <div class="bg-[#111827] rounded-2xl border border-gray-800 overflow-hidden shadow-2xl">
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-gray-800/50 text-[10px] uppercase tracking-widest text-gray-400">
                             <th class="p-4 font-bold">Produto</th>
                             <th class="p-4 text-center font-bold">SKU</th>
-                            <th class="p-4 text-center font-bold">Estoque São Roque</th>
-                            <th class="p-4 text-center font-bold">Estoque Cotia</th>
-                            <th class="p-4 text-center font-bold">Estoque Ibiuna</th>
+                            <th class="p-4 text-center font-bold">São Roque</th>
+                            <th class="p-4 text-center font-bold">Cotia</th>
+                            <th class="p-4 text-center font-bold">Ibiúna</th>
                             <th class="p-4 text-center font-bold">Preço</th>
                             <th class="p-4 text-right font-bold">Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="product-list-body" class="divide-y divide-gray-800/50">
-                    </tbody>
+                    <tbody id="product-list-body" class="divide-y divide-gray-800/50"></tbody>
                 </table>
             </div>
 
             <div id="pagination-nav"></div>
-        
+
         </div>
     </main>
 
-    <div id="delete-modal"
-        class="fixed inset-0 bg-black/80 hidden flex items-center justify-center z-50 backdrop-blur-sm">
-        <div class="bg-[#111827] border border-gray-800 p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl">
-            <div class="text-4xl mb-4">⚠️</div>
-            <h3 class="text-xl font-bold text-white mb-2 uppercase">Excluir Produto?</h3>
-            <p id="delete-modal-msg" class="text-gray-400 text-sm mb-6"></p>
-            <div class="flex gap-4">
-                <button onclick="closeDeleteModal()"
-                    class="flex-1 p-3 rounded-xl bg-gray-800 text-white font-bold hover:bg-gray-700 transition">Não</button>
-                <button id="confirm-delete-btn" onclick="confirmDelete()"
-                    class="flex-1 p-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition">Sim, Excluir</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="toast"
-        class="fixed bottom-10 right-10 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+    <!-- TOAST -->
+    <div id="toast" class="fixed bottom-10 right-10 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
         <div id="toast-content" class="px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 font-bold border">
             <span id="toast-icon"></span>
             <span id="toast-message" class="text-sm"></span>
@@ -282,5 +257,4 @@
     <script src="./js/products.js"></script>
     <script src="./js/menu.js"></script>
 </body>
-
 </html>

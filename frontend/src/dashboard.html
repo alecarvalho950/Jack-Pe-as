@@ -155,18 +155,59 @@
 </div>
 </section>
 
-    <section class="mb-10">
-      <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Volume do Catálogo</h3>
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
       
-      <div class="mb-6">
-        <div class="bg-gradient-to-r from-accent to-yellow-600 p-6 rounded-2xl w-full md:w-72 shadow-lg shadow-yellow-950/20">
-          <p class="text-black font-black uppercase text-[10px] opacity-80 tracking-wider">Total de Produtos</p>
-          <h2 id="total-count" class="text-5xl font-black text-black mt-1">1016</h2>
+      <div>
+        <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Produtos por Categoria e Subcategoria</h3>
+        <div id="categories-tree-container" class="space-y-4">
+          <div class="animate-pulse bg-gray-900 h-32 rounded-xl border border-gray-800"></div>
         </div>
       </div>
 
-      <div id="categories-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div>
+        <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Relatório de Estoque Físico Real</h3>
+        
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl">
+            <p class="text-[10px] text-gray-400 font-bold uppercase">São Roque</p>
+            <p id="stock-total-sr" class="text-xl font-black text-white mt-1">...</p>
           </div>
+          <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl">
+            <p class="text-[10px] text-gray-400 font-bold uppercase">Cotia</p>
+            <p id="stock-total-co" class="text-xl font-black text-white mt-1">...</p>
+          </div>
+          <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl">
+            <p class="text-[10px] text-gray-400 font-bold uppercase">Ibiúna</p>
+            <p id="stock-total-ib" class="text-xl font-black text-white mt-1">...</p>
+          </div>
+          <div class="bg-accent/10 border border-accent/20 p-4 rounded-xl">
+            <p class="text-[10px] text-accent font-bold uppercase">Total Peças</p>
+            <p id="stock-total-geral" class="text-xl font-black text-accent mt-1">...</p>
+          </div>
+        </div>
+
+        <div class="bg-[#111827] border border-gray-800 rounded-xl overflow-hidden shadow-xl">
+          <div class="p-4 border-b border-gray-800 bg-gray-900/50">
+            <h4 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Estoque por Linha de Produto</h4>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-gray-400">
+              <thead class="bg-gray-900/30 text-gray-500 uppercase text-[10px] tracking-wider border-b border-gray-800">
+                <tr>
+                  <th class="p-4">Categoria</th>
+                  <th class="p-4 text-center">S. Roque</th>
+                  <th class="p-4 text-center">Cotia</th>
+                  <th class="p-4 text-center">Ibiúna</th>
+                  <th class="p-4 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody id="stock-table-body">
+                </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </section>
   </main>
 

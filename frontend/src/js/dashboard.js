@@ -17,32 +17,32 @@ async function loadStats() {
         if (customContainer) customContainer.className = "hidden";
     }
 
-    const grid = document.getElementById('categories-grid');
+    // Seletores Principais
     const totalElement = document.getElementById('total-count');
-    
     const totalVisitsEl = document.getElementById('total-visits');
     const uniqueUsersEl = document.getElementById('unique-users');
     
-    // NOVOS SELETORES ADAPTADOS PARA AS LOJAS
- // Troque as variáveis de captura por:
-const clickSaoRoqueEl = document.getElementById('click-sao-roque');
-const clickCotiaEl = document.getElementById('click-cotia');
-const clickIbiunaEl = document.getElementById('click-ibiuna');
+    // Cliques de Lojas (Analytics)
+    const clickSaoRoqueEl = document.getElementById('click-sao-roque');
+    const clickCotiaEl = document.getElementById('click-cotia');
+    const clickIbiunaEl = document.getElementById('click-ibiuna');
+
+    // Novos Containers criados
+    const categoriesTreeContainer = document.getElementById('categories-tree-container');
+    const stockTableBody = document.getElementById('stock-table-body');
+
+    // Elementos de cards de estoque
+    const stSR = document.getElementById('stock-total-sr');
+    const stCO = document.getElementById('stock-total-co');
+    const stIB = document.getElementById('stock-total-ib');
+    const stGeral = document.getElementById('stock-total-geral');
 
     const compareCard = document.getElementById('compare-card');
     const compareTitle = document.getElementById('compare-title');
     const compareVisits = document.getElementById('compare-visits');
     const compareUsers = document.getElementById('compare-users');
 
-    if (grid) {
-        grid.innerHTML = `
-            <div class="col-span-full flex flex-col items-center justify-center py-20 gap-4">
-                <span class="loader"></span>
-                <p class="text-gray-400 animate-pulse font-bold text-sm tracking-widest uppercase">Carregando Estatísticas...</p>
-            </div>
-        `;
-    }
-    
+    // Setters de Carregamento Visuall
     if (totalElement) totalElement.innerText = "...";
     if (totalVisitsEl) totalVisitsEl.innerText = "...";
     if (uniqueUsersEl) uniqueUsersEl.innerText = "...";
@@ -52,8 +52,8 @@ const clickIbiunaEl = document.getElementById('click-ibiuna');
 
     try {
         const token = localStorage.getItem('admin_token');
-
         let url = `${API_BASE_URL}/api/dashboard/stats?period=${selectedPeriod}`;
+        
         if (selectedPeriod === 'custom' && startDateEl?.value && endDateEl?.value) {
             url += `&startDate=${startDateEl.value}&endDate=${endDateEl.value}`;
         }
@@ -71,34 +71,31 @@ const clickIbiunaEl = document.getElementById('click-ibiuna');
                 window.location.href = 'login.html';
                 return;
             }
-            throw new Error('Falha ao carregar estatísticas do servidor');
+            throw new Error('Falha ao carregar dados do servidor');
         }
 
         const data = await response.json();
 
+        // 1. Totalizadores de Linha de Produtos Ativos
         if (totalElement) totalElement.innerText = data.total || 0;
         
+        // 2. Renderização de Tráfego (Analytics)
         if (data.analytics) {
             if (totalVisitsEl) totalVisitsEl.innerText = data.analytics.totalVisits ?? 0;
             if (uniqueUsersEl) uniqueUsersEl.innerText = data.analytics.uniqueUsers ?? 0;
             
-            // POPULA OS DADOS REAIS REPASSADOS PELO BACKEND
             if (data.analytics.stores) {
                 if (clickSaoRoqueEl) clickSaoRoqueEl.innerText = data.analytics.stores.sao_roque ?? 0;
                 if (clickCotiaEl) clickCotiaEl.innerText = data.analytics.stores.cotia ?? 0;
                 if (clickIbiunaEl) clickIbiunaEl.innerText = data.analytics.stores.ibiuna ?? 0;
             }
 
+            // Bloco de comparação temporal
             if (data.analytics.compare && data.analytics.compare.hasCompare) {
                 if (compareCard) compareCard.classList.remove('hidden');
-                
-                if (selectedPeriod === 'today') {
-                    if (compareTitle) compareTitle.innerText = "📊 Histórico de Ontem";
-                } else if (selectedPeriod === '15days') {
-                    if (compareTitle) compareTitle.innerText = "📊 15 Dias Anteriores";
-                } else {
-                    if (compareTitle) compareTitle.innerText = "📊 30 Dias Anteriores";
-                }
+                if (selectedPeriod === 'today' && compareTitle) compareTitle.innerText = "📊 Histórico de Ontem";
+                else if (selectedPeriod === '15days' && compareTitle) compareTitle.innerText = "📊 15 Dias Anteriores";
+                else if (compareTitle) compareTitle.innerText = "📊 30 Dias Anteriores";
 
                 if (compareVisits) compareVisits.innerText = data.analytics.compare.totalVisitsCompare ?? 0;
                 if (compareUsers) compareUsers.innerText = data.analytics.compare.uniqueUsersCompare ?? 0;
@@ -107,45 +104,74 @@ const clickIbiunaEl = document.getElementById('click-ibiuna');
             }
         }
 
-        if (!grid) return;
-        grid.innerHTML = '';
+        // 3. Renderização Dinâmica de Categorias & Subcategorias (Tree View)
+        if (categoriesTreeContainer) {
+            categoriesTreeContainer.innerHTML = "";
+            const categories = Object.keys(data.categoriesData || {});
 
-        const categoryNames = Object.keys(data.categories || {});
+            if (categories.length === 0) {
+                categoriesTreeContainer.innerHTML = `<p class="text-xs text-gray-500 italic p-4">Nenhum produto categorizado encontrado.</p>`;
+            } else {
+                categories.forEach(catName => {
+                    const catObj = data.categoriesData[catName];
+                    const subs = Object.keys(catObj.subcategories || {});
 
-        if (categoryNames.length === 0) {
-            grid.innerHTML = '<p class="col-span-full text-gray-500 italic text-center py-10">Nenhuma categoria encontrada.</p>';
-            return;
+                    let subHtml = "";
+                    subs.forEach(subName => {
+                        const subCount = catObj.subcategories[subName];
+                        subHtml += `
+                            <div class="flex justify-between items-center text-xs text-gray-400 pl-4 border-l border-gray-800 py-1 hover:text-white transition">
+                                <span>↳ ${subName}</span>
+                                <span class="bg-gray-800/60 font-mono text-[11px] px-2 py-0.5 rounded text-gray-400">${subCount}</span>
+                            </div>
+                        `;
+                    });
+
+                    categoriesTreeContainer.innerHTML += `
+                        <div class="bg-[#111827] p-4 rounded-xl border border-gray-800 shadow-md">
+                            <div class="flex justify-between items-center border-b border-gray-800/50 pb-2 mb-2">
+                                <h4 class="text-sm font-black text-white uppercase tracking-wider">${catName}</h4>
+                                <span class="bg-accent/10 border border-accent/20 text-accent font-mono text-xs px-2.5 py-0.5 rounded-full font-bold">${catObj.count} SKUs</span>
+                            </div>
+                            <div class="space-y-1 mt-2">${subHtml || '<p class="text-[11px] text-gray-600 italic pl-4">Sem subcategorias</p>'}</div>
+                        </div>
+                    `;
+                });
+            }
         }
 
-        categoryNames.forEach(catName => {
-            const count = data.categories[catName];
-            grid.innerHTML += `
-                <div class="bg-[#111827] p-6 rounded-xl border border-gray-800 hover:border-accent transition group shadow-lg">
-                    <div class="flex justify-between items-start">
-                        <h3 class="text-gray-400 text-sm font-bold uppercase tracking-wider group-hover:text-accent transition">${catName}</h3>
-                        <span class="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded-full border border-accent/20">Ativo</span>
-                    </div>
-                    <p class="text-4xl font-black mt-4 text-white">${count}</p>
-                    <p class="text-xs text-gray-500 mt-1 uppercase">Produtos na categoria</p>
-                </div>
-            `;
-        });
+        // 4. Renderização do Relatório Dinâmico de Estoque Real
+        if (data.stockReport) {
+            if (stSR) stSR.innerText = (data.stockReport.sao_roque || 0).toLocaleString('pt-BR');
+            if (stCO) stCO.innerText = (data.stockReport.cotia || 0).toLocaleString('pt-BR');
+            if (stIB) stIB.innerText = (data.stockReport.ibiuna || 0).toLocaleString('pt-BR');
+            if (stGeral) stGeral.innerText = (data.stockReport.total_geral || 0).toLocaleString('pt-BR');
+
+            if (stockTableBody) {
+                stockTableBody.innerHTML = "";
+                const stockCats = Object.keys(data.stockReport.by_category || {});
+
+                if (stockCats.length === 0) {
+                    stockTableBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-500 italic">Sem registros de estoque físico.</td></tr>`;
+                } else {
+                    stockCats.forEach(catName => {
+                        const row = data.stockReport.by_category[catName];
+                        stockTableBody.innerHTML += `
+                            <tr class="border-b border-gray-800/40 hover:bg-gray-900/40 transition">
+                                <td class="p-3 font-bold text-gray-300">${catName}</td>
+                                <td class="p-3 text-center font-mono text-gray-400">${row.sao_roque.toLocaleString('pt-BR')}</td>
+                                <td class="p-3 text-center font-mono text-gray-400">${row.cotia.toLocaleString('pt-BR')}</td>
+                                <td class="p-3 text-center font-mono text-gray-400">${row.ibiuna.toLocaleString('pt-BR')}</td>
+                                <td class="p-3 text-right font-mono font-black text-white">${row.total.toLocaleString('pt-BR')}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+        }
+
     } catch (err) {
-        console.error("Erro ao carregar stats:", err);
-        if (grid) {
-            grid.innerHTML = `
-                <div class="col-span-full flex flex-col items-center justify-center py-12 gap-2 text-red-500">
-                    <p class="font-bold text-sm tracking-wide uppercase">Não foi possível carregar os dados das categorias.</p>
-                    <button onclick="loadStats()" class="mt-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg border border-gray-700 font-bold transition">Tentar Novamente</button>
-                </div>
-            `;
-        }
-        if (totalElement) totalElement.innerText = "0";
-        if (totalVisitsEl) totalVisitsEl.innerText = "0";
-        if (uniqueUsersEl) uniqueUsersEl.innerText = "0";
-        if (clickSaoRoqueEl) clickSaoRoqueEl.innerText = "0";
-        if (clickCotiaEl) clickCotiaEl.innerText = "0";
-        if (clickIbiunaEl) clickIbiunaEl.innerText = "0";
+        console.error("Erro geral no carregamento do painel:", err);
     }
 }
 

@@ -642,18 +642,6 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
-app.post('/api/products', verifyToken, async (req, res) => {
-    try {
-        const data = { ...req.body };
-        if (typeof data.variations === 'string') { try { data.variations = JSON.parse(data.variations); } catch { data.variations = []; } }
-        if (typeof data.attributes === 'string') { try { data.attributes = JSON.parse(data.attributes); } catch { data.attributes = {}; } }
-        else if (!data.attributes) data.attributes = {};
-        const product = new Product(data);
-        await product.save();
-        res.status(201).json(product);
-    } catch (err) { res.status(400).json({ error: err.message }); }
-});
-
 app.put('/api/products/:id', verifyToken, async (req, res) => {
     try {
         const data = { ...req.body };
@@ -723,10 +711,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 
         const range = { $gte: startActual, $lte: endActual };
 
-        // Proteção contra erro fatal caso o modelo Product não esteja importado no index.js
-        const totalProductsCount = typeof Product !== 'undefined' ? Product.countDocuments({}) : Promise.resolve(0);
-
-        // Busca assíncrona blindada contra valores nulos
+        // 1. Busca os dados de Analytics (Visitas e Cliques por Loja)
         const [
             totalVisits, 
             uniqueUsers, 
@@ -734,8 +719,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
             countCotia, 
             countIbiuna, 
             totalVisitsCompare, 
-            uniqueUsersCompare, 
-            totalProducts
+            uniqueUsersCompare
         ] = await Promise.all([
             Analytics.countDocuments({ type: 'pageview', createdAt: range }).catch(() => 0),
             Analytics.countDocuments({ type: 'pageview', isNewUser: true, createdAt: range }).catch(() => 0),
@@ -743,40 +727,80 @@ app.get('/api/dashboard/stats', async (req, res) => {
             Analytics.countDocuments({ type: 'select_store', location: 'cotia', createdAt: range }).catch(() => 0),
             Analytics.countDocuments({ type: 'select_store', location: 'ibiuna', createdAt: range }).catch(() => 0),
             startCompare ? Analytics.countDocuments({ type: 'pageview', createdAt: { $gte: startCompare, $lte: endCompare } }).catch(() => 0) : Promise.resolve(0),
-            startCompare ? Analytics.countDocuments({ type: 'pageview', isNewUser: true, createdAt: { $gte: startCompare, $lte: endCompare } }).catch(() => 0) : Promise.resolve(0),
-            totalProductsCount.catch(() => 0)
+            startCompare ? Analytics.countDocuments({ type: 'pageview', isNewUser: true, createdAt: { $gte: startCompare, $lte: endCompare } }).catch(() => 0) : Promise.resolve(0)
         ]);
 
-        // Se suas categorias reais vierem de outro lugar, certifique-se de preenchê-las aqui
-        const mockCategories = {
-            "Motor": totalProducts > 0 ? Math.ceil(totalProducts * 0.3) : 0,
-            "Suspensão": totalProducts > 0 ? Math.ceil(totalProducts * 0.4) : 0,
-            "Freios": totalProducts > 0 ? Math.ceil(totalProducts * 0.3) : 0
+        // 2. Busca todos os produtos ativos de forma leve (.lean) para processar os totais reais de estoque e categorias
+        const products = await Product.find({}, 'category subcategory stock_by_store').lean().catch(() => []);
+        
+        const totalProducts = products.length;
+
+        // Estruturas de consolidação
+        const categoryMap = {};
+        const stockReport = {
+            sao_roque: 0,
+            cotia: 0,
+            ibiuna: 0,
+            total_geral: 0,
+            by_category: {}
         };
 
+        products.forEach(p => {
+            const cat = p.category || "Sem Categoria";
+            const sub = p.subcategory || "Sem Subcategoria";
+
+            // Processa contagem de Categorias e Subcategorias
+            if (!categoryMap[cat]) categoryMap[cat] = { count: 0, subcategories: {} };
+            categoryMap[cat].count++;
+            categoryMap[cat].subcategories[sub] = (categoryMap[cat].subcategories[sub] || 0) + 1;
+
+            // Extrai estoques físicos tratados
+            const stSR = parseInt(p.stock_by_store?.SaoRoque) || 0;
+            const stCO = parseInt(p.stock_by_store?.Cotia) || 0;
+            const stIB = parseInt(p.stock_by_store?.Ibiuna) || 0;
+            const itemTotal = stSR + stCO + stIB;
+
+            // Incrementa Totais Gerais Físicos
+            stockReport.sao_roque += stSR;
+            stockReport.cotia += stCO;
+            stockReport.ibiuna += stIB;
+            stockReport.total_geral += itemTotal;
+
+            // Agrupa Estoque por Categoria separadamente
+            if (!stockReport.by_category[cat]) {
+                stockReport.by_category[cat] = { sao_roque: 0, cotia: 0, ibiuna: 0, total: 0 };
+            }
+            stockReport.by_category[cat].sao_roque += stSR;
+            stockReport.by_category[cat].cotia += stCO;
+            stockReport.by_category[cat].ibiuna += stIB;
+            stockReport.by_category[cat].total += itemTotal;
+        });
+
         res.status(200).json({
-            total: totalProducts || 0,
-            categories: mockCategories,
+            total: totalProducts,
+            categoriesData: categoryMap, // Nova estrutura de categorias + subcategorias reais
+            stockReport: stockReport,     // Dados reais consolidados de estoque por unidade
             analytics: {
-                totalVisits: totalVisits || 0, 
-                uniqueUsers: uniqueUsers || 0,
+                totalVisits, 
+                uniqueUsers,
                 stores: { 
-                    sao_roque: countSaoRoque || 0, 
-                    cotia: countCotia || 0, 
-                    ibiuna: countIbiuna || 0 
+                    sao_roque: countSaoRoque, 
+                    cotia: countCotia, 
+                    ibiuna: countIbiuna 
                 },
                 compare: { 
                     hasCompare: !!startCompare, 
-                    totalVisitsCompare: totalVisitsCompare || 0, 
-                    uniqueUsersCompare: uniqueUsersCompare || 0 
+                    totalVisitsCompare, 
+                    uniqueUsersCompare 
                 }
             }
         });
     } catch (error) {
-        console.error("Erro interno detectado no dashboard:", error);
-        res.status(500).json({ error: 'Erro interno no servidor', detalhes: error.message });
+        console.error("Erro no dashboard stats:", error);
+        res.status(500).json({ error: 'Erro interno no servidor', details: error.message });
     }
 });
+
 // ============================================================
 // ANALYTICS
 // ============================================================
