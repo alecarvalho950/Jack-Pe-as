@@ -2,7 +2,6 @@
 const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
 // const API_BASE_URL = "http://localhost:3000";
 
-
 async function loadStats() {
     const periodSelect = document.getElementById('period-filter');
     const selectedPeriod = periodSelect ? periodSelect.value : '30days';

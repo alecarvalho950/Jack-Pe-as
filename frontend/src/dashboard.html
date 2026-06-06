@@ -48,10 +48,34 @@
     }
   </style>
 </head>
-<body class="bg-primary text-white min-h-screen flex font-sans">
+<body class="bg-primary text-white min-h-screen flex flex-col md:flex-row font-sans w-full overflow-x-hidden">
 
-  <aside class="w-64 bg-card border-r border-gray-800 p-6 flex flex-col shrink-0">
-    <h2 class="text-2xl font-black text-accent mb-10 text-center tracking-wider uppercase">JACK PEÇAS</h2>
+  <!-- HEADER MOBILE (Exclusivo para celular) -->
+  <header class="md:hidden flex items-center justify-between p-4 bg-card border-b border-gray-800 w-full z-40 relative">
+    <h2 class="text-xl font-black text-accent tracking-wider uppercase">JACK PEÇAS</h2>
+    <button id="mobile-menu-btn" class="text-gray-400 hover:text-white focus:outline-none p-2">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- OVERLAY MOBILE (Fundo escuro ao abrir menu) -->
+  <div id="mobile-overlay" class="fixed inset-0 bg-black/80 z-40 hidden md:hidden transition-opacity"></div>
+
+  <!-- MENU LATERAL RESPONSIVO -->
+  <aside id="sidebar" class="w-64 bg-card border-r border-gray-800 p-6 flex flex-col shrink-0 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-50">
+    
+    <div class="flex items-center justify-between mb-10">
+      <h2 class="text-2xl font-black text-accent text-center tracking-wider uppercase md:block hidden">JACK PEÇAS</h2>
+      <!-- Título no mobile para manter consistência interna -->
+      <h2 class="text-xl font-black text-accent tracking-wider uppercase md:hidden">MENU</h2>
+      <button id="close-menu-btn" class="md:hidden text-gray-400 hover:text-white p-1">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
     
     <nav id="main-nav" class="flex-1 space-y-2">
       <a href="dashboard.html" class="group flex items-center gap-3 p-3 rounded-xl bg-gray-800/60 text-white border border-gray-700/30 transition-all duration-200">
@@ -95,8 +119,8 @@
     </button>
   </aside>
 
-  <main class="flex-1 p-8 overflow-y-auto max-w-7xl">
-    <header class="mb-10">
+  <main class="flex-1 p-4 md:p-8 overflow-y-auto max-w-7xl w-full">
+    <header class="mb-10 mt-4 md:mt-0">
       <h1 class="text-3xl font-black tracking-tight uppercase">Resumo da Operação</h1>
       <p class="opacity-60 text-xs font-bold uppercase tracking-wide mt-1 text-gray-400">Visão geral do tráfego do catálogo e volume de estoque por categoria</p>
     </header>
@@ -114,7 +138,7 @@
       <button onclick="loadStats()" class="bg-accent text-primary px-3 py-1 font-black uppercase rounded-md text-[10px] tracking-wider ml-1">Filtrar</button>
     </div>
 
-    <select id="period-filter" class="bg-gray-900 text-white rounded-lg px-3 py-2 border border-gray-800 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-accent">
+    <select id="period-filter" class="bg-gray-900 text-white rounded-lg px-3 py-2 border border-gray-800 text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-accent w-full lg:w-auto">
       <option value="today">Hoje</option>
       <option value="15days">Últimos 15 dias</option>
       <option value="30days" selected>Últimos 30 dias</option>
@@ -155,63 +179,97 @@
 </div>
 </section>
 
-    <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+    <!-- SEÇÃO VOLUMETRIA E ESTOQUE REAL REESTRUTURADA -->
+    <section class="space-y-10 mb-12">
       
-      <div>
-        <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Produtos por Categoria e Subcategoria</h3>
-        <div id="categories-tree-container" class="space-y-4">
-          <div class="animate-pulse bg-gray-900 h-32 rounded-xl border border-gray-800"></div>
+      <!-- Bloco Superior: Relatório de Estoque Físico Real -->
+      <div class="bg-card border border-gray-800/80 rounded-2xl p-4 sm:p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-800/60">
+          <div>
+            <h3 class="text-xs font-black uppercase tracking-[0.2em] text-accent">Estoque Físico por Unidade</h3>
+            <p class="text-[11px] text-gray-400 font-medium mt-0.5">Visão geral do volume real armazenado em cada filial</p>
+          </div>
+          
+          <!-- Cards Rápidos de Totalizadores de Unidades -->
+          <div class="grid grid-cols-2 sm:flex items-center gap-3 w-full sm:w-auto">
+            <div class="bg-gray-950/60 border border-gray-800 px-4 py-2 rounded-xl text-center min-w-[100px]">
+              <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">São Roque</span>
+              <span id="stock-total-sr" class="text-sm font-mono font-black text-white">...</span>
+            </div>
+            <div class="bg-gray-950/60 border border-gray-800 px-4 py-2 rounded-xl text-center min-w-[100px]">
+              <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Cotia</span>
+              <span id="stock-total-co" class="text-sm font-mono font-black text-white">...</span>
+            </div>
+            <div class="bg-gray-950/60 border border-gray-800 px-4 py-2 rounded-xl text-center min-w-[100px]">
+              <span class="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Ibiúna</span>
+              <span id="stock-total-ib" class="text-sm font-mono font-black text-white">...</span>
+            </div>
+            <div class="bg-accent/10 border border-accent/20 px-4 py-2 rounded-xl text-center min-w-[110px]">
+              <span class="text-[9px] text-accent font-black uppercase tracking-wider block">Total Geral</span>
+              <span id="stock-total-geral" class="text-sm font-mono font-black text-accent">...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela Otimizada -->
+        <div class="overflow-x-auto rounded-xl border border-gray-800/60 bg-gray-950/20">
+          <table class="w-full text-left text-xs text-gray-400 min-w-[600px]">
+            <thead class="bg-gray-900/60 text-gray-400 uppercase text-[10px] tracking-widest border-b border-gray-800">
+              <tr>
+                <th class="p-4 font-black">Categoria de Produto</th>
+                <th class="p-4 text-center font-black w-28">São Roque</th>
+                <th class="p-4 text-center font-black w-28">Cotia</th>
+                <th class="p-4 text-center font-black w-28">Ibiúna</th>
+                <th class="p-4 text-right font-black w-32 pr-6">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="stock-table-body" class="divide-y divide-gray-800/40">
+              <!-- Injetado dinamicamente via JS -->
+            </tbody>
+          </table>
         </div>
       </div>
 
+      <!-- Bloco Inferior: Distribuição de SKUs em Grade Inteligente -->
       <div>
-        <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-4">Relatório de Estoque Físico Real</h3>
+        <div class="mb-4">
+          <h3 class="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Produtos por Categoria e Subcategoria</h3>
+          <p class="text-[11px] text-gray-500 font-medium mt-0.5">Relação de itens ativos cadastrados em catálogo</p>
+        </div>
         
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-          <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl">
-            <p class="text-[10px] text-gray-400 font-bold uppercase">São Roque</p>
-            <p id="stock-total-sr" class="text-xl font-black text-white mt-1">...</p>
-          </div>
-          <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl">
-            <p class="text-[10px] text-gray-400 font-bold uppercase">Cotia</p>
-            <p id="stock-total-co" class="text-xl font-black text-white mt-1">...</p>
-          </div>
-          <div class="bg-gray-900 border border-gray-800 p-4 rounded-xl">
-            <p class="text-[10px] text-gray-400 font-bold uppercase">Ibiúna</p>
-            <p id="stock-total-ib" class="text-xl font-black text-white mt-1">...</p>
-          </div>
-          <div class="bg-accent/10 border border-accent/20 p-4 rounded-xl">
-            <p class="text-[10px] text-accent font-bold uppercase">Total Peças</p>
-            <p id="stock-total-geral" class="text-xl font-black text-accent mt-1">...</p>
-          </div>
+        <!-- Grade Responsiva Mosaico (Se adapta a telas menores perfeitamente) -->
+        <div id="categories-tree-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- Injetado dinamicamente via JS -->
+          <div class="animate-pulse bg-gray-900 h-28 rounded-xl border border-gray-800"></div>
+          <div class="animate-pulse bg-gray-900 h-28 rounded-xl border border-gray-800"></div>
+          <div class="animate-pulse bg-gray-900 h-28 rounded-xl border border-gray-800"></div>
         </div>
-
-        <div class="bg-[#111827] border border-gray-800 rounded-xl overflow-hidden shadow-xl">
-          <div class="p-4 border-b border-gray-800 bg-gray-900/50">
-            <h4 class="text-xs font-bold text-gray-300 uppercase tracking-wider">Estoque por Linha de Produto</h4>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-gray-400">
-              <thead class="bg-gray-900/30 text-gray-500 uppercase text-[10px] tracking-wider border-b border-gray-800">
-                <tr>
-                  <th class="p-4">Categoria</th>
-                  <th class="p-4 text-center">S. Roque</th>
-                  <th class="p-4 text-center">Cotia</th>
-                  <th class="p-4 text-center">Ibiúna</th>
-                  <th class="p-4 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody id="stock-table-body">
-                </tbody>
-            </table>
-          </div>
-        </div>
-
       </div>
+
     </section>
   </main>
 
   <script src="./js/dashboard.js"></script>
   <script src="./js/menu.js"></script>
+
+  <!-- Script Responsivo (Controla o Menu no Celular) -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const btnMenu = document.getElementById("mobile-menu-btn");
+      const btnClose = document.getElementById("close-menu-btn");
+      const sidebar = document.getElementById("sidebar");
+      const overlay = document.getElementById("mobile-overlay");
+
+      function toggleMobileMenu() {
+        sidebar.classList.toggle("-translate-x-full");
+        overlay.classList.toggle("hidden");
+      }
+
+      if (btnMenu) btnMenu.addEventListener("click", toggleMobileMenu);
+      if (btnClose) btnClose.addEventListener("click", toggleMobileMenu);
+      if (overlay) overlay.addEventListener("click", toggleMobileMenu);
+    });
+  </script>
+
 </body>
 </html>

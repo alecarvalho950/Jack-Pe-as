@@ -144,7 +144,8 @@ const analyticsSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['pageview', 'click_whatsapp']
+        // ✅ Agora o Mongoose vai permitir salvar o evento do seletor
+        enum: ['pageview', 'click_whatsapp', 'select_store'] 
     },
     location: {
         type: String,
@@ -162,6 +163,7 @@ const analyticsSchema = new mongoose.Schema({
         default: Date.now
     }
 });
+
 analyticsSchema.index({ createdAt: 1 });
 const Analytics = mongoose.model('Analytics', analyticsSchema);
 

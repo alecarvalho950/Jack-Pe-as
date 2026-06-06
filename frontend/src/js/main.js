@@ -423,7 +423,7 @@ function renderCard(p) {
                         Adicionado
                       </button>`;
         } else {
-            addBtn = `<button onclick="addToCart('${itemId}','${encodeURIComponent(p.name)}',${p.price},'${lojaAtual}')"
+            addBtn = `<button onclick="addToCart('${itemId}','${encodeURIComponent(p.name)}',${p.price},'${lojaAtual}', ${currentStock})"
                         class="bg-white hover:bg-accent text-dark font-black text-[10px] md:text-xs uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg hover:shadow-accent/20">
                         Adicionar
                       </button>`;
@@ -484,7 +484,7 @@ function renderCard(p) {
                         Adicionado
                       </button>`;
         } else {
-            varBtn = `<button onclick="addToCart('${varId}','${encodeURIComponent(varFullName)}',${v.price || p.price},'${lojaAtual}')"
+            varBtn = `<button onclick="addToCart('${varId}','${encodeURIComponent(varFullName)}',${v.price || p.price},'${lojaAtual}', ${vStock})"
                         class="bg-gray-800 hover:bg-accent text-gray-200 hover:text-dark font-black text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all active:scale-95 border border-gray-700/60 hover:border-transparent">
                         Adicionar
                       </button>`;
@@ -666,30 +666,74 @@ function toggleCartPanel() {
     }
 }
 
-// AJUSTE 2: addToCart NÃO abre o carrinho — apenas atualiza o estado e re-renderiza os cards
-function addToCart(id, name, price, store) {
+// AJUSTE: addToCart recebe maxStock e salva no objeto do carrinho
+function addToCart(id, name, price, store, maxStock) {
     const decodedName   = decodeURIComponent(name);
     const existingItem  = cart.find(item => item.id === id && item.store === store);
 
     if (existingItem) {
-        existingItem.quantity += 1;
+        if (existingItem.quantity < maxStock) {
+            existingItem.quantity += 1;
+            existingItem.stockWarning = null; // Limpa aviso se houver
+        } else {
+            // Mostra o erro inline e abre o carrinho se estiver fechado
+            existingItem.stockWarning = `Apenas ${maxStock} unidade(s) em estoque.`;
+            
+            const panel = document.getElementById("cart-panel");
+            if (panel && panel.classList.contains("translate-x-full")) {
+                toggleCartPanel(); // Abre o painel lateral
+            }
+
+            setTimeout(() => {
+                const currentItem = cart.find(i => i.id === id && i.store === store);
+                if (currentItem) {
+                    currentItem.stockWarning = null;
+                    updateCartUI();
+                }
+            }, 3000);
+        }
     } else {
-        cart.push({ id, name: decodedName, price: Number(price), store, quantity: 1 });
+        if (maxStock > 0) {
+            cart.push({ id, name: decodedName, price: Number(price), store, quantity: 1, maxStock });
+        }
     }
 
     updateCartUI();
-    render(); // AJUSTE 3: re-renderiza para trocar o botão para "Adicionado"
+    render(); 
 }
 
+// AJUSTE: updateQuantity respeita o maxStock salvo no item[cite: 11]
 function updateQuantity(id, store, change) {
     const idx = cart.findIndex(item => item.id === id && item.store === store);
     if (idx === -1) return;
 
-    cart[idx].quantity += change;
+    const novaQuantidade = cart[idx].quantity + change;
+
+    // Limpa qualquer aviso anterior para não encavalar
+    cart[idx].stockWarning = null;
+
+    // Se tentar passar do limite
+    if (change > 0 && novaQuantidade > cart[idx].maxStock) {
+        cart[idx].stockWarning = `Apenas ${cart[idx].maxStock} unidade(s) em estoque.`;
+        updateCartUI(); // Atualiza a interface imediatamente para mostrar o erro
+        
+        // Esconde a mensagem após 3 segundos
+        setTimeout(() => {
+            const currentItem = cart.find(i => i.id === id && i.store === store);
+            if (currentItem) {
+                currentItem.stockWarning = null;
+                updateCartUI();
+            }
+        }, 3000);
+        return; 
+    }
+
+    cart[idx].quantity = novaQuantidade;
+    
     if (cart[idx].quantity < 1) cart.splice(idx, 1);
 
     updateCartUI();
-    render(); // AJUSTE 3: re-renderiza para restaurar o botão "Adicionar" se o item for removido
+    render(); 
 }
 
 function clearCart() {
@@ -752,17 +796,22 @@ function updateCartUI() {
                             ${item.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                         </span>
                     </div>
-                    <div class="flex items-center justify-between pt-2 border-t border-gray-800/50">
-                        <div class="flex items-center bg-dark border border-gray-800 rounded-lg p-0.5">
-                            <button onclick="updateQuantity('${item.id}','${item.store}',-1)"
-                                class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-rose-400 rounded-md transition-colors active:scale-90 font-black text-sm">−</button>
-                            <span class="w-8 text-center text-xs font-black font-mono text-white">${item.quantity}</span>
-                            <button onclick="updateQuantity('${item.id}','${item.store}',1)"
-                                class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-accent rounded-md transition-colors active:scale-90 font-black text-sm">+</button>
+                    
+                    <div class="flex flex-col gap-1 pt-2 border-t border-gray-800/50">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center bg-dark border border-gray-800 rounded-lg p-0.5">
+                                <button onclick="updateQuantity('${item.id}','${item.store}',-1)"
+                                    class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-rose-400 rounded-md transition-colors active:scale-90 font-black text-sm">−</button>
+                                <span class="w-8 text-center text-xs font-black font-mono text-white">${item.quantity}</span>
+                                <button onclick="updateQuantity('${item.id}','${item.store}',1)"
+                                    class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-accent rounded-md transition-colors active:scale-90 font-black text-sm">+</button>
+                            </div>
+                            <span class="text-xs font-black text-accent font-mono">
+                                ${itemTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            </span>
                         </div>
-                        <span class="text-xs font-black text-accent font-mono">
-                            ${itemTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                        </span>
+                        <!-- Renderiza a mensagem de erro temporária se existir -->
+                        ${item.stockWarning ? `<span class="text-[9px] font-bold text-rose-500 uppercase tracking-wider mt-1 animate-in">${item.stockWarning}</span>` : ""}
                     </div>
                 </div>`;
         }).join("");
