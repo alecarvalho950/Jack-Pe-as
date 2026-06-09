@@ -43,8 +43,6 @@ async function blingRequest(config, retries = 0) {
     }
 }
 
-// O Bling exige que o retorno do webhook seja imediato
-// Para eventos em lote da v3, criamos uma fila ou processamos em paralelo sem travar o response do Express
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -90,10 +88,12 @@ const Attribute = mongoose.model('Attribute', new mongoose.Schema({
     options:  [String]
 }));
 
+// ── CORREÇÃO 1: campo blingId adicionado ao variationItemSchema ──────────────
 const variationItemSchema = new mongoose.Schema({
-    sku:   { type: String },
-    name:  { type: String },
-    price: { type: Number, default: 0 },
+    blingId: { type: String },          // ID único do filho no Bling (necessário para correlação de webhooks)
+    sku:     { type: String },
+    name:    { type: String },
+    price:   { type: Number, default: 0 },
     stock_by_store: {
         SaoRoque: { type: Number, default: 0 },
         Cotia:    { type: Number, default: 0 },
@@ -152,54 +152,54 @@ function mapCategory(productName) {
 
     if ((n.includes("TELA FRONTAL") || n.includes("FRONTAL")) && !n.includes("FLEX CÂMERA")) {
         cat = "Telas";
-        if      (n.includes("IPHONE"))                                          sub = "Telas Iphone";
-        else if (n.includes("SAMSUNG"))                                         sub = "Telas Samsung";
-        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                  sub = "Telas Motorola";
+        if      (n.includes("IPHONE"))                                              sub = "Telas Iphone";
+        else if (n.includes("SAMSUNG"))                                             sub = "Telas Samsung";
+        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                      sub = "Telas Motorola";
         else if (n.includes("XIAOMI") || n.includes("POCO") || n.includes("REDMI")) sub = "Telas Xiaomi";
-        else if (n.includes("REALME"))                                          sub = "Telas Realme";
-        else if (n.includes("INFINIX"))                                         sub = "Telas Infinix";
-        else if (n.includes("ASUS") || n.includes("ZENFONE"))                   sub = "Telas Asus";
-        else if (n.includes("LG"))                                              sub = "Telas LG";
-        else if (n.includes("OPPO"))                                            sub = "Telas Oppo";
+        else if (n.includes("REALME"))                                              sub = "Telas Realme";
+        else if (n.includes("INFINIX"))                                             sub = "Telas Infinix";
+        else if (n.includes("ASUS") || n.includes("ZENFONE"))                       sub = "Telas Asus";
+        else if (n.includes("LG"))                                                  sub = "Telas LG";
+        else if (n.includes("OPPO"))                                                sub = "Telas Oppo";
     } else if (n.includes("BATERIA")) {
         cat = "Baterias";
-        if      (n.includes("IPHONE"))                                          sub = "Baterias Iphone";
-        else if (n.includes("SAMSUNG"))                                         sub = "Baterias Samsung";
-        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                  sub = "Baterias Motorola";
+        if      (n.includes("IPHONE"))                                              sub = "Baterias Iphone";
+        else if (n.includes("SAMSUNG"))                                             sub = "Baterias Samsung";
+        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                      sub = "Baterias Motorola";
         else if (n.includes("XIAOMI") || n.includes("POCO") || n.includes("REDMI")) sub = "Baterias Xiaomi";
-        else if (n.includes("REALME"))                                          sub = "Baterias Realme";
-        else if (n.includes("INFINIX"))                                         sub = "Baterias Infinix";
-        else if (n.includes("ASUS") || n.includes("ZENFONE"))                   sub = "Baterias Asus";
-        else if (n.includes("LG"))                                              sub = "Baterias LG";
+        else if (n.includes("REALME"))                                              sub = "Baterias Realme";
+        else if (n.includes("INFINIX"))                                             sub = "Baterias Infinix";
+        else if (n.includes("ASUS") || n.includes("ZENFONE"))                       sub = "Baterias Asus";
+        else if (n.includes("LG"))                                                  sub = "Baterias LG";
     } else if (n.includes("PLACA DE CARGA")) {
         cat = "Placas de Carga";
-        if      (n.includes("SAMSUNG"))                                         sub = "Placa de Carga Samsung";
-        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                  sub = "Placa de Carga Motorola";
+        if      (n.includes("SAMSUNG"))                                             sub = "Placa de Carga Samsung";
+        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                      sub = "Placa de Carga Motorola";
         else if (n.includes("XIAOMI") || n.includes("POCO") || n.includes("REDMI")) sub = "Placa de Carga Xiaomi";
-        else if (n.includes("REALME"))                                          sub = "Placa de Carga Realme";
-        else if (n.includes("INFINIX"))                                         sub = "Placa de Carga Infinix";
-        else if (n.includes("ASUS") || n.includes("ZENFONE"))                   sub = "Placa de Carga Asus";
-        else if (n.includes("LG"))                                              sub = "Placa de Carga LG";
+        else if (n.includes("REALME"))                                              sub = "Placa de Carga Realme";
+        else if (n.includes("INFINIX"))                                             sub = "Placa de Carga Infinix";
+        else if (n.includes("ASUS") || n.includes("ZENFONE"))                       sub = "Placa de Carga Asus";
+        else if (n.includes("LG"))                                                  sub = "Placa de Carga LG";
     } else if (n.includes("CONECTOR DE CARGA") || n.includes("FLEX DE CARGA")) {
         cat = "Conector de Carga";
-        if      (n.includes("SAMSUNG"))                                         sub = "Conector de Carga Samsung";
-        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                  sub = "Conector de Carga Motorola";
+        if      (n.includes("SAMSUNG"))                                             sub = "Conector de Carga Samsung";
+        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                      sub = "Conector de Carga Motorola";
         else if (n.includes("XIAOMI") || n.includes("POCO") || n.includes("REDMI")) sub = "Conector de Carga Xiaomi";
-        else if (n.includes("REALME"))                                          sub = "Conector de Carga Realme";
-        else if (n.includes("INFINIX"))                                         sub = "Conector de Carga Infinix";
-        else if (n.includes("ASUS") || n.includes("ZENFONE"))                   sub = "Conector de Carga Asus";
-        else if (n.includes("LG"))                                              sub = "Conector de Carga LG";
-        else if (n.includes("IPHONE"))                                          sub = "Flex de Carga Iphone";
+        else if (n.includes("REALME"))                                              sub = "Conector de Carga Realme";
+        else if (n.includes("INFINIX"))                                             sub = "Conector de Carga Infinix";
+        else if (n.includes("ASUS") || n.includes("ZENFONE"))                       sub = "Conector de Carga Asus";
+        else if (n.includes("LG"))                                                  sub = "Conector de Carga LG";
+        else if (n.includes("IPHONE"))                                              sub = "Flex de Carga Iphone";
     } else if (n.includes("TAMPA")) {
         cat = "Tampas Traseiras";
-        if      (n.includes("SAMSUNG"))                                         sub = "Tampa Traseira Samsung";
-        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                  sub = "Tampa Traseira Motorola";
+        if      (n.includes("SAMSUNG"))                                             sub = "Tampa Traseira Samsung";
+        else if (n.includes("MOTO") || n.includes("MOTOROLA"))                      sub = "Tampa Traseira Motorola";
         else if (n.includes("XIAOMI") || n.includes("POCO") || n.includes("REDMI")) sub = "Tampa Traseira Xiaomi";
-        else if (n.includes("REALME"))                                          sub = "Tampa Traseira Realme";
-        else if (n.includes("INFINIX"))                                         sub = "Tampa Traseira Infinix";
-        else if (n.includes("ASUS") || n.includes("ZENFONE"))                   sub = "Tampa Traseira Asus";
-        else if (n.includes("LG"))                                              sub = "Tampa Traseira LG";
-        else if (n.includes("IPHONE"))                                          sub = "Tampa Traseira Iphone";
+        else if (n.includes("REALME"))                                              sub = "Tampa Traseira Realme";
+        else if (n.includes("INFINIX"))                                             sub = "Tampa Traseira Infinix";
+        else if (n.includes("ASUS") || n.includes("ZENFONE"))                       sub = "Tampa Traseira Asus";
+        else if (n.includes("LG"))                                                  sub = "Tampa Traseira LG";
+        else if (n.includes("IPHONE"))                                              sub = "Tampa Traseira Iphone";
     } else if (n.includes("CABO") || n.includes("CARREGADOR") || n.includes("FONTE") || n.includes("FONE DE OUVIDO") || n.includes("CAIXA DE SOM")) {
         cat = "Acessórios";
         if      (n.includes("FONTE CARREGADOR") || n.includes("FONTE")) sub = "Fontes";
@@ -271,7 +271,7 @@ async function fetchStockForChunk(productIds, depositosAtivos, accessToken) {
 }
 
 // ============================================================
-// SINCRONIZAÇÃO COMPLETA (backup diário + trigger manual)
+// SINCRONIZAÇÃO COMPLETA
 // ============================================================
 
 let isSyncing = false;
@@ -329,8 +329,8 @@ async function syncProductsFromBling() {
             console.log(`  ↳ Chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(produtosSimples.length / CHUNK_SIZE)}`);
         }
 
-        const operations       = [];
-        const ignoredProducts  = [];
+        const operations          = [];
+        const ignoredProducts     = [];
         const idsBlingProcessados = [];
 
         for (const p of productsFromBling) {
@@ -347,9 +347,9 @@ async function syncProductsFromBling() {
             const skuFinal = String(p.codigo || "").trim();
 
             if (p.formato === 'V') {
-                let variationsMapped    = [];
+                let variationsMapped     = [];
                 let totalStockByStorePai = { SaoRoque: 0, Cotia: 0, Ibiuna: 0 };
-                let erroVariacao        = false;
+                let erroVariacao         = false;
 
                 try {
                     const resVar = await blingRequest({
@@ -361,7 +361,7 @@ async function syncProductsFromBling() {
                     if (filhos.length > 0) {
                         const estoqueFilhosMap = await fetchStockForChunk(filhos.map(f => f.id), depositosAtivos, accessToken);
                         filhos.forEach(f => {
-                            const fId       = String(f.id);
+                            const fId        = String(f.id);
                             const itemStocks = estoqueFilhosMap[fId] || { SaoRoque: 0, Cotia: 0, Ibiuna: 0 };
                             totalStockByStorePai.SaoRoque += itemStocks.SaoRoque;
                             totalStockByStorePai.Cotia    += itemStocks.Cotia;
@@ -373,10 +373,16 @@ async function syncProductsFromBling() {
                                 tipoVariacao  = tRaw.trim().charAt(0).toUpperCase() + tRaw.trim().slice(1).toLowerCase();
                                 valorVariacao = vRaw.trim().charAt(0).toUpperCase() + vRaw.trim().slice(1).toLowerCase();
                             }
+
+                            // ── CORREÇÃO 2: blingId do filho salvo no array de variações ──
                             variationsMapped.push({
-                                sku: String(f.codigo || "").trim() || `FILHO-${f.id}`,
-                                name: f.nome, price: parseFloat(f.preco) || 0,
-                                stock_by_store: itemStocks, type: tipoVariacao, value: valorVariacao
+                                blingId: fId,                                               // ← NOVO
+                                sku:     String(f.codigo || "").trim() || `FILHO-${fId}`,
+                                name:    f.nome,
+                                price:   parseFloat(f.preco) || 0,
+                                stock_by_store: itemStocks,
+                                type:    tipoVariacao,
+                                value:   valorVariacao
                             });
                         });
                     }
@@ -396,7 +402,11 @@ async function syncProductsFromBling() {
                 }
                 operations.push({ updateOne: {
                     filter: { blingId: currentBlingId },
-                    update: { $set: updateFields, $unset: { image: "", stock: "" }, $setOnInsert: { name: p.nome, createdAt: new Date(), attributes: {} } },
+                    update: {
+                        $set: updateFields,
+                        $unset: { image: "", stock: "" },
+                        $setOnInsert: { name: p.nome, createdAt: new Date(), attributes: {} }
+                    },
                     upsert: true
                 }});
 
@@ -422,10 +432,10 @@ async function syncProductsFromBling() {
         if (operations.length > 0) {
             const result = await Product.bulkWrite(operations);
             console.log(`\n--- RELATÓRIO SYNC COMPLETA ---`);
-            console.log(`📦 Operações:  ${operations.length}`);
-            console.log(`✨ Inseridos:  ${result.upsertedCount}`);
-            console.log(`🔄 Atualizados:${result.modifiedCount}`);
-            console.log(`⚠️  Ignorados:  ${ignoredProducts.length}`);
+            console.log(`📦 Operações:   ${operations.length}`);
+            console.log(`✨ Inseridos:   ${result.upsertedCount}`);
+            console.log(`🔄 Atualizados: ${result.modifiedCount}`);
+            console.log(`⚠️  Ignorados:   ${ignoredProducts.length}`);
             console.log(`-------------------------------\n`);
         }
 
@@ -444,7 +454,7 @@ async function syncProductsFromBling() {
 }
 
 // ============================================================
-// CRON DIÁRIO — 03:00 como backup de consistência
+// CRON DIÁRIO — 03:00 backup de consistência
 // ============================================================
 
 cron.schedule('0 3 * * *', () => {
@@ -455,9 +465,49 @@ cron.schedule('0 3 * * *', () => {
 console.log("✅ Cron de backup diário agendado para as 03:00 (America/Sao_Paulo).");
 
 // ============================================================
-// WEBHOOKS — Processamento de Eventos Bling API v3
+// WEBHOOKS — CORREÇÃO 3 & 4: busca em duas etapas (Pai → Filho)
 // ============================================================
 
+/**
+ * Busca inteligente de produto:
+ *   1ª tentativa — nível pai (blingId ou sku no documento raiz)
+ *   2ª tentativa — nível filho (blingId ou sku dentro do array variations)
+ *
+ * Retorna { produto, isVariation, varIdx }
+ *   isVariation = true  → o match foi em uma variação
+ *   varIdx              → índice da variação no array (quando isVariation)
+ */
+async function findProductByIdOrSku(blingId, sku) {
+    // ── Tentativa 1: produto pai ──────────────────────────────
+    if (blingId) {
+        const p = await Product.findOne({ blingId });
+        if (p) return { produto: p, isVariation: false, varIdx: -1 };
+    }
+    if (sku) {
+        const p = await Product.findOne({ sku });
+        if (p) return { produto: p, isVariation: false, varIdx: -1 };
+    }
+
+    // ── Tentativa 2: variação filha ───────────────────────────
+    if (blingId) {
+        const p = await Product.findOne({ 'variations.blingId': blingId });
+        if (p) {
+            const varIdx = p.variations.findIndex(v => v.blingId === blingId);
+            return { produto: p, isVariation: true, varIdx };
+        }
+    }
+    if (sku) {
+        const p = await Product.findOne({ 'variations.sku': sku });
+        if (p) {
+            const varIdx = p.variations.findIndex(v => v.sku === sku);
+            return { produto: p, isVariation: true, varIdx };
+        }
+    }
+
+    return { produto: null, isVariation: false, varIdx: -1 };
+}
+
+// ── CORREÇÃO 3: processStockWebhook reescrito ─────────────────────────────────
 async function processStockWebhook(data) {
     try {
         const blingId  = data?.produto?.id     ? String(data.produto.id) : null;
@@ -470,91 +520,120 @@ async function processStockWebhook(data) {
             console.log(`[Webhook/Estoque] Depósito "${depName}" não mapeado. Ignorado.`);
             return;
         }
-
-        const query = blingId ? { blingId } : (sku ? { sku } : null);
-        if (!query) {
-            console.warn("[Webhook/Estoque] Payload sem produto.id ou produto.codigo. Ignorado.");
+        if (!blingId && !sku) {
+            console.warn("[Webhook/Estoque] Payload sem produto.id e sem produto.codigo. Ignorado.");
             return;
         }
 
-        const produto = await Product.findOne(query);
+        const { produto, isVariation, varIdx } = await findProductByIdOrSku(blingId, sku);
+
         if (!produto) {
-            console.warn(`[Webhook/Estoque] Produto ${blingId || sku} não encontrado no MongoDB.`);
+            console.warn(`[Webhook/Estoque] Produto blingId=${blingId} sku=${sku} não encontrado.`);
             return;
         }
 
-        if (produto.hasVariations && produto.variations?.length > 0) {
-            // Se for variação (filho), o bling envia o SKU específico ou id correspondente
-            const varIdx = produto.variations.findIndex(v =>
-                v.sku === sku || (blingId && v.sku === String(blingId))
-            );
+        if (isVariation && varIdx !== -1) {
+            // ── Atualiza estoque da variação filha ──────────────
+            produto.variations[varIdx].stock_by_store[storeKey] = saldo;
+            produto.markModified('variations');           // ← obrigatório para subdoc aninhado
 
-            if (varIdx !== -1) {
-                produto.variations[varIdx].stock_by_store[storeKey] = saldo;
-            }
+            // Recalcula totais do pai como soma das variações
+            produto.stock_by_store = {
+                SaoRoque: produto.variations.reduce((a, v) => a + (v.stock_by_store?.SaoRoque ?? 0), 0),
+                Cotia:    produto.variations.reduce((a, v) => a + (v.stock_by_store?.Cotia    ?? 0), 0),
+                Ibiuna:   produto.variations.reduce((a, v) => a + (v.stock_by_store?.Ibiuna   ?? 0), 0)
+            };
+            produto.markModified('stock_by_store');       // ← obrigatório para objeto aninhado
 
-            const totalSR = produto.variations.reduce((a, v) => a + (v.stock_by_store?.SaoRoque ?? 0), 0);
-            const totalCO = produto.variations.reduce((a, v) => a + (v.stock_by_store?.Cotia    ?? 0), 0);
-            const totalIB = produto.variations.reduce((a, v) => a + (v.stock_by_store?.Ibiuna   ?? 0), 0);
+            console.log(`✅ [Webhook/Estoque] Variação idx=${varIdx} de "${produto.name}" | ${storeKey}: ${saldo} un.`);
 
-            produto.stock_by_store = { SaoRoque: totalSR, Cotia: totalCO, Ibiuna: totalIB };
-            produto.markModified('variations');
         } else {
+            // ── Atualiza estoque do produto simples ─────────────
             produto.stock_by_store[storeKey] = saldo;
+            produto.markModified('stock_by_store');       // ← obrigatório para objeto aninhado
+
+            console.log(`✅ [Webhook/Estoque] Produto "${produto.name}" | ${storeKey}: ${saldo} un.`);
         }
 
         produto.updatedAt = new Date();
         await produto.save();
-        console.log(`✅ [Webhook/Estoque] Produto ${produto.name} | ${storeKey}: ${saldo} un.`);
+
     } catch (err) {
         console.error("[Webhook/Estoque] Erro no processamento:", err.message);
     }
 }
 
+// ── CORREÇÃO 4: processProductWebhook reescrito ───────────────────────────────
 async function processProductWebhook(data) {
     try {
         const blingId = data?.id ? String(data.id) : null;
-        if (!blingId) {
-            console.warn("[Webhook/Produto] Payload sem id. Ignorado.");
+        const sku     = data?.codigo || null;
+
+        if (!blingId && !sku) {
+            console.warn("[Webhook/Produto] Payload sem id e sem codigo. Ignorado.");
             return;
         }
 
-        const produto = await Product.findOne({ blingId });
+        const { produto, isVariation, varIdx } = await findProductByIdOrSku(blingId, sku);
+
         if (!produto) {
-            console.warn(`[Webhook/Produto] blingId ${blingId} não encontrado no MongoDB.`);
+            console.warn(`[Webhook/Produto] blingId=${blingId} sku=${sku} não encontrado.`);
             return;
         }
 
         let atualizado = false;
 
-        if (data.nome && data.nome !== produto.name) {
-            produto.name = data.nome;
-            atualizado   = true;
-        }
-
-        const novoPreco = parseFloat(data.preco);
-        if (!isNaN(novoPreco) && novoPreco !== produto.price) {
-            produto.price = novoPreco;
-            atualizado    = true;
-
-            if (produto.hasVariations && produto.variations?.length > 0) {
-                produto.variations = produto.variations.map(v => ({ ...v, price: novoPreco }));
-                produto.markModified('variations');
+        if (isVariation && varIdx !== -1) {
+            // ── Atualiza dados da variação filha ────────────────
+            const novoPreco = parseFloat(data.preco);
+            if (!isNaN(novoPreco) && novoPreco !== produto.variations[varIdx].price) {
+                produto.variations[varIdx].price = novoPreco;
+                atualizado = true;
             }
-        }
+            if (data.codigo && data.codigo !== produto.variations[varIdx].sku) {
+                produto.variations[varIdx].sku = data.codigo;
+                atualizado = true;
+            }
+            if (atualizado) {
+                produto.markModified('variations');
+                console.log(`✅ [Webhook/Produto] Variação idx=${varIdx} de "${produto.name}" atualizada.`);
+            }
 
-        if (data.codigo && data.codigo !== produto.sku) {
-            produto.sku = data.codigo;
-            atualizado  = true;
+        } else {
+            // ── Atualiza dados do produto pai ────────────────────
+            if (data.nome && data.nome !== produto.name) {
+                produto.name = data.nome;
+                atualizado   = true;
+            }
+
+            const novoPreco = parseFloat(data.preco);
+            if (!isNaN(novoPreco) && novoPreco !== produto.price) {
+                produto.price = novoPreco;
+                atualizado    = true;
+                // Propaga o novo preço para todas as variações
+                if (produto.hasVariations && produto.variations?.length > 0) {
+                    produto.variations = produto.variations.map(v => ({ ...v.toObject(), price: novoPreco }));
+                    produto.markModified('variations');
+                }
+            }
+
+            if (data.codigo && data.codigo !== produto.sku) {
+                produto.sku = data.codigo;
+                atualizado  = true;
+            }
+
+            if (atualizado) {
+                console.log(`✅ [Webhook/Produto] "${produto.name}" atualizado (preço: ${produto.price}).`);
+            }
         }
 
         if (atualizado) {
             produto.updatedAt = new Date();
             await produto.save();
-            console.log(`✅ [Webhook/Produto] "${produto.name}" atualizado (preço: ${produto.price}).`);
         } else {
-            console.log(`[Webhook/Produto] blingId ${blingId} — nenhuma alteração relevante.`);
+            console.log(`[Webhook/Produto] blingId=${blingId} — nenhuma alteração relevante.`);
         }
+
     } catch (err) {
         console.error("[Webhook/Produto] Erro no processamento:", err.message);
     }
@@ -581,13 +660,11 @@ const verifyToken = (req, res, next) => {
 };
 
 // ============================================================
-// ROTAS DE CRON AND MANUAL TRIGGER
+// ROTAS DE CRON E TRIGGER MANUAL
 // ============================================================
 
 app.get('/api/cron/sync', async (req, res) => {
-    if (isSyncing) {
-        return res.status(200).json({ success: true, message: "Sync já em andamento." });
-    }
+    if (isSyncing) return res.status(200).json({ success: true, message: "Sync já em andamento." });
     res.status(202).json({ success: true, message: "Sync iniciada em segundo plano." });
     syncProductsFromBling();
 });
@@ -626,45 +703,46 @@ app.get('/callback', async (req, res) => {
 });
 
 // ============================================================
-// ENDPOINT DO WEBHOOK DO BLING (Tratamento limpo da API v3)
+// ENDPOINT DO WEBHOOK DO BLING
 // ============================================================
+
 app.post('/api/webhooks/bling', (req, res) => {
     try {
         const { token } = req.query;
         if (!token || token !== process.env.BLING_WEBHOOK_SECRET) {
-            console.warn("⚠️ [Webhook/Bling] Tentativa de acesso com token inválido.");
+            console.warn("⚠️ [Webhook/Bling] Token inválido ou ausente.");
             return res.status(401).send("Não autorizado");
         }
 
-        const payload = req.body;
-        const tipoEvento = payload?.event; 
+        const payload    = req.body;
+        const tipoEvento = payload?.event;
         const dadosEvento = payload?.data;
 
-        console.log(`📥 [Webhook/Bling v3] Evento recebido: ${tipoEvento}`);
+        console.log(`📥 [Webhook/Bling v3] Evento: "${tipoEvento}"`);
 
-        // Retorna status 200 rápido exigido pelo Bling
+        // Responde 200 imediatamente — o Bling exige resposta rápida
         res.status(200).send("OK");
 
         if (!dadosEvento) return;
 
-        // Processamento Assíncrono (sem await no response principal)
         if (tipoEvento === 'stock.updated' || tipoEvento === 'stock.created') {
-            // v3 simplificado envia id, codigo, saldo e deposito direto em data ou encapsula em product. Mapeamos de acordo com processStockWebhook:
             const dadosAdaptados = {
                 produto: {
-                    id: dadosEvento.product?.id || dadosEvento.id,
-                    codigo: dadosEvento.product?.code || dadosEvento.codigo || dadosEvento.sku
+                    id:     dadosEvento.product?.id    || dadosEvento.id,
+                    codigo: dadosEvento.product?.code  || dadosEvento.codigo || dadosEvento.sku
                 },
                 deposito: {
                     descricao: dadosEvento.deposit?.description || dadosEvento.deposito?.descricao || dadosEvento.depositName || "Geral"
                 },
                 saldoFisicoTotal: dadosEvento.balance ?? dadosEvento.saldo ?? dadosEvento.saldoFisicoTotal ?? 0
             };
-
             processStockWebhook(dadosAdaptados);
-        } 
-        else if (tipoEvento === 'product.updated' || tipoEvento === 'product.created') {
+
+        } else if (tipoEvento === 'product.updated' || tipoEvento === 'product.created') {
             processProductWebhook(dadosEvento);
+
+        } else {
+            console.log(`[Webhook] Evento "${tipoEvento}" não tratado. Payload:`, JSON.stringify(payload).slice(0, 300));
         }
 
     } catch (error) {
@@ -687,34 +765,14 @@ app.get('/api/products', async (req, res) => {
             const term = search.trim();
             query.$or  = [{ name: { $regex: term, $options: 'i' } }, { sku: term }];
         }
-        
         const [products, total] = await Promise.all([
             Product.find(query).sort({ blingId: -1 }).skip(skip).limit(parseInt(limit)).lean(),
             Product.countDocuments(query)
         ]);
-
-        // 🔥 LOG DE DIAGNÓSTICO DO BACK-END (Render Terminal)
-        console.log("==================================================");
-        console.log("📢 REQUISIÇÃO DISPARADA - ANALISANDO RETORNO DO BANCO");
-        console.log(`Total de produtos correspondentes no MongoDB: ${total}`);
-        if (products.length > 0) {
-            console.log("Amostra do primeiro produto do array retornado:");
-            console.log(`   -> Nome: ${products[0].name}`);
-            console.log(`   -> SKU: ${products[0].sku}`);
-            console.log(`   -> stock_by_store:`, JSON.stringify(products[0].stock_by_store));
-        } else {
-            console.log("⚠️ Nenhum produto foi retornado do banco de dados.");
-        }
-        console.log("==================================================");
-
         res.json({ products, total, pages: Math.ceil(total / limit), currentPage: parseInt(page) });
     } catch (error) {
-        // 🛠️ Tratamento de erro robusto para capturar falhas ocultas de conexão do Mongoose
         console.error("❌ ERRO CRÍTICO NA ROTA /api/products:", error);
-        res.status(500).json({ 
-            message: "Erro ao carregar produtos", 
-            error: error.message 
-        });
+        res.status(500).json({ message: "Erro ao carregar produtos", error: error.message });
     }
 });
 
@@ -793,8 +851,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
             Analytics.countDocuments({ type: 'pageview', createdAt: range }),
             Analytics.countDocuments({ type: 'pageview', isNewUser: true, createdAt: range }),
             Analytics.countDocuments({ type: 'click_whatsapp', location: 'sao_roque', createdAt: range }),
-            Analytics.countDocuments({ type: 'click_whatsapp', location: 'cotia',      createdAt: range }),
-            Analytics.countDocuments({ type: 'click_whatsapp', location: 'ibiuna',     createdAt: range }),
+            Analytics.countDocuments({ type: 'click_whatsapp', location: 'cotia',     createdAt: range }),
+            Analytics.countDocuments({ type: 'click_whatsapp', location: 'ibiuna',    createdAt: range }),
             startCompare ? Analytics.countDocuments({ type: 'pageview', createdAt: { $gte: startCompare, $lte: endCompare } }) : Promise.resolve(0),
             startCompare ? Analytics.countDocuments({ type: 'pageview', isNewUser: true, createdAt: { $gte: startCompare, $lte: endCompare } }) : Promise.resolve(0),
             Product.find({}, { category: 1, subcategory: 1, hasVariations: 1, variations: 1, stock_by_store: 1 }).lean()
@@ -811,15 +869,9 @@ app.get('/api/dashboard/stats', async (req, res) => {
 
             let sr = 0, co = 0, ib = 0;
             if (p.hasVariations && p.variations?.length > 0) {
-                for (const v of p.variations) { 
-                    sr += v.stock_by_store?.SaoRoque ?? 0; 
-                    co += v.stock_by_store?.Cotia ?? 0; 
-                    ib += v.stock_by_store?.Ibiuna ?? 0; 
-                }
+                for (const v of p.variations) { sr += v.stock_by_store?.SaoRoque ?? 0; co += v.stock_by_store?.Cotia ?? 0; ib += v.stock_by_store?.Ibiuna ?? 0; }
             } else {
-                sr = p.stock_by_store?.SaoRoque ?? 0; 
-                co = p.stock_by_store?.Cotia ?? 0; 
-                ib = p.stock_by_store?.Ibiuna ?? 0;
+                sr = p.stock_by_store?.SaoRoque ?? 0; co = p.stock_by_store?.Cotia ?? 0; ib = p.stock_by_store?.Ibiuna ?? 0;
             }
 
             catMap[cat].products++; catMap[cat].stock.SaoRoque += sr; catMap[cat].stock.Cotia += co; catMap[cat].stock.Ibiuna += ib;
