@@ -687,13 +687,34 @@ app.get('/api/products', async (req, res) => {
             const term = search.trim();
             query.$or  = [{ name: { $regex: term, $options: 'i' } }, { sku: term }];
         }
+        
         const [products, total] = await Promise.all([
             Product.find(query).sort({ blingId: -1 }).skip(skip).limit(parseInt(limit)).lean(),
             Product.countDocuments(query)
         ]);
+
+        // 🔥 LOG DE DIAGNÓSTICO DO BACK-END (Render Terminal)
+        console.log("==================================================");
+        console.log("📢 REQUISIÇÃO DISPARADA - ANALISANDO RETORNO DO BANCO");
+        console.log(`Total de produtos correspondentes no MongoDB: ${total}`);
+        if (products.length > 0) {
+            console.log("Amostra do primeiro produto do array retornado:");
+            console.log(`   -> Nome: ${products[0].name}`);
+            console.log(`   -> SKU: ${products[0].sku}`);
+            console.log(`   -> stock_by_store:`, JSON.stringify(products[0].stock_by_store));
+        } else {
+            console.log("⚠️ Nenhum produto foi retornado do banco de dados.");
+        }
+        console.log("==================================================");
+
         res.json({ products, total, pages: Math.ceil(total / limit), currentPage: parseInt(page) });
-    } catch {
-        res.status(500).json({ message: "Erro ao carregar produtos" });
+    } catch (error) {
+        // 🛠️ Tratamento de erro robusto para capturar falhas ocultas de conexão do Mongoose
+        console.error("❌ ERRO CRÍTICO NA ROTA /api/products:", error);
+        res.status(500).json({ 
+            message: "Erro ao carregar produtos", 
+            error: error.message 
+        });
     }
 });
 
