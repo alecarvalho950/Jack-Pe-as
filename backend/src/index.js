@@ -43,6 +43,8 @@ async function blingRequest(config, retries = 0) {
     }
 }
 
+// O Bling exige que o retorno do webhook seja imediato
+// Para eventos em lote da v3, criamos uma fila ou processamos em paralelo sem travar o response do Express
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -63,9 +65,6 @@ async function runInBatches(tasks, batchSize = MAX_CONCURRENT) {
 mongoose.connect(process.env.MONGO_URI)
     .then(() => {
         console.log("✅ Conectado ao MongoDB Atlas para JACK PEÇAS!");
-        // ── REMOVIDO: syncProductsFromBling() no startup ──
-        // A sincronização inicial agora só acontece pelo cron diário
-        // ou manualmente via /api/trigger-sync
     })
     .catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err));
 
@@ -288,7 +287,6 @@ async function syncProductsFromBling() {
     try {
         const accessToken = await getValidAccessToken();
 
-        // Paginação de produtos
         let pagina = 1;
         let productsFromBling = [];
         while (true) {
@@ -315,7 +313,6 @@ async function syncProductsFromBling() {
         }
         console.log(`✅ Total bruto: ${productsFromBling.length} itens`);
 
-        // Depósitos ativos
         const resDepositos = await blingRequest({
             method: 'GET',
             url: 'https://api.bling.com.br/v3/depositos?situacao=1&limite=100',
@@ -323,7 +320,6 @@ async function syncProductsFromBling() {
         });
         const depositosAtivos = resDepositos.data.data || [];
 
-        // Estoque dos produtos simples
         const produtosSimples = productsFromBling.filter(p => p.formato !== 'V');
         const estoqueMapSimples = {};
         const CHUNK_SIZE = 50;
@@ -333,7 +329,6 @@ async function syncProductsFromBling() {
             console.log(`  ↳ Chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(produtosSimples.length / CHUNK_SIZE)}`);
         }
 
-        // Montagem das operations
         const operations       = [];
         const ignoredProducts  = [];
         const idsBlingProcessados = [];
@@ -352,7 +347,6 @@ async function syncProductsFromBling() {
             const skuFinal = String(p.codigo || "").trim();
 
             if (p.formato === 'V') {
-                // Produto com variações
                 let variationsMapped    = [];
                 let totalStockByStorePai = { SaoRoque: 0, Cotia: 0, Ibiuna: 0 };
                 let erroVariacao        = false;
@@ -407,7 +401,6 @@ async function syncProductsFromBling() {
                 }});
 
             } else {
-                // Produto simples
                 const itemStocks = estoqueMapSimples[currentBlingId] || { SaoRoque: 0, Cotia: 0, Ibiuna: 0 };
                 operations.push({ updateOne: {
                     filter: { blingId: currentBlingId },
@@ -426,7 +419,6 @@ async function syncProductsFromBling() {
             }
         }
 
-        // Bulk write
         if (operations.length > 0) {
             const result = await Product.bulkWrite(operations);
             console.log(`\n--- RELATÓRIO SYNC COMPLETA ---`);
@@ -437,7 +429,6 @@ async function syncProductsFromBling() {
             console.log(`-------------------------------\n`);
         }
 
-        // Auto-delete de produtos removidos do Bling
         if (idsBlingProcessados.length > 0) {
             const limpeza = await Product.deleteMany({ blingId: { $not: { $in: idsBlingProcessados } } });
             if (limpeza.deletedCount > 0)
@@ -454,7 +445,6 @@ async function syncProductsFromBling() {
 
 // ============================================================
 // CRON DIÁRIO — 03:00 como backup de consistência
-// (substitui o cron de hora em hora; webhooks cobrem o intraday)
 // ============================================================
 
 cron.schedule('0 3 * * *', () => {
@@ -465,25 +455,12 @@ cron.schedule('0 3 * * *', () => {
 console.log("✅ Cron de backup diário agendado para as 03:00 (America/Sao_Paulo).");
 
 // ============================================================
-// WEBHOOKS — processamento assíncrono de eventos do Bling
+// WEBHOOKS — Processamento de Eventos Bling API v3
 // ============================================================
 
-/**
- * Processa evento de alteração de estoque recebido via webhook.
- * Busca o produto pelo blingId (ou SKU) e atualiza stock_by_store.
- *
- * Payload típico do Bling v3 para evento "estoques":
- * {
- *   "data": {
- *     "produto": { "id": 123456789, "codigo": "SKU-001" },
- *     "deposito": { "id": 9, "descricao": "São Roque" },
- *     "saldoFisicoTotal": 15
- *   }
- * }
- */
 async function processStockWebhook(data) {
     try {
-        const blingId  = data?.produto?.id   ? String(data.produto.id) : null;
+        const blingId  = data?.produto?.id     ? String(data.produto.id) : null;
         const sku      = data?.produto?.codigo || null;
         const depName  = data?.deposito?.descricao || "";
         const saldo    = Number(data?.saldoFisicoTotal ?? 0);
@@ -494,7 +471,6 @@ async function processStockWebhook(data) {
             return;
         }
 
-        // Localiza o produto pelo blingId ou SKU
         const query = blingId ? { blingId } : (sku ? { sku } : null);
         if (!query) {
             console.warn("[Webhook/Estoque] Payload sem produto.id ou produto.codigo. Ignorado.");
@@ -508,8 +484,7 @@ async function processStockWebhook(data) {
         }
 
         if (produto.hasVariations && produto.variations?.length > 0) {
-            // Para variações: o Bling envia o ID do filho; atualiza stock_by_store da variação correspondente
-            // e recalcula o stock_by_store do pai como soma das variações
+            // Se for variação (filho), o bling envia o SKU específico ou id correspondente
             const varIdx = produto.variations.findIndex(v =>
                 v.sku === sku || (blingId && v.sku === String(blingId))
             );
@@ -518,7 +493,6 @@ async function processStockWebhook(data) {
                 produto.variations[varIdx].stock_by_store[storeKey] = saldo;
             }
 
-            // Recalcula totais do pai
             const totalSR = produto.variations.reduce((a, v) => a + (v.stock_by_store?.SaoRoque ?? 0), 0);
             const totalCO = produto.variations.reduce((a, v) => a + (v.stock_by_store?.Cotia    ?? 0), 0);
             const totalIB = produto.variations.reduce((a, v) => a + (v.stock_by_store?.Ibiuna   ?? 0), 0);
@@ -526,34 +500,17 @@ async function processStockWebhook(data) {
             produto.stock_by_store = { SaoRoque: totalSR, Cotia: totalCO, Ibiuna: totalIB };
             produto.markModified('variations');
         } else {
-            // Produto simples: atualiza diretamente
             produto.stock_by_store[storeKey] = saldo;
         }
 
         produto.updatedAt = new Date();
         await produto.save();
-
         console.log(`✅ [Webhook/Estoque] Produto ${produto.name} | ${storeKey}: ${saldo} un.`);
-
     } catch (err) {
         console.error("[Webhook/Estoque] Erro no processamento:", err.message);
     }
 }
 
-/**
- * Processa evento de alteração de produto recebido via webhook.
- * Atualiza nome, preço e dados base do produto no MongoDB.
- *
- * Payload típico do Bling v3 para evento "produtos":
- * {
- *   "data": {
- *     "id": 123456789,
- *     "nome": "Bateria Samsung A55",
- *     "preco": 89.90,
- *     "codigo": "BATSA55"
- *   }
- * }
- */
 async function processProductWebhook(data) {
     try {
         const blingId = data?.id ? String(data.id) : null;
@@ -570,26 +527,22 @@ async function processProductWebhook(data) {
 
         let atualizado = false;
 
-        // Atualiza nome se mudou
         if (data.nome && data.nome !== produto.name) {
             produto.name = data.nome;
             atualizado   = true;
         }
 
-        // Atualiza preço se mudou
         const novoPreco = parseFloat(data.preco);
         if (!isNaN(novoPreco) && novoPreco !== produto.price) {
             produto.price = novoPreco;
             atualizado    = true;
 
-            // Propaga o novo preço para as variações, se existirem
             if (produto.hasVariations && produto.variations?.length > 0) {
                 produto.variations = produto.variations.map(v => ({ ...v, price: novoPreco }));
                 produto.markModified('variations');
             }
         }
 
-        // Atualiza SKU se mudou
         if (data.codigo && data.codigo !== produto.sku) {
             produto.sku = data.codigo;
             atualizado  = true;
@@ -602,7 +555,6 @@ async function processProductWebhook(data) {
         } else {
             console.log(`[Webhook/Produto] blingId ${blingId} — nenhuma alteração relevante.`);
         }
-
     } catch (err) {
         console.error("[Webhook/Produto] Erro no processamento:", err.message);
     }
@@ -629,57 +581,9 @@ const verifyToken = (req, res, next) => {
 };
 
 // ============================================================
-// ROTA DE WEBHOOK DO BLING  (/api/webhooks/bling)
-// ============================================================
-//
-// Como registrar no painel do Bling:
-//   URL: https://seu-dominio.com/api/webhooks/bling?token=SEU_WEBHOOK_SECRET
-//   Eventos: estoques / produtos
-//
-// Adicione no .env:
-//   BLING_WEBHOOK_SECRET=uma_string_longa_e_aleatoria
-//
-app.post('/api/webhooks/bling', (req, res) => {
-    // ── Validação do token de segurança ──────────────────────
-    const tokenQuery = req.query.token;
-    if (!tokenQuery || tokenQuery !== process.env.BLING_WEBHOOK_SECRET) {
-        console.warn("[Webhook] Requisição rejeitada — token inválido ou ausente.");
-        return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    // ── Responde 200 imediatamente para evitar timeout no Bling ──
-    res.status(200).json({ received: true });
-
-    // ── Processamento assíncrono (não bloqueia a resposta) ────
-    setImmediate(async () => {
-        try {
-            const body   = req.body;
-            const evento = body?.evento || body?.event || "";  // campo que o Bling envia
-            const data   = body?.data   || body?.retorno || body || {};
-
-            console.log(`[Webhook] Evento recebido: "${evento}"`);
-
-            if (evento === "estoques" || evento === "estoque") {
-                await processStockWebhook(data);
-
-            } else if (evento === "produtos" || evento === "produto") {
-                await processProductWebhook(data);
-
-            } else {
-                // Loga eventos não tratados para diagnóstico futuro
-                console.log(`[Webhook] Evento "${evento}" não tratado. Payload:`, JSON.stringify(body).slice(0, 300));
-            }
-        } catch (err) {
-            console.error("[Webhook] Erro inesperado no processamento:", err.message);
-        }
-    });
-});
-
-// ============================================================
-// ROTAS DE CRON E SINCRONIZAÇÃO MANUAL
+// ROTAS DE CRON AND MANUAL TRIGGER
 // ============================================================
 
-// Rota para cron-job externo (Render, EasyCron, etc.) — chama a sync completa
 app.get('/api/cron/sync', async (req, res) => {
     if (isSyncing) {
         return res.status(200).json({ success: true, message: "Sync já em andamento." });
@@ -688,7 +592,6 @@ app.get('/api/cron/sync', async (req, res) => {
     syncProductsFromBling();
 });
 
-// Rota de trigger manual (painel admin, etc.)
 app.post('/api/trigger-sync', async (req, res) => {
     res.json({ message: "Sincronização disparada!", timestamp: new Date() });
     syncProductsFromBling();
@@ -716,9 +619,56 @@ app.get('/callback', async (req, res) => {
         const { access_token, refresh_token, expires_in } = response.data;
         await BlingToken.findOneAndUpdate({}, { access_token, refresh_token, expires_at: new Date(Date.now() + expires_in * 1000) }, { upsert: true });
         res.send("<h1>✅ Autorizado!</h1><p>JACK PEÇAS conectado ao Bling.</p>");
-        syncProductsFromBling(); // sync inicial após autorizar
+        syncProductsFromBling();
     } catch (error) {
         res.status(500).json(error.response?.data || error.message);
+    }
+});
+
+// ============================================================
+// ENDPOINT DO WEBHOOK DO BLING (Tratamento limpo da API v3)
+// ============================================================
+app.post('/api/webhooks/bling', (req, res) => {
+    try {
+        const { token } = req.query;
+        if (!token || token !== process.env.BLING_WEBHOOK_SECRET) {
+            console.warn("⚠️ [Webhook/Bling] Tentativa de acesso com token inválido.");
+            return res.status(401).send("Não autorizado");
+        }
+
+        const payload = req.body;
+        const tipoEvento = payload?.event; 
+        const dadosEvento = payload?.data;
+
+        console.log(`📥 [Webhook/Bling v3] Evento recebido: ${tipoEvento}`);
+
+        // Retorna status 200 rápido exigido pelo Bling
+        res.status(200).send("OK");
+
+        if (!dadosEvento) return;
+
+        // Processamento Assíncrono (sem await no response principal)
+        if (tipoEvento === 'stock.updated' || tipoEvento === 'stock.created') {
+            // v3 simplificado envia id, codigo, saldo e deposito direto em data ou encapsula em product. Mapeamos de acordo com processStockWebhook:
+            const dadosAdaptados = {
+                produto: {
+                    id: dadosEvento.product?.id || dadosEvento.id,
+                    codigo: dadosEvento.product?.code || dadosEvento.codigo || dadosEvento.sku
+                },
+                deposito: {
+                    descricao: dadosEvento.deposit?.description || dadosEvento.deposito?.descricao || dadosEvento.depositName || "Geral"
+                },
+                saldoFisicoTotal: dadosEvento.balance ?? dadosEvento.saldo ?? dadosEvento.saldoFisicoTotal ?? 0
+            };
+
+            processStockWebhook(dadosAdaptados);
+        } 
+        else if (tipoEvento === 'product.updated' || tipoEvento === 'product.created') {
+            processProductWebhook(dadosEvento);
+        }
+
+    } catch (error) {
+        console.error("❌ Erro crítico na interceptação do webhook:", error.message);
     }
 });
 
@@ -817,22 +767,22 @@ app.get('/api/dashboard/stats', async (req, res) => {
             totalVisits, uniqueUsers,
             clickSaoRoque, clickCotia, clickIbiuna,
             totalVisitsCompare, uniqueUsersCompare,
-            allProducts
+            allProductsList
         ] = await Promise.all([
             Analytics.countDocuments({ type: 'pageview', createdAt: range }),
             Analytics.countDocuments({ type: 'pageview', isNewUser: true, createdAt: range }),
             Analytics.countDocuments({ type: 'click_whatsapp', location: 'sao_roque', createdAt: range }),
-            Analytics.countDocuments({ type: 'click_whatsapp', location: 'cotia',     createdAt: range }),
-            Analytics.countDocuments({ type: 'click_whatsapp', location: 'ibiuna',    createdAt: range }),
+            Analytics.countDocuments({ type: 'click_whatsapp', location: 'cotia',      createdAt: range }),
+            Analytics.countDocuments({ type: 'click_whatsapp', location: 'ibiuna',     createdAt: range }),
             startCompare ? Analytics.countDocuments({ type: 'pageview', createdAt: { $gte: startCompare, $lte: endCompare } }) : Promise.resolve(0),
             startCompare ? Analytics.countDocuments({ type: 'pageview', isNewUser: true, createdAt: { $gte: startCompare, $lte: endCompare } }) : Promise.resolve(0),
             Product.find({}, { category: 1, subcategory: 1, hasVariations: 1, variations: 1, stock_by_store: 1 }).lean()
         ]);
 
-        const totalProducts = allProducts.length;
+        const totalProducts = allProductsList.length;
         const catMap = {};
 
-        for (const p of allProducts) {
+        for (const p of allProductsList) {
             const cat = p.category || 'Sem Categoria';
             const sub = p.subcategory || 'Geral';
             if (!catMap[cat]) catMap[cat] = { products: 0, stock: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 }, subs: {} };
@@ -840,9 +790,15 @@ app.get('/api/dashboard/stats', async (req, res) => {
 
             let sr = 0, co = 0, ib = 0;
             if (p.hasVariations && p.variations?.length > 0) {
-                for (const v of p.variations) { sr += v.stock_by_store?.SaoRoque ?? 0; co += v.stock_by_store?.Cotia ?? 0; ib += v.stock_by_store?.Ibiuna ?? 0; }
+                for (const v of p.variations) { 
+                    sr += v.stock_by_store?.SaoRoque ?? 0; 
+                    co += v.stock_by_store?.Cotia ?? 0; 
+                    ib += v.stock_by_store?.Ibiuna ?? 0; 
+                }
             } else {
-                sr = p.stock_by_store?.SaoRoque ?? 0; co = p.stock_by_store?.Cotia ?? 0; ib = p.stock_by_store?.Ibiuna ?? 0;
+                sr = p.stock_by_store?.SaoRoque ?? 0; 
+                co = p.stock_by_store?.Cotia ?? 0; 
+                ib = p.stock_by_store?.Ibiuna ?? 0;
             }
 
             catMap[cat].products++; catMap[cat].stock.SaoRoque += sr; catMap[cat].stock.Cotia += co; catMap[cat].stock.Ibiuna += ib;
