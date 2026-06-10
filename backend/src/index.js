@@ -537,47 +537,75 @@ async function processStockWebhook(data) {
         const sku      = data?.produto?.codigo || null;
         const depName  = data?.deposito?.descricao || "";
         const saldo    = Number(data?.saldoFisicoTotal ?? 0);
+        
+        // Mapeia usando a nova função com IDs definidos
         const storeKey = mapStoreKey(depName);
 
         console.log(`📊 Identificadores extraídos -> blingId: ${blingId} | SKU: ${sku} | Depósito Bling: "${depName}" -> Mapeado como: "${storeKey}" | Saldo: ${saldo}`);
 
         if (!storeKey) {
-            console.warn(`⚠️  [Webhook/Estoque] Depósito "${depName}" NÃO foi mapeado para nenhuma loja (SaoRoque, Cotia, Ibiuna). Abortando atualização.`);
+            console.warn(`⚠️  [Webhook/Estoque] Depósito "${depName}" NÃO foi mapeado para nenhuma loja. Abortando atualização.`);
             return;
         }
 
-        const query = blingId ? { blingId } : (sku ? { sku } : null);
-        if (!query) {
-            console.error("❌ [Webhook/Estoque] O Payload não contém nem 'id' nem 'codigo/sku' válidos do produto. Abortando.");
+        if (!blingId && !sku) {
+            console.error("❌ [Webhook/Estoque] O Payload não contém identificadores válidos. Abortando.");
             return;
         }
 
-        console.log("🗄️  Buscando produto no MongoDB com a query:", JSON.stringify(query));
+        // 🎯 NOVA QUERY INTELIGENTE: Busca na raiz ou dentro da array de variações
+        let query = {};
+        if (blingId) {
+            query = {
+                $or: [
+                    { blingId: blingId },
+                    { "variations.blingId": blingId }
+                ]
+            };
+        } else if (sku) {
+            query = {
+                $or: [
+                    { sku: sku },
+                    { "variations.sku": sku }
+                ]
+            };
+        }
+
+        console.log("🗄️  Buscando produto no MongoDB com a query adaptada:", JSON.stringify(query));
         const produto = await Product.findOne(query);
         
         if (!produto) {
-            console.error(`❌ [Webhook/Estoque] Produto com Identificador ${blingId || sku} NÃO foi encontrado na coleção do MongoDB!`);
+            console.error(`❌ [Webhook/Estoque] Produto/Variação com Identificador ${blingId || sku} NÃO foi encontrado no MongoDB!`);
             return;
         }
 
         console.log(`✅ Produto localizado no banco: "${produto.name}" (Possui Variações: ${produto.hasVariations})`);
 
+        // Se o produto localizado trabalha com variações
         if (produto.hasVariations && produto.variations?.length > 0) {
-            console.log(`🧬 Produto é Pai. Procurando variação com SKU ou ID correspondente a: "${sku || blingId}"`);
+            console.log(`🧬 Procurando variação com ID correspondente a: "${blingId}"`);
             
+            // Procura o índice correto da variação filha que disparou o evento
             const varIdx = produto.variations.findIndex(v =>
-                v.sku === sku || (blingId && v.sku === String(blingId))
+                String(v.blingId) === blingId || (sku && v.sku === sku)
             );
 
             if (varIdx !== -1) {
-                console.log(`📌 Variação encontrada no índice [${varIdx}]. Atualizando estoque da loja ${storeKey} para: ${saldo}`);
+                console.log(`📌 Variação "${produto.variations[varIdx].name}" encontrada no índice [${varIdx}].`);
+                
+                // Inicializa o objeto de estoque da variação caso não exista por segurança
+                if (!produto.variations[varIdx].stock_by_store) {
+                    produto.variations[varIdx].stock_by_store = { SaoRoque: 0, Cotia: 0, Ibiuna: 0 };
+                }
+                
+                // Atualiza o estoque isolado da variação na loja correspondente
                 produto.variations[varIdx].stock_by_store[storeKey] = saldo;
+                console.log(`✅ Estoque da variação atualizado em ${storeKey} para: ${saldo}`);
             } else {
-                console.warn(`⚠️  [Webhook/Estoque] Nenhuma variação filha com o SKU/ID "${sku || blingId}" foi encontrada dentro do produto pai "${produto.name}".`);
-                console.log("Disponíveis no banco:", produto.variations.map(v => v.sku));
+                console.warn(`⚠️  [Webhook/Estoque] Variação com o ID/SKU informado não bate com nenhuma cadastrada.`);
             }
 
-            // Recalcula o estoque total somando as variações filhas
+            // Recalcula o estoque total do produto Pai somando as suas variações filhas
             const totalSR = produto.variations.reduce((a, v) => a + (v.stock_by_store?.SaoRoque ?? 0), 0);
             const totalCO = produto.variations.reduce((a, v) => a + (v.stock_by_store?.Cotia    ?? 0), 0);
             const totalIB = produto.variations.reduce((a, v) => a + (v.stock_by_store?.Ibiuna   ?? 0), 0);
@@ -585,13 +613,14 @@ async function processStockWebhook(data) {
             produto.stock_by_store = { SaoRoque: totalSR, Cotia: totalCO, Ibiuna: totalIB };
             produto.markModified('variations');
         } else {
-            console.log(`📦 Produto Simples. Atualizando estoque da loja ${storeKey} de ${produto.stock_by_store[storeKey]} para: ${saldo}`);
+            // Caso seja um produto simples (sem variações)
+            console.log(`📦 Produto Simples. Atualizando estoque da loja ${storeKey} para: ${saldo}`);
             produto.stock_by_store[storeKey] = saldo;
         }
 
         produto.updatedAt = new Date();
         await produto.save();
-        console.log(`🎉 [SUCESSO ESTOQUE] Banco atualizado! Produto: "${produto.name}" | Loja: ${storeKey} -> Novo Estoque: ${saldo} un.\n`);
+        console.log(`🎉 [SUCESSO ESTOQUE] Banco atualizado com sucesso para o produto: "${produto.name}"!\n`);
     } catch (err) {
         console.error("🚨 [ERRO CRÍTICO ESTOQUE] Falha ao processar ou salvar no MongoDB:", err.stack);
     }
