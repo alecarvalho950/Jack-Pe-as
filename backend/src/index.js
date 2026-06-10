@@ -139,10 +139,20 @@ const Analytics = mongoose.model('Analytics', (() => {
 // ============================================================
 
 function mapStoreKey(depositName) {
-    const n = String(depositName).toUpperCase();
-    if (n.includes("SÃO ROQUE") || n.includes("SAO ROQUE")) return "SaoRoque";
-    if (n.includes("COTIA"))                                 return "Cotia";
-    if (n.includes("IBIÚNA") || n.includes("IBIUNA"))       return "Ibiuna";
+    if (!depositName) return null;
+    
+    // Transforma em maiúsculo e remove todos os espaços para evitar erros de digitação do Bling
+    const n = String(depositName).toUpperCase().replace(/\s+/g, '');
+    
+    // Testa São Roque (ex: "SAOROQUE", "SÃOROQUE", "SAO_ROQUE")
+    if (n.includes("SAOROQUE") || n.includes("SÃOROQUE")) return "SaoRoque";
+    
+    // Testa Cotia
+    if (n.includes("COTIA")) return "Cotia";
+    
+    // Testa Ibiúna (ex: "IBIUNA", "IBIÚNA")
+    if (n.includes("IBIUNA") || n.includes("IBIÚNA")) return "Ibiuna";
+    
     return null;
 }
 
