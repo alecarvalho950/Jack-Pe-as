@@ -507,135 +507,132 @@ async function findProductByIdOrSku(blingId, sku) {
     return { produto: null, isVariation: false, varIdx: -1 };
 }
 
-// ── CORREÇÃO 3: processStockWebhook reescrito ─────────────────────────────────
+// ============================================================
+// WEBHOOKS — Processamento com Sistema de Auditoria de Erros
+// ============================================================
+
 async function processStockWebhook(data) {
     try {
+        console.log("🔍 [AUDITORIA ESTOQUE] Iniciando processamento do Payload...");
+        console.log("📦 Dados brutos estruturados para o banco:", JSON.stringify(data, null, 2));
+
         const blingId  = data?.produto?.id     ? String(data.produto.id) : null;
         const sku      = data?.produto?.codigo || null;
         const depName  = data?.deposito?.descricao || "";
         const saldo    = Number(data?.saldoFisicoTotal ?? 0);
         const storeKey = mapStoreKey(depName);
 
+        console.log(`📊 Identificadores extraídos -> blingId: ${blingId} | SKU: ${sku} | Depósito Bling: "${depName}" -> Mapeado como: "${storeKey}" | Saldo: ${saldo}`);
+
         if (!storeKey) {
-            console.log(`[Webhook/Estoque] Depósito "${depName}" não mapeado. Ignorado.`);
-            return;
-        }
-        if (!blingId && !sku) {
-            console.warn("[Webhook/Estoque] Payload sem produto.id e sem produto.codigo. Ignorado.");
+            console.warn(`⚠️  [Webhook/Estoque] Depósito "${depName}" NÃO foi mapeado para nenhuma loja (SaoRoque, Cotia, Ibiuna). Abortando atualização.`);
             return;
         }
 
-        const { produto, isVariation, varIdx } = await findProductByIdOrSku(blingId, sku);
+        const query = blingId ? { blingId } : (sku ? { sku } : null);
+        if (!query) {
+            console.error("❌ [Webhook/Estoque] O Payload não contém nem 'id' nem 'codigo/sku' válidos do produto. Abortando.");
+            return;
+        }
 
+        console.log("🗄️  Buscando produto no MongoDB com a query:", JSON.stringify(query));
+        const produto = await Product.findOne(query);
+        
         if (!produto) {
-            console.warn(`[Webhook/Estoque] Produto blingId=${blingId} sku=${sku} não encontrado.`);
+            console.error(`❌ [Webhook/Estoque] Produto com Identificador ${blingId || sku} NÃO foi encontrado na coleção do MongoDB!`);
             return;
         }
 
-        if (isVariation && varIdx !== -1) {
-            // ── Atualiza estoque da variação filha ──────────────
-            produto.variations[varIdx].stock_by_store[storeKey] = saldo;
-            produto.markModified('variations');           // ← obrigatório para subdoc aninhado
+        console.log(`✅ Produto localizado no banco: "${produto.name}" (Possui Variações: ${produto.hasVariations})`);
 
-            // Recalcula totais do pai como soma das variações
-            produto.stock_by_store = {
-                SaoRoque: produto.variations.reduce((a, v) => a + (v.stock_by_store?.SaoRoque ?? 0), 0),
-                Cotia:    produto.variations.reduce((a, v) => a + (v.stock_by_store?.Cotia    ?? 0), 0),
-                Ibiuna:   produto.variations.reduce((a, v) => a + (v.stock_by_store?.Ibiuna   ?? 0), 0)
-            };
-            produto.markModified('stock_by_store');       // ← obrigatório para objeto aninhado
+        if (produto.hasVariations && produto.variations?.length > 0) {
+            console.log(`🧬 Produto é Pai. Procurando variação com SKU ou ID correspondente a: "${sku || blingId}"`);
+            
+            const varIdx = produto.variations.findIndex(v =>
+                v.sku === sku || (blingId && v.sku === String(blingId))
+            );
 
-            console.log(`✅ [Webhook/Estoque] Variação idx=${varIdx} de "${produto.name}" | ${storeKey}: ${saldo} un.`);
+            if (varIdx !== -1) {
+                console.log(`📌 Variação encontrada no índice [${varIdx}]. Atualizando estoque da loja ${storeKey} para: ${saldo}`);
+                produto.variations[varIdx].stock_by_store[storeKey] = saldo;
+            } else {
+                console.warn(`⚠️  [Webhook/Estoque] Nenhuma variação filha com o SKU/ID "${sku || blingId}" foi encontrada dentro do produto pai "${produto.name}".`);
+                console.log("Disponíveis no banco:", produto.variations.map(v => v.sku));
+            }
 
+            // Recalcula o estoque total somando as variações filhas
+            const totalSR = produto.variations.reduce((a, v) => a + (v.stock_by_store?.SaoRoque ?? 0), 0);
+            const totalCO = produto.variations.reduce((a, v) => a + (v.stock_by_store?.Cotia    ?? 0), 0);
+            const totalIB = produto.variations.reduce((a, v) => a + (v.stock_by_store?.Ibiuna   ?? 0), 0);
+
+            produto.stock_by_store = { SaoRoque: totalSR, Cotia: totalCO, Ibiuna: totalIB };
+            produto.markModified('variations');
         } else {
-            // ── Atualiza estoque do produto simples ─────────────
+            console.log(`📦 Produto Simples. Atualizando estoque da loja ${storeKey} de ${produto.stock_by_store[storeKey]} para: ${saldo}`);
             produto.stock_by_store[storeKey] = saldo;
-            produto.markModified('stock_by_store');       // ← obrigatório para objeto aninhado
-
-            console.log(`✅ [Webhook/Estoque] Produto "${produto.name}" | ${storeKey}: ${saldo} un.`);
         }
 
         produto.updatedAt = new Date();
         await produto.save();
-
+        console.log(`🎉 [SUCESSO ESTOQUE] Banco atualizado! Produto: "${produto.name}" | Loja: ${storeKey} -> Novo Estoque: ${saldo} un.\n`);
     } catch (err) {
-        console.error("[Webhook/Estoque] Erro no processamento:", err.message);
+        console.error("🚨 [ERRO CRÍTICO ESTOQUE] Falha ao processar ou salvar no MongoDB:", err.stack);
     }
 }
 
-// ── CORREÇÃO 4: processProductWebhook reescrito ───────────────────────────────
 async function processProductWebhook(data) {
     try {
-        const blingId = data?.id ? String(data.id) : null;
-        const sku     = data?.codigo || null;
+        console.log("🔍 [AUDITORIA PRODUTO] Iniciando processamento do Payload de dados gerais...");
+        console.log("📦 Dados brutos recebidos:", JSON.stringify(data, null, 2));
 
-        if (!blingId && !sku) {
-            console.warn("[Webhook/Produto] Payload sem id e sem codigo. Ignorado.");
+        const blingId = data?.id ? String(data.id) : null;
+        if (!blingId) {
+            console.error("❌ [Webhook/Produto] Payload não contém o campo 'id' do Bling. Abortando.");
             return;
         }
 
-        const { produto, isVariation, varIdx } = await findProductByIdOrSku(blingId, sku);
-
+        const produto = await Product.findOne({ blingId });
         if (!produto) {
-            console.warn(`[Webhook/Produto] blingId=${blingId} sku=${sku} não encontrado.`);
+            console.error(`❌ [Webhook/Produto] blingId ${blingId} não foi encontrado no banco MongoDB para atualizar dados cadastrais.`);
             return;
         }
 
         let atualizado = false;
 
-        if (isVariation && varIdx !== -1) {
-            // ── Atualiza dados da variação filha ────────────────
-            const novoPreco = parseFloat(data.preco);
-            if (!isNaN(novoPreco) && novoPreco !== produto.variations[varIdx].price) {
-                produto.variations[varIdx].price = novoPreco;
-                atualizado = true;
-            }
-            if (data.codigo && data.codigo !== produto.variations[varIdx].sku) {
-                produto.variations[varIdx].sku = data.codigo;
-                atualizado = true;
-            }
-            if (atualizado) {
+        if (data.nome && data.nome !== produto.name) {
+            console.log(`✏️ Alterando nome de: "${produto.name}" -> Para: "${data.nome}"`);
+            produto.name = data.nome;
+            atualizado   = true;
+        }
+
+        const novoPreco = parseFloat(data.preco);
+        if (!isNaN(novoPreco) && novoPreco !== produto.price) {
+            console.log(`💰 Alterando preço de: R$ ${produto.price} -> Para: R$ ${novoPreco}`);
+            produto.price = novoPreco;
+            atualizado    = true;
+
+            if (produto.hasVariations && produto.variations?.length > 0) {
+                console.log("🧬 Replicando novo preço para todas as variações filhas.");
+                produto.variations = produto.variations.map(v => ({ ...v, price: novoPreco }));
                 produto.markModified('variations');
-                console.log(`✅ [Webhook/Produto] Variação idx=${varIdx} de "${produto.name}" atualizada.`);
             }
+        }
 
-        } else {
-            // ── Atualiza dados do produto pai ────────────────────
-            if (data.nome && data.nome !== produto.name) {
-                produto.name = data.nome;
-                atualizado   = true;
-            }
-
-            const novoPreco = parseFloat(data.preco);
-            if (!isNaN(novoPreco) && novoPreco !== produto.price) {
-                produto.price = novoPreco;
-                atualizado    = true;
-                // Propaga o novo preço para todas as variações
-                if (produto.hasVariations && produto.variations?.length > 0) {
-                    produto.variations = produto.variations.map(v => ({ ...v.toObject(), price: novoPreco }));
-                    produto.markModified('variations');
-                }
-            }
-
-            if (data.codigo && data.codigo !== produto.sku) {
-                produto.sku = data.codigo;
-                atualizado  = true;
-            }
-
-            if (atualizado) {
-                console.log(`✅ [Webhook/Produto] "${produto.name}" atualizado (preço: ${produto.price}).`);
-            }
+        if (data.codigo && data.codigo !== produto.sku) {
+            console.log(`✏️ Alterando SKU de: "${produto.sku}" -> Para: "${data.codigo}"`);
+            produto.sku = data.codigo;
+            atualizado  = true;
         }
 
         if (atualizado) {
             produto.updatedAt = new Date();
             await produto.save();
+            console.log(`🎉 [SUCESSO CADASTRO] "${produto.name}" salvo com sucesso no banco.\n`);
         } else {
-            console.log(`[Webhook/Produto] blingId=${blingId} — nenhuma alteração relevante.`);
+            console.log(`ℹ️  [Webhook/Produto] Nenhuma modificação cadastral relevante (nome/preço/sku) detectada para o id ${blingId}.\n`);
         }
-
     } catch (err) {
-        console.error("[Webhook/Produto] Erro no processamento:", err.message);
+        console.error("🚨 [ERRO CRÍTICO PRODUTO] Falha ao atualizar dados gerais:", err.stack);
     }
 }
 
@@ -709,27 +706,34 @@ app.get('/callback', async (req, res) => {
 app.post('/api/webhooks/bling', (req, res) => {
     try {
         const { token } = req.query;
+        console.log(`\n📥 [WEBHOOK INCOMING] Chamada recebida na URL. Token enviado via query: "${token}"`);
+
         if (!token || token !== process.env.BLING_WEBHOOK_SECRET) {
-            console.warn("⚠️ [Webhook/Bling] Token inválido ou ausente.");
+            console.warn(`⚠️  [Webhook/Bling] Token inválido ou ausente. Recebido: "${token}", Esperado: "${process.env.BLING_WEBHOOK_SECRET}"`);
             return res.status(401).send("Não autorizado");
         }
 
-        const payload    = req.body;
-        const tipoEvento = payload?.event;
+        const payload = req.body;
+        console.log("➡️ Tipo do evento enviado pelo Bling:", payload?.event);
+
+        const tipoEvento = payload?.event; 
         const dadosEvento = payload?.data;
 
-        console.log(`📥 [Webhook/Bling v3] Evento: "${tipoEvento}"`);
-
-        // Responde 200 imediatamente — o Bling exige resposta rápida
+        // Retorna status 200 rápido exigido pelo Bling
         res.status(200).send("OK");
 
-        if (!dadosEvento) return;
+        if (!dadosEvento) {
+            console.warn("⚠️  [Webhook/Bling] Payload veio sem o objeto 'data'. Ignorando processamento.");
+            return;
+        }
 
+        // Processamento Assíncrono em background
         if (tipoEvento === 'stock.updated' || tipoEvento === 'stock.created') {
+            console.log("⚡ Encaminhando para processamento de ESTOQUE...");
             const dadosAdaptados = {
                 produto: {
-                    id:     dadosEvento.product?.id    || dadosEvento.id,
-                    codigo: dadosEvento.product?.code  || dadosEvento.codigo || dadosEvento.sku
+                    id: dadosEvento.product?.id || dadosEvento.id,
+                    codigo: dadosEvento.product?.code || dadosEvento.codigo || dadosEvento.sku
                 },
                 deposito: {
                     descricao: dadosEvento.deposit?.description || dadosEvento.deposito?.descricao || dadosEvento.depositName || "Geral"
@@ -737,16 +741,16 @@ app.post('/api/webhooks/bling', (req, res) => {
                 saldoFisicoTotal: dadosEvento.balance ?? dadosEvento.saldo ?? dadosEvento.saldoFisicoTotal ?? 0
             };
             processStockWebhook(dadosAdaptados);
-
-        } else if (tipoEvento === 'product.updated' || tipoEvento === 'product.created') {
+        } 
+        else if (tipoEvento === 'product.updated' || tipoEvento === 'product.created') {
+            console.log("⚡ Encaminhando para processamento de PRODUTO (cadastro)...");
             processProductWebhook(dadosEvento);
-
         } else {
-            console.log(`[Webhook] Evento "${tipoEvento}" não tratado. Payload:`, JSON.stringify(payload).slice(0, 300));
+            console.log(`ℹ️ Evento do tipo "${tipoEvento}" não possui regra de negócio associada. Ignorado.`);
         }
 
     } catch (error) {
-        console.error("❌ Erro crítico na interceptação do webhook:", error.message);
+        console.error("❌ Erro crítico no ponto de entrada do webhook:", error.message);
     }
 });
 
