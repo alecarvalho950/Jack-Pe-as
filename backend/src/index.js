@@ -138,22 +138,27 @@ const Analytics = mongoose.model('Analytics', (() => {
 // FUNÇÕES AUXILIARES
 // ============================================================
 
-function mapStoreKey(depositName) {
-    if (!depositName) return null;
+function mapStoreKey(depositNameOrId) {
+    if (!depositNameOrId) return null;
     
-    // Transforma em maiúsculo e remove todos os espaços para evitar erros de digitação do Bling
-    const n = String(depositName).toUpperCase().replace(/\s+/g, '');
+    const input = String(depositNameOrId).toUpperCase().replace(/\s+/g, '');
     
-    // Testa São Roque (ex: "SAOROQUE", "SÃOROQUE", "SAO_ROQUE")
-    if (n.includes("SAOROQUE") || n.includes("SÃOROQUE")) return "SaoRoque";
+    // Agora aceita explicitamente o termo "GERAL" enviado pelo Bling real
+    if (input.includes("GERAL") || input.includes("SAOROQUE") || input.includes("SÃOROQUE") || input === "987654321") {
+        return "SaoRoque";
+    }
     
-    // Testa Cotia
-    if (n.includes("COTIA")) return "Cotia";
+    if (input.includes("COTIA")) {
+        return "Cotia";
+    }
     
-    // Testa Ibiúna (ex: "IBIUNA", "IBIÚNA")
-    if (n.includes("IBIUNA") || n.includes("IBIÚNA")) return "Ibiuna";
+    if (input.includes("IBIUNA") || input.includes("IBIÚNA")) {
+        return "Ibiuna";
+    }
     
-    return null;
+    // Fallback provisório para não perder a atualização
+    console.warn(`⚠️ Depósito "${depositNameOrId}" direcionado para SaoRoque por padrão.`);
+    return "SaoRoque";
 }
 
 function mapCategory(productName) {
@@ -710,53 +715,96 @@ app.get('/callback', async (req, res) => {
 });
 
 // ============================================================
-// ENDPOINT DO WEBHOOK DO BLING
+// ENDPOINT DO WEBHOOK DO BLING (HÍBRIDO: SUPORTA API V2 E V3)
 // ============================================================
-
 app.post('/api/webhooks/bling', (req, res) => {
     try {
         const { token } = req.query;
-        console.log(`\n📥 [WEBHOOK INCOMING] Chamada recebida na URL. Token enviado via query: "${token}"`);
+        console.log(`\n📥 [WEBHOOK INCOMING] Chamada recebida.`);
 
         if (!token || token !== process.env.BLING_WEBHOOK_SECRET) {
-            console.warn(`⚠️  [Webhook/Bling] Token inválido ou ausente. Recebido: "${token}", Esperado: "${process.env.BLING_WEBHOOK_SECRET}"`);
+            console.warn(`⚠️  [Webhook/Bling] Token inválido ou ausente.`);
             return res.status(401).send("Não autorizado");
         }
 
-        const payload = req.body;
-        console.log("➡️ Tipo do evento enviado pelo Bling:", payload?.event);
-
-        const tipoEvento = payload?.event; 
-        const dadosEvento = payload?.data;
-
-        // Retorna status 200 rápido exigido pelo Bling
+        // Resposta rápida para o Bling não dar timeout
         res.status(200).send("OK");
 
-        if (!dadosEvento) {
-            console.warn("⚠️  [Webhook/Bling] Payload veio sem o objeto 'data'. Ignorando processamento.");
-            return;
-        }
+        const bodyCompleto = req.body;
+        
+        // LOG TOTAL: Vamos printar o BODY INTEIRO para caçar os IDs escondidos
+        console.log("📦 [DEBUG COMPLETO] Body recebido do Bling:", JSON.stringify(bodyCompleto, null, 2));
 
-        // Processamento Assíncrono em background
-        if (tipoEvento === 'stock.updated' || tipoEvento === 'stock.created') {
+        // Detecta o tipo de evento (Pode vir em payload.event na V3 ou em outras chaves na V2)
+        const tipoEvento = bodyCompleto?.event || bodyCompleto?.tipo || "stock.updated";
+        
+        // Se os dados vierem encapsulados em "data" (V3), usamos. Se não, usamos a raiz do body (V2)
+        const dados = bodyCompleto?.data || bodyCompleto;
+
+        // 1. PROCESSAMENTO DE ESTOQUE
+        if (tipoEvento.includes('stock') || bodyCompleto?.quantidade !== undefined || dados?.saldoFisicoTotal !== undefined) {
             console.log("⚡ Encaminhando para processamento de ESTOQUE...");
+
+            // Tenta capturar o ID do produto de todas as formas possíveis do Bling (V3, V2 e fallbacks)
+            let idBlingProduto = dados?.produto?.id || 
+                                 dados?.idProduto || 
+                                 dados?.id_produto ||
+                                 bodyCompleto?.idProduto ||
+                                 bodyCompleto?.produto?.id ||
+                                 dados?.id;
+
+            // Tenta capturar o SKU/Código (a V2 envia o SKU no estoque às vezes)
+            let skuExtraido = dados?.produto?.codigo || 
+                              dados?.codigo || 
+                              dados?.sku || 
+                              bodyCompleto?.codigo;
+
+            // Tenta capturar o depósito (seja por ID, descrição ou nome)
+            let depDescricao = dados?.deposito?.descricao || 
+                               dados?.deposito?.id || 
+                               dados?.deposito || 
+                               "Geral";
+
+            let saldoTotal = dados?.saldoFisicoTotal ?? 
+                             dados?.saldoFisico ?? 
+                             dados?.balance ?? 
+                             dados?.quantidade ?? 
+                             0;
+
+            // Se mesmo assim veio zerado/vazio, vamos tentar ler o formato clássico da API V2 do Bling (estoque)
+            if (!idBlingProduto && bodyCompleto?.retorno?.estoques) {
+                const itemEstoque = bodyCompleto.retorno.estoques[0]?.estoque;
+                if (itemEstoque) {
+                    idBlingProduto = itemEstoque.id;
+                    skuExtraido = itemEstoque.codigo;
+                    depDescricao = itemEstoque.deposito?.nome || "Geral";
+                    saldoTotal = itemEstoque.estoqueAtual;
+                }
+            }
+
             const dadosAdaptados = {
                 produto: {
-                    id: dadosEvento.product?.id || dadosEvento.id,
-                    codigo: dadosEvento.product?.code || dadosEvento.codigo || dadosEvento.sku
+                    id: idBlingProduto ? String(idBlingProduto) : null,
+                    codigo: skuExtraido ? String(skuExtraido).trim() : null
                 },
                 deposito: {
-                    descricao: dadosEvento.deposit?.description || dadosEvento.deposito?.descricao || dadosEvento.depositName || "Geral"
+                    descricao: String(depDescricao)
                 },
-                saldoFisicoTotal: dadosEvento.balance ?? dadosEvento.saldo ?? dadosEvento.saldoFisicoTotal ?? 0
+                saldoFisicoTotal: Number(saldoTotal)
             };
+
             processStockWebhook(dadosAdaptados);
         } 
-        else if (tipoEvento === 'product.updated' || tipoEvento === 'product.created') {
-            console.log("⚡ Encaminhando para processamento de PRODUTO (cadastro)...");
-            processProductWebhook(dadosEvento);
-        } else {
-            console.log(`ℹ️ Evento do tipo "${tipoEvento}" não possui regra de negócio associada. Ignorado.`);
+        // 2. PROCESSAMENTO DE PRODUTO (CADASTRO)
+        else if (tipoEvento.includes('product')) {
+            console.log("⚡ Encaminhando para processamento de PRODUTO (Cadastro/Preço)...");
+            const dadosProdutoAdaptados = {
+                id: dados.id || dados.idProduto,
+                nome: dados.nome,
+                preco: dados.preco,
+                codigo: dados.codigo || dados.sku
+            };
+            processProductWebhook(dadosProdutoAdaptados);
         }
 
     } catch (error) {
