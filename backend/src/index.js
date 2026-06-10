@@ -143,21 +143,23 @@ function mapStoreKey(depositNameOrId) {
     
     const input = String(depositNameOrId).toUpperCase().replace(/\s+/g, '');
     
-    // Agora aceita explicitamente o termo "GERAL" enviado pelo Bling real
-    if (input.includes("GERAL") || input.includes("SAOROQUE") || input.includes("SÃOROQUE") || input === "987654321") {
-        return "SaoRoque";
-    }
-    
-    if (input.includes("COTIA")) {
-        return "Cotia";
-    }
-    
-    if (input.includes("IBIUNA") || input.includes("IBIÚNA")) {
+    // 📍 1. IBIÚNA
+    if (input === "14887527822" || input.includes("IBIUNA") || input.includes("IBIÚNA")) {
         return "Ibiuna";
     }
     
-    // Fallback provisório para não perder a atualização
-    console.warn(`⚠️ Depósito "${depositNameOrId}" direcionado para SaoRoque por padrão.`);
+    // 📍 2. COTIA
+    if (input === "14887826948" || input.includes("COTIA")) {
+        return "Cotia";
+    }
+    
+    // 📍 3. SÃO ROQUE (Associa o ID específico ou o termo "GERAL")
+    if (input === "8468004842" || input.includes("SAOROQUE") || input.includes("SÃOROQUE") || input.includes("GERAL")) {
+        return "SaoRoque";
+    }
+    
+    // Fallback de segurança: Caso o Bling crie um depósito novo no futuro, não quebra o sistema
+    console.warn(`⚠️ Depósito ID/Nome "${depositNameOrId}" não mapeado especificamente. Direcionando para SaoRoque por padrão.`);
     return "SaoRoque";
 }
 
@@ -745,7 +747,6 @@ app.post('/api/webhooks/bling', (req, res) => {
         if (tipoEvento.includes('stock') || bodyCompleto?.quantidade !== undefined || dados?.saldoFisicoTotal !== undefined) {
             console.log("⚡ Encaminhando para processamento de ESTOQUE...");
 
-            // Tenta capturar o ID do produto de todas as formas possíveis do Bling (V3, V2 e fallbacks)
             let idBlingProduto = dados?.produto?.id || 
                                  dados?.idProduto || 
                                  dados?.id_produto ||
@@ -753,32 +754,31 @@ app.post('/api/webhooks/bling', (req, res) => {
                                  bodyCompleto?.produto?.id ||
                                  dados?.id;
 
-            // Tenta capturar o SKU/Código (a V2 envia o SKU no estoque às vezes)
             let skuExtraido = dados?.produto?.codigo || 
                               dados?.codigo || 
                               dados?.sku || 
                               bodyCompleto?.codigo;
 
-            // Tenta capturar o depósito (seja por ID, descrição ou nome)
-            let depDescricao = dados?.deposito?.descricao || 
-                               dados?.deposito?.id || 
+            let depDescricao = dados?.deposito?.id || 
+                               dados?.deposito?.descricao || 
                                dados?.deposito || 
                                "Geral";
 
-            let saldoTotal = dados?.saldoFisicoTotal ?? 
-                             dados?.saldoFisico ?? 
-                             dados?.balance ?? 
-                             dados?.quantidade ?? 
-                             0;
+            // 🎯 CORREÇÃO CRUCIAL: Pega o saldo ISOLADO do depósito alterado. Se não existir, usa o total.
+            let saldoIsoladoDaLoja = dados?.deposito?.saldoFisico ?? 
+                                     dados?.saldoFisico ?? 
+                                     dados?.saldoFisicoTotal ?? 
+                                     dados?.balance ?? 
+                                     0;
 
-            // Se mesmo assim veio zerado/vazio, vamos tentar ler o formato clássico da API V2 do Bling (estoque)
+            // Fallback para API V2 clássica caso necessário
             if (!idBlingProduto && bodyCompleto?.retorno?.estoques) {
                 const itemEstoque = bodyCompleto.retorno.estoques[0]?.estoque;
                 if (itemEstoque) {
                     idBlingProduto = itemEstoque.id;
                     skuExtraido = itemEstoque.codigo;
                     depDescricao = itemEstoque.deposito?.nome || "Geral";
-                    saldoTotal = itemEstoque.estoqueAtual;
+                    saldoIsoladoDaLoja = itemEstoque.estoqueAtual;
                 }
             }
 
@@ -790,11 +790,11 @@ app.post('/api/webhooks/bling', (req, res) => {
                 deposito: {
                     descricao: String(depDescricao)
                 },
-                saldoFisicoTotal: Number(saldoTotal)
+                saldoFisicoTotal: Number(saldoIsoladoDaLoja) // Enviamos o valor isolado da filial para processamento
             };
 
             processStockWebhook(dadosAdaptados);
-        } 
+        }
         // 2. PROCESSAMENTO DE PRODUTO (CADASTRO)
         else if (tipoEvento.includes('product')) {
             console.log("⚡ Encaminhando para processamento de PRODUTO (Cadastro/Preço)...");
