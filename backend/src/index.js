@@ -629,11 +629,25 @@ async function processStockWebhook(data) {
 async function processProductWebhook(data) {
     try {
         console.log("🔍 [AUDITORIA PRODUTO] Iniciando processamento do Payload de cadastro/alteração...");
-        console.log("📦 Dados brutos recebidos do produto:", JSON.stringify(data, null, 2));
-
         const blingId = data?.id ? String(data.id) : null;
+        
         if (!blingId) {
-            console.error("❌ [Webhook/Produto] Payload não contém o campo 'id' do Bling. Abortando.");
+            console.error("❌ [Webhook/Produto] Payload não contém o campo 'id'. Abortando.");
+            return;
+        }
+
+        const nomeProduto = data.nome || "";
+        
+        // 🎯 APLICA O FILTRO DE CATEGORIA COM A SUA FUNÇÃO
+        const categoriaMapeada = mapCategory(nomeProduto); 
+        // Nota: Garanta que sua função mapCategory retorne um objeto { cat, sub } ou null se não achar nada
+
+        if (!categoriaMapeada || !categoriaMapeada.cat) {
+            console.warn(`🚫 [PRODUTO IGNORADO] "${nomeProduto}" não corresponde a nenhuma categoria válida da JACK PEÇAS.`);
+            
+            // Segurança: Se o produto mudou de nome no Bling para algo inválido, limpamos ele do Mongo
+            const deletado = await Product.findOneAndDelete({ blingId });
+            if (deletado) console.log(`🗑️ Produto antigo "${nomeProduto}" removido do banco por não se enquadrar mais nas categorias.`);
             return;
         }
 
@@ -642,10 +656,9 @@ async function processProductWebhook(data) {
         let ehNovoProduto = false;
 
         if (!produto) {
-            console.log(`✨ [NOVO PRODUTO DETECTADO] blingId ${blingId} não existe no MongoDB. Criando novo registro...`);
+            console.log(`✨ [NOVO PRODUTO VÁLIDO DETECTADO] "${nomeProduto}" mapeado em ${categoriaMapeada.cat} -> ${categoriaMapeada.sub}. Criando registro...`);
             ehNovoProduto = true;
             
-            // Cria uma instância limpa usando o seu Model do Mongoose
             produto = new Product({
                 blingId: blingId,
                 stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
@@ -653,62 +666,80 @@ async function processProductWebhook(data) {
             });
         }
 
-        // Atualiza/Insere os dados básicos cadastrais
-        produto.name = data.nome || produto.name || "Produto Sem Nome";
+        // Atualiza os dados cadastrais e injeta o mapeamento de categoria correto
+        produto.name = nomeProduto;
+        produto.category = categoriaMapeada.cat;
+        produto.subcategory = categoriaMapeada.sub || "";
         produto.sku = data.codigo ? String(data.codigo).trim() : (produto.sku || "");
         produto.price = !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : (produto.price || 0);
         
-        // Determina se tem variações baseado no campo idProdutoPai ou na estrutura enviada pelo Bling
-        // No Bling v3, se o produto tem variações, ele vem com uma propriedade ou o formato indica estrutura
-        if (data.idProdutoPai) {
-            console.log(`🧬 Este produto recebido é uma variação FILHA do Pai ID: ${data.idProdutoPai}`);
-            // Tratamento especial caso o webhook envie a variação isolada:
-            // Geralmente é melhor buscar o Pai e injetar na array dele.
-        }
-
-        // Tratamento se o payload trouxer a árvore completa de variações (padrão Bling v3 no Pai)
+        // Tratamento da árvore de variações (Bling V3)
         if (data.variacoes && Array.isArray(data.variacoes) && data.variacoes.length > 0) {
             produto.hasVariations = true;
-            console.log(`🧬 Processando ${data.variacoes.length} variações para o produto Pai "${produto.name}"...`);
-
-            produto.variations = data.variations.map(v => {
-                // Mapeia cada variação filha para a estrutura interna do seu MongoDB
-                return {
-                    blingId: v.id ? String(v.id) : "",
-                    sku: v.codigo ? String(v.codigo).trim() : "",
-                    name: v.nome || `${produto.name} - Variação`,
-                    price: !isNaN(parseFloat(v.preco)) ? parseFloat(v.preco) : produto.price,
-                    stock_by_store: v.stock_by_store || { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
-                    type: v.tipo || "Variação",
-                    value: v.valor || ""
-                };
-            });
+            produto.variations = data.variacoes.map(v => ({
+                blingId: v.id ? String(v.id) : "",
+                sku: v.codigo ? String(v.codigo).trim() : "",
+                name: v.nome || `${produto.name} - Variação`,
+                price: !isNaN(parseFloat(v.preco)) ? parseFloat(v.preco) : produto.price,
+                stock_by_store: v.stock_by_store || { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
+                type: v.tipo || "Variação",
+                value: v.valor || ""
+            }));
             produto.markModified('variations');
         } else if (ehNovoProduto) {
-            // Se for novo e não veio árvore de variações, nasce como produto simples por padrão
             produto.hasVariations = false;
         }
 
-        // Se for um produto Pai existente e o preço mudou, replica para as variações antigas
         if (!ehNovoProduto && produto.hasVariations && produto.variations?.length > 0) {
-            produto.variations = produto.variations.map(v => ({
-                ...v,
-                price: produto.price // mantém sincronizado o preço do pai nas variações
-            }));
+            produto.variations = produto.variations.map(v => ({ ...v, price: produto.price }));
             produto.markModified('variations');
         }
 
         produto.updatedAt = new Date();
         await produto.save();
         
-        if (ehNovoProduto) {
-            console.log(`🎉 [SUCESSO CADASTRO] Novo produto "${produto.name}" exportado e salvo no MongoDB!\n`);
-        } else {
-            console.log(`🎉 [SUCESSO ATUALIZAÇÃO] Dados cadastrais de "${produto.name}" atualizados no banco.\n`);
-        }
+        console.log(`🎉 [SUCESSO] Produto "${produto.name}" sincronizado com a categoria "${produto.category}"!\n`);
 
     } catch (err) {
         console.error("🚨 [ERRO CRÍTICO PRODUTO] Falha ao cadastrar/atualizar produto:", err.stack);
+    }
+}
+
+async function processProductDeleteWebhook(blingId) {
+    try {
+        if (!blingId) return;
+        const idString = String(blingId);
+
+        console.log(`🔍 [AUDITORIA EXCLUSÃO] Tentando remover identificador do Bling: ${idString}`);
+
+        // 1. Tenta deletar se for um produto comum ou Pai
+        const produtoPaiDeletado = await Product.findOneAndDelete({ blingId: idString });
+
+        if (produtoPaiDeletado) {
+            console.log(`🗑️ [SUCESSO EXCLUSÃO] O produto principal "${produtoPaiDeletado.name}" foi removido do MongoDB.`);
+            return;
+        }
+
+        // 2. Se não era o pai, pode ser que tenham excluído uma variação isolada no Bling.
+        // Vamos procurar o produto que contém essa variação e removê-la da array.
+        const paiDaVariacao = await Product.findOne({ "variations.blingId": idString });
+
+        if (paiDaVariacao) {
+            console.log(`🧬 Variação encontrada dentro do produto pai: "${paiDaVariacao.name}". Removendo variação...`);
+            
+            paiDaVariacao.variations = paiDaVariacao.variations.filter(v => String(v.blingId) !== idString);
+            paiDaVariacao.markModified('variations');
+            paiDaVariacao.updatedAt = new Date();
+            
+            await paiDaVariacao.save();
+            console.log(`🗑️ [SUCESSO EXCLUSÃO] Variação filha removida com sucesso.`);
+            return;
+        }
+
+        console.log(`⚠️  [Webhook/Exclusão] O ID ${idString} não existia no banco de dados (já estava limpo).`);
+
+    } catch (err) {
+        console.error("🚨 [ERRO CRÍTICO EXCLUSÃO] Falha ao deletar produto do banco:", err.stack);
     }
 }
 
@@ -854,16 +885,26 @@ app.post('/api/webhooks/bling', (req, res) => {
 
             processStockWebhook(dadosAdaptados);
         }
-        // 2. PROCESSAMENTO DE PRODUTO (CADASTRO)
+        
+        // 2. PROCESSAMENTO DE PRODUTO (CADASTRO / ALTERAÇÃO / EXCLUSÃO) - 🛠️ CORRIGIDO AQUI
         else if (tipoEvento.includes('product')) {
-            console.log("⚡ Encaminhando para processamento de PRODUTO (Cadastro/Preço)...");
             const dadosProdutoAdaptados = {
                 id: dados.id || dados.idProduto,
                 nome: dados.nome,
                 preco: dados.preco,
-                codigo: dados.codigo || dados.sku
+                codigo: dados.codigo || dados.sku,
+                idProdutoPai: dados.idProdutoPai,
+                variacoes: dados.variacoes // Suporte para carregar árvore completa de variações da v3
             };
-            processProductWebhook(dadosProdutoAdaptados);
+
+            // Se o evento disparado for especificamente de exclusão
+            if (tipoEvento === 'product.deleted') {
+                console.log("🗑️ Encaminhando para EXCLUSÃO de produto...");
+                processProductDeleteWebhook(dadosProdutoAdaptados.id);
+            } else {
+                console.log("⚡ Encaminhando para processamento de PRODUTO (Cadastro/Preço)...");
+                processProductWebhook(dadosProdutoAdaptados);
+            }
         }
 
     } catch (error) {
