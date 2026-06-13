@@ -637,59 +637,114 @@ async function processProductWebhook(data) {
         }
 
         const nomeProduto = data.nome || "";
-        
-        // 🎯 APLICA O FILTRO DE CATEGORIA COM A SUA FUNÇÃO
-        const categoriaMapeada = mapCategory(nomeProduto); 
-        // Nota: Garanta que sua função mapCategory retorne um objeto { cat, sub } ou null se não achar nada
+        const idPaiBling = data.idProdutoPai ? String(data.idProdutoPai) : "0";
 
-        if (!categoriaMapeada || !categoriaMapeada.cat) {
-            console.warn(`🚫 [PRODUTO IGNORADO] "${nomeProduto}" não corresponde a nenhuma categoria válida da JACK PEÇAS.`);
+        // ============================================================
+        // 🧬 CENÁRIO A: O PRODUTO RECEBIDO É UMA VARIAÇÃO (FILHO)
+        // ============================================================
+        if (idPaiBling !== "0" && idPaiBling !== "null" && idPaiBling !== undefined) {
+            console.log(`🧬 [FILHO DETECTADO] ID ${blingId} ("${nomeProduto}") é filho do Pai Bling ID: ${idPaiBling}`);
+
+            // 1. Procura pelo Produto Pai no banco
+            let produtoPai = await Product.findOne({ blingId: idPaiBling });
+
+            if (!produtoPai) {
+                console.warn(`⚠️  [Webhook/Produto] O produto Pai ID ${idPaiBling} ainda não foi processado ou foi ignorado pela categoria. Retendo herança.`);
+                // Se o pai ainda não existe no banco, podemos optar por ignorar ou aguardar o webhook do pai chegar
+                return;
+            }
+
+            console.log(`✅ Produto Pai localizado: "${produtoPai.name}". Injetando/Atualizando variação filha...`);
+
+            // Tenta descobrir o "Valor" da variação pelo nome (Ex: "Cor:Preto" -> "Preto")
+            let tipoVariacao = "Cor";
+            let valorVariacao = "Padrão";
+            if (nomeProduto.toUpperCase().includes("COR:")) {
+                const partes = nomeProduto.split(/cor:/i);
+                if (partes[1]) valorVariacao = partes[1].trim();
+            }
+
+            // Monta o objeto estruturado da variação idêntico ao padrão do banco
+            const objetoVariacao = {
+                blingId: blingId,
+                sku: data.codigo ? String(data.codigo).trim() : "",
+                name: nomeProduto,
+                price: !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : produtoPai.price,
+                stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
+                type: tipoVariacao,
+                value: valorVariacao
+            };
+
+            // Se o pai por algum motivo estava marcado como falso, corrige agora
+            produtoPai.hasVariations = true;
+
+            // Inicializa a array se não existir por segurança
+            if (!produtoPai.variations) produtoPai.variations = [];
+
+            // Verifica se essa variação filha já existe dentro da array do pai
+            const idxFilho = produtoPai.variations.findIndex(v => v.blingId === blingId);
+
+            if (idxFilho !== -1) {
+                console.log(`📌 Atualizando dados da variação existente no índice [${idxFilho}]...`);
+                // Mantém os estoques que já estavam gravados para não zerar no update cadastral
+                objetoVariacao.stock_by_store = produtoPai.variations[idxFilho].stock_by_store || objetoVariacao.stock_by_store;
+                produtoPai.variations[idxFilho] = objetoVariacao;
+            } else {
+                console.log(`✨ Adicionando nova variação à array do pai.`);
+                produtoPai.variations.push(objetoVariacao);
+            }
+
+            produtoPai.markModified('variations');
+            produtoPai.updatedAt = new Date();
+            await produtoPai.save();
+
+            console.log(`🎉 [SUCESSO VARIAÇÃO] Filho "${nomeProduto}" embutido com sucesso dentro do Pai "${produtoPai.name}"!\n`);
             
-            // Segurança: Se o produto mudou de nome no Bling para algo inválido, limpamos ele do Mongo
-            const deletado = await Product.findOneAndDelete({ blingId });
-            if (deletado) console.log(`🗑️ Produto antigo "${nomeProduto}" removido do banco por não se enquadrar mais nas categorias.`);
+            // 🔥 Segurança contra duplicidade: Se esse filho nasceu antes como produto simples por erro antigo, deleta a duplicata da raiz
+            await Product.findOneAndDelete({ blingId: blingId, hasVariations: false });
             return;
         }
 
-        // Tenta encontrar o produto existente pelo blingId
+        // ============================================================
+        // 📦 CENÁRIO B: PRODUTO SIMPLES OU PRODUTO PAI (RAIZ)
+        // ============================================================
+        const categoriaMapeada = mapCategory(nomeProduto); 
+
+        if (!categoriaMapeada || !categoriaMapeada.cat) {
+            console.warn(`🚫 [PRODUTO IGNORADO] "${nomeProduto}" não corresponde a nenhuma categoria válida da JACK PEÇAS.`);
+            const deletado = await Product.findOneAndDelete({ blingId });
+            if (deletado) console.log(`🗑️ Produto antigo removido do banco por não se enquadrar mais.`);
+            return;
+        }
+
         let produto = await Product.findOne({ blingId });
         let ehNovoProduto = false;
 
         if (!produto) {
-            console.log(`✨ [NOVO PRODUTO VÁLIDO DETECTADO] "${nomeProduto}" mapeado em ${categoriaMapeada.cat} -> ${categoriaMapeada.sub}. Criando registro...`);
+            console.log(`✨ [NOVO PRODUTO VÁLIDO DETECTADO] "${nomeProduto}". Criando registro...`);
             ehNovoProduto = true;
             
             produto = new Product({
                 blingId: blingId,
                 stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
-                variations: []
+                variations: [],
+                hasVariations: data.formato === "V" // Se formato for 'V', já nasce sabendo que terá variações
             });
         }
 
-        // Atualiza os dados cadastrais e injeta o mapeamento de categoria correto
+        // Atualiza campos cadastrais principais
         produto.name = nomeProduto;
         produto.category = categoriaMapeada.cat;
         produto.subcategory = categoriaMapeada.sub || "";
         produto.sku = data.codigo ? String(data.codigo).trim() : (produto.sku || "");
         produto.price = !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : (produto.price || 0);
         
-        // Tratamento da árvore de variações (Bling V3)
-        if (data.variacoes && Array.isArray(data.variacoes) && data.variacoes.length > 0) {
+        // Se mudou o formato no Bling para variação
+        if (data.formato === "V") {
             produto.hasVariations = true;
-            produto.variations = data.variacoes.map(v => ({
-                blingId: v.id ? String(v.id) : "",
-                sku: v.codigo ? String(v.codigo).trim() : "",
-                name: v.nome || `${produto.name} - Variação`,
-                price: !isNaN(parseFloat(v.preco)) ? parseFloat(v.preco) : produto.price,
-                stock_by_store: v.stock_by_store || { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
-                type: v.tipo || "Variação",
-                value: v.valor || ""
-            }));
-            produto.markModified('variations');
-        } else if (ehNovoProduto) {
-            produto.hasVariations = false;
         }
 
+        // Se o preço do pai mudou, mantém atualizado nas variações filhas existentes
         if (!ehNovoProduto && produto.hasVariations && produto.variations?.length > 0) {
             produto.variations = produto.variations.map(v => ({ ...v, price: produto.price }));
             produto.markModified('variations');
@@ -698,7 +753,7 @@ async function processProductWebhook(data) {
         produto.updatedAt = new Date();
         await produto.save();
         
-        console.log(`🎉 [SUCESSO] Produto "${produto.name}" sincronizado com a categoria "${produto.category}"!\n`);
+        console.log(`🎉 [SUCESSO] Produto principal "${produto.name}" sincronizado com sucesso!\n`);
 
     } catch (err) {
         console.error("🚨 [ERRO CRÍTICO PRODUTO] Falha ao cadastrar/atualizar produto:", err.stack);
