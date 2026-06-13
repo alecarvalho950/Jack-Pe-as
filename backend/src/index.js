@@ -143,6 +143,11 @@ function mapStoreKey(depositNameOrId) {
     
     const input = String(depositNameOrId).toUpperCase().replace(/\s+/g, '');
     
+    // 🛑 IGNORAR DEPOSITOS QUE NÃO SERÃO UTILIZADOS (Evita requisições inúteis e erro 429)
+    if (input.includes("LOJINHAJACK")) {
+        return null; 
+    }
+    
     // 📍 1. IBIÚNA
     if (input === "14887527822" || input.includes("IBIUNA") || input.includes("IBIÚNA")) {
         return "Ibiuna";
@@ -153,12 +158,12 @@ function mapStoreKey(depositNameOrId) {
         return "Cotia";
     }
     
-    // 📍 3. SÃO ROQUE (Associa o ID específico ou o termo "GERAL")
+    // 📍 3. SÃO ROQUE
     if (input === "8468004842" || input.includes("SAOROQUE") || input.includes("SÃOROQUE") || input.includes("GERAL")) {
         return "SaoRoque";
     }
     
-    // Fallback de segurança: Caso o Bling crie um depósito novo no futuro, não quebra o sistema
+    // Fallback de segurança: Caso o Bling crie um depósito novo no futuro
     console.warn(`⚠️ Depósito ID/Nome "${depositNameOrId}" não mapeado especificamente. Direcionando para SaoRoque por padrão.`);
     return "SaoRoque";
 }
