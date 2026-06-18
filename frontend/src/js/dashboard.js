@@ -89,7 +89,7 @@ async function loadStats() {
                 if (clickIbiunaEl) clickIbiunaEl.innerText = data.analytics.stores.ibiuna ?? 0;
             }
 
-            // Bloco de comparação temporal
+            // Blocs de comparação temporal
             if (data.analytics.compare && data.analytics.compare.hasCompare) {
                 if (compareCard) compareCard.classList.remove('hidden');
                 if (selectedPeriod === 'today' && compareTitle) compareTitle.innerText = "📊 Histórico de Ontem";
@@ -103,21 +103,26 @@ async function loadStats() {
             }
         }
 
-        // 3. Renderização Dinâmica de Categorias & Subcategorias (Tree View)
+        // 🛠️ CORREÇÃO 3: Renderização Dinâmica de Categorias & Subcategorias (Tree View)
+        // Aceita múltiplos formatos de resposta do backend (categoriesData ou categories)
         if (categoriesTreeContainer) {
             categoriesTreeContainer.innerHTML = "";
-            const categories = Object.keys(data.categoriesData || {});
+            const rawCategoriesData = data.categoriesData || data.categories || {};
+            const categories = Object.keys(rawCategoriesData);
 
             if (categories.length === 0) {
-                categoriesTreeContainer.innerHTML = `<p class="text-xs text-gray-500 italic p-4">Nenhum produto categorizado encontrado.</p>`;
+                categoriesTreeContainer.innerHTML = `<p class="text-xs text-gray-500 italic p-4 col-span-full text-center">Nenhum produto categorizado encontrado no momento.</p>`;
             } else {
                 categories.forEach(catName => {
-                    const catObj = data.categoriesData[catName];
-                    const subs = Object.keys(catObj.subcategories || {});
+                    const catObj = rawCategoriesData[catName];
+                    // Normaliza se vier apenas contagem direta ou objeto estruturado
+                    const catCount = typeof catObj === 'object' ? (catObj.count ?? 0) : (catObj ?? 0);
+                    const subcategoriesObj = catObj.subcategories || {};
+                    const subs = Object.keys(subcategoriesObj);
 
                     let subHtml = "";
                     subs.forEach(subName => {
-                        const subCount = catObj.subcategories[subName];
+                        const subCount = subcategoriesObj[subName] || 0;
                         subHtml += `
                             <div class="flex justify-between items-center text-xs text-gray-400 pl-4 border-l border-gray-800 py-1 hover:text-white transition">
                                 <span>↳ ${subName}</span>
@@ -130,7 +135,7 @@ async function loadStats() {
                         <div class="bg-[#111827] p-4 rounded-xl border border-gray-800 shadow-md">
                             <div class="flex justify-between items-center border-b border-gray-800/50 pb-2 mb-2">
                                 <h4 class="text-sm font-black text-white uppercase tracking-wider">${catName}</h4>
-                                <span class="bg-accent/10 border border-accent/20 text-accent font-mono text-xs px-2.5 py-0.5 rounded-full font-bold">${catObj.count} SKUs</span>
+                                <span class="bg-accent/10 border border-accent/20 text-accent font-mono text-xs px-2.5 py-0.5 rounded-full font-bold">${catCount} SKUs</span>
                             </div>
                             <div class="space-y-1 mt-2">${subHtml || '<p class="text-[11px] text-gray-600 italic pl-4">Sem subcategorias</p>'}</div>
                         </div>
@@ -139,29 +144,44 @@ async function loadStats() {
             }
         }
 
-        // 4. Renderização do Relatório Dinâmico de Estoque Real
+        // 🛠️ CORREÇÃO 4: Renderização do Relatório Dinâmico de Estoque Real
+        // Normaliza chaves como "sao_roque" vs "SaoRoque" / "ibiuna" vs "Ibiuna"
         if (data.stockReport) {
-            if (stSR) stSR.innerText = (data.stockReport.sao_roque || 0).toLocaleString('pt-BR');
-            if (stCO) stCO.innerText = (data.stockReport.cotia || 0).toLocaleString('pt-BR');
-            if (stIB) stIB.innerText = (data.stockReport.ibiuna || 0).toLocaleString('pt-BR');
-            if (stGeral) stGeral.innerText = (data.stockReport.total_geral || 0).toLocaleString('pt-BR');
+            const report = data.stockReport;
+            
+            const estoqueSR = report.SaoRoque ?? report.sao_roque ?? 0;
+            const estoqueCO = report.Cotia ?? report.cotia ?? 0;
+            const estoqueIB = report.Ibiuna ?? report.ibiuna ?? 0;
+            const estoqueTotalGeral = report.total_geral ?? report.totalGeral ?? (estoqueSR + estoqueCO + estoqueIB);
+
+            if (stSR) stSR.innerText = estoqueSR.toLocaleString('pt-BR');
+            if (stCO) stCO.innerText = estoqueCO.toLocaleString('pt-BR');
+            if (stIB) stIB.innerText = estoqueIB.toLocaleString('pt-BR');
+            if (stGeral) stGeral.innerText = estoqueTotalGeral.toLocaleString('pt-BR');
 
             if (stockTableBody) {
                 stockTableBody.innerHTML = "";
-                const stockCats = Object.keys(data.stockReport.by_category || {});
+                const byCategory = report.by_category || report.byCategory || {};
+                const stockCats = Object.keys(byCategory);
 
                 if (stockCats.length === 0) {
-                    stockTableBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-500 italic">Sem registros de estoque físico.</td></tr>`;
+                    stockTableBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-500 italic">Sem registros de estoque físico por categoria.</td></tr>`;
                 } else {
                     stockCats.forEach(catName => {
-                        const row = data.stockReport.by_category[catName];
+                        const row = byCategory[catName];
+                        
+                        const catSR = row.SaoRoque ?? row.sao_roque ?? 0;
+                        const catCO = report.Cotia ?? row.cotia ?? 0;
+                        const catIB = row.Ibiuna ?? row.ibiuna ?? 0;
+                        const catTotal = row.total ?? row.total_geral ?? (catSR + catCO + catIB);
+
                         stockTableBody.innerHTML += `
                             <tr class="border-b border-gray-800/40 hover:bg-gray-900/40 transition">
                                 <td class="p-3 font-bold text-gray-300">${catName}</td>
-                                <td class="p-3 text-center font-mono text-gray-400">${row.sao_roque.toLocaleString('pt-BR')}</td>
-                                <td class="p-3 text-center font-mono text-gray-400">${row.cotia.toLocaleString('pt-BR')}</td>
-                                <td class="p-3 text-center font-mono text-gray-400">${row.ibiuna.toLocaleString('pt-BR')}</td>
-                                <td class="p-3 text-right font-mono font-black text-white">${row.total.toLocaleString('pt-BR')}</td>
+                                <td class="p-3 text-center font-mono text-gray-400">${catSR.toLocaleString('pt-BR')}</td>
+                                <td class="p-3 text-center font-mono text-gray-400">${catCO.toLocaleString('pt-BR')}</td>
+                                <td class="p-3 text-center font-mono text-gray-400">${catIB.toLocaleString('pt-BR')}</td>
+                                <td class="p-3 text-right font-mono font-black text-white">${catTotal.toLocaleString('pt-BR')}</td>
                             </tr>
                         `;
                     });
