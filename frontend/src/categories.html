@@ -13,7 +13,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0A0F1E">
 
-    <title>Categorias | Jack Peças</title>
+    <title>Categorias | JACK PEÇAS</title>
     <link rel="icon" type="image/png" href="https://res.cloudinary.com/drdu6ryip/image/upload/v1771549494/icone-jackpecas_q6vq4a.png">
     <link rel="apple-touch-icon" href="https://res.cloudinary.com/drdu6ryip/image/upload/v1771549494/icone-jackpecas_q6vq4a.png">
     
@@ -25,7 +25,7 @@
         width: 32px;
         height: 32px;
         border: 3px solid #FFF;
-        border-bottom-color: #fbbf24; /* Amarelo Accent */
+        border-bottom-color: #fbbf24;
         border-radius: 50%;
         display: inline-block;
         animation: rotation 1s linear infinite;
@@ -45,63 +45,86 @@
     }
 </style>
 </head>
-<body class="bg-primary text-white min-h-screen flex">
-    <aside class="w-64 bg-[#111827] border-r border-gray-800 p-6 flex flex-col">
-        <h2 class="text-2xl font-bold text-accent mb-10 text-center uppercase tracking-tighter">Jack Peças</h2>
+<body class="bg-primary text-white min-h-screen flex flex-col md:flex-row font-sans w-full overflow-x-hidden">
+
+    <header class="md:hidden flex items-center justify-between p-4 bg-[#111827] border-b border-gray-800 w-full z-40 relative">
+        <h2 class="text-xl font-black text-accent tracking-wider uppercase">JACK PEÇAS</h2>
+        <button id="mobile-menu-btn" class="text-gray-400 hover:text-white focus:outline-none p-2">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+    </header>
+
+    <div id="mobile-overlay" class="fixed inset-0 bg-black/80 z-40 hidden md:hidden transition-opacity"></div>
+
+    <aside id="sidebar" class="w-64 bg-[#111827] border-r border-gray-800 p-6 flex flex-col shrink-0 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-50">
+        
+        <div class="flex items-center justify-between mb-10">
+            <h2 class="text-2xl font-black text-accent text-center tracking-wider uppercase md:block hidden">JACK PEÇAS</h2>
+            <h2 class="text-xl font-black text-accent tracking-wider uppercase md:hidden">MENU</h2>
+            <button id="close-menu-btn" class="md:hidden text-gray-400 hover:text-white p-1">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
         <nav id="main-nav" class="flex-1 space-y-2">
-    <a href="dashboard.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
-        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="15" rx="1"/></svg>
-        </div>
-        <span class="text-sm font-medium">Dashboard</span>
-    </a>
+            <a href="dashboard.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="15" rx="1"/></svg>
+                </div>
+                <span class="text-sm font-medium">Dashboard</span>
+            </a>
 
-    <a href="products.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
-        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-        </div>
-        <span class="text-sm font-medium">Produtos</span>
-    </a>
+            <a href="products.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                </div>
+                <span class="text-sm font-medium">Produtos</span>
+            </a>
 
-    <a href="categories.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
-        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/><path d="M12 4v2"/><path d="M16 4v2"/><path d="M8 4v4"/></svg>
-        </div>
-        <span class="text-sm font-medium">Categorias</span>
-    </a>
+            <a href="categories.html" class="group flex items-center gap-3 p-3 rounded-xl bg-gray-800/60 text-white border border-gray-700/30 transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-accent text-primary transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/><path d="M12 4v2"/><path d="M16 4v2"/><path d="M8 4v4"/></svg>
+                </div>
+                <span class="text-sm font-bold tracking-wide">Categorias</span>
+            </a>
 
-    <a href="attributes.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
-        <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
-        </div>
-        <span class="text-sm font-medium">Atributos</span>
-    </a>
-</nav>
+            <a href="attributes.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+                </div>
+                <span class="text-sm font-medium">Atributos</span>
+            </a>
+        </nav>
         <button onclick="logout()" class="group mt-4 flex items-center gap-3 p-3 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-all duration-200 w-full text-left font-medium">
-    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-red-900/40 transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-    </div>
-    <span class="text-sm uppercase tracking-wider">Sair</span>
-</button>
+            <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-red-900/40 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </div>
+            <span class="text-sm uppercase tracking-wider font-bold">Sair</span>
+        </button>
     </aside>
 
-    <main class="flex-1 p-8">
-        <div class="max-w-4xl mx-auto">
-            <div class="flex justify-between items-center mb-8">
-                <h1 class="text-3xl font-bold text-accent uppercase tracking-widest">Categorias</h1>
-                <button id="btn-open-cat-form" onclick="openCatForm()" class="bg-accent hover:bg-accent/80 text-black px-6 py-3 rounded-xl font-black transition uppercase tracking-tighter flex items-center gap-2">
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-full">
+        <div class="max-w-4xl mx-auto mt-4 md:mt-0">
+            
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
+                <h1 class="text-2xl md:text-3xl font-bold text-accent uppercase tracking-widest">Categorias</h1>
+                <button id="btn-open-cat-form" onclick="openCatForm()" class="bg-accent hover:bg-accent/80 text-black px-6 py-3.5 rounded-xl font-black transition uppercase tracking-tighter flex items-center justify-center gap-2 w-full sm:w-auto shadow-md">
                     <span class="text-xl">+</span> Nova Categoria
                 </button>
             </div>
 
-            <section id="cat-form-container" class="hidden bg-[#111827] p-8 rounded-2xl border border-gray-700 mb-10 shadow-xl animate-in slide-in-from-top duration-300">
+            <section id="cat-form-container" class="hidden bg-[#111827] p-5 md:p-8 rounded-2xl border border-gray-700 mb-10 shadow-xl">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 id="cat-form-title" class="text-xl font-bold text-white uppercase tracking-tight">Nova Categoria</h2>
-                    <button onclick="closeCatForm()" class="text-gray-500 hover:text-white transition">✕ Fechar</button>
+                    <h2 id="cat-form-title" class="text-lg md:text-xl font-bold text-white uppercase tracking-tight">Nova Categoria</h2>
+                    <button onclick="closeCatForm()" class="text-gray-500 hover:text-white transition text-sm">✕ Fechar</button>
                 </div>
                 
                 <div class="mb-6">
@@ -111,24 +134,24 @@
 
                 <div class="mb-6">
                     <label class="text-xs text-gray-400 uppercase font-bold">Subcategoria</label>
-                    <div class="flex gap-2 mt-1">
-                        <input type="text" id="sub-input" placeholder="Digite o nome da subcategoria" class="flex-1 p-3 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition">
-                        <button onclick="addSubToList()" class="bg-gray-700 hover:bg-gray-600 px-6 rounded-lg font-bold transition">Adicionar</button>
+                    <div class="flex flex-col sm:flex-row gap-2 mt-1">
+                        <input type="text" id="sub-input" placeholder="Digite o nome da subcategoria" class="flex-1 p-3 rounded bg-gray-800 border border-transparent focus:border-accent outline-none text-white transition w-full">
+                        <button onclick="addSubToList()" class="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-lg font-bold transition w-full sm:w-auto text-sm">Adicionar</button>
                     </div>
                     <div id="sub-tags" class="flex flex-wrap gap-2 mt-4 min-h-[40px]"></div>
                 </div>
 
-                <div class="flex gap-3">
-                    <button id="cat-cancel-btn" onclick="closeCatForm()" class="flex-1 bg-gray-700 text-white font-black py-4 rounded-xl uppercase tracking-widest hover:bg-gray-600 transition">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button id="cat-cancel-btn" onclick="closeCatForm()" class="w-full sm:flex-1 bg-gray-700 text-white font-black py-4 rounded-xl uppercase tracking-widest hover:bg-gray-600 transition text-sm">
                         Cancelar
                     </button>
-                    <button id="cat-save-btn" onclick="saveFullCategory()" class="flex-[2] bg-accent text-black font-black py-4 rounded-xl uppercase tracking-widest hover:scale-[1.01] transition active:scale-95">
+                    <button id="cat-save-btn" onclick="saveFullCategory()" class="w-full sm:flex-[2] bg-accent text-black font-black py-4 rounded-xl uppercase tracking-widest hover:scale-[1.01] transition active:scale-95 text-sm">
                         Salvar Categoria
                     </button>
                 </div>
             </section>
 
-            <div id="categories-list-display" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="categories-list-display" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div class="loading-state col-span-full">
                     <span class="loader"></span>
                     <p class="text-gray-400 animate-pulse">Carregando categorias...</p>
@@ -137,26 +160,44 @@
         </div>
 
         <div id="custom-confirm" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] items-center justify-center p-4">
-            <div class="bg-[#111827] border border-gray-800 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
+            <div class="bg-[#111827] border border-gray-800 p-6 md:p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
                 <div class="text-red-500 text-5xl mb-4">⚠️</div>
                 <h3 class="text-xl font-bold mb-2 text-white">Confirmar Ação</h3>
                 <p id="confirm-msg" class="text-gray-400 text-sm mb-6"></p>
                 <div class="flex gap-3">
-                    <button onclick="closeConfirm(false)" class="flex-1 py-3 rounded-xl bg-gray-800 font-bold hover:bg-gray-700 transition">Não</button>
-                    <button id="confirm-yes" class="flex-1 py-3 rounded-xl bg-red-600 font-bold hover:bg-red-500 transition">Sim, confirmar</button>
+                    <button onclick="closeConfirm(false)" class="flex-1 py-3 rounded-xl bg-gray-800 font-bold hover:bg-gray-700 transition text-sm">Não</button>
+                    <button id="confirm-yes" class="flex-1 py-3 rounded-xl bg-red-600 font-bold hover:bg-red-500 transition text-sm">Sim, confirmar</button>
                 </div>
             </div>
         </div>
 
         <div id="alert-modal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-[110] items-center justify-center p-4">
-            <div class="bg-[#111827] border-2 border-red-500/50 p-8 rounded-2xl max-w-sm w-full text-center shadow-xl">
+            <div class="bg-[#111827] border-2 border-red-500/50 p-6 md:p-8 rounded-2xl max-w-sm w-full text-center shadow-xl">
                 <div class="text-red-500 text-6xl mb-4 animate-bounce">🚫</div>
                 <h3 class="text-2xl font-bold mb-2 text-white">Ação Bloqueada</h3>
                 <p id="alert-msg" class="text-gray-300 text-sm mb-6"></p>
-                <button onclick="closeAlert()" class="w-full py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition uppercase tracking-widest">Entendido</button>
+                <button onclick="closeAlert()" class="w-full py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-500 transition uppercase tracking-widest text-sm">Entendido</button>
             </div>
         </div>
     </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const btnMenu = document.getElementById("mobile-menu-btn");
+            const btnClose = document.getElementById("close-menu-btn");
+            const sidebar = document.getElementById("sidebar");
+            const overlay = document.getElementById("mobile-overlay");
+
+            function toggleMobileMenu() {
+                sidebar.classList.toggle("-translate-x-full");
+                overlay.classList.toggle("hidden");
+            }
+
+            if (btnMenu) btnMenu.addEventListener("click", toggleMobileMenu);
+            if (btnClose) btnClose.addEventListener("click", toggleMobileMenu);
+            if (overlay) overlay.addEventListener("click", toggleMobileMenu);
+        });
+    </script>
 
     <script src="./js/categories.js"></script>
     <script src="./js/menu.js"></script>

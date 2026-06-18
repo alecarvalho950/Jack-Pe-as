@@ -1,5 +1,5 @@
 let currentSubcategories = [];
-let editingCatId = null; // Agora armazenará a String do _id
+let editingCatId = null; 
 let deleteCatId = null; 
 let subToRemove = null; 
 let allProducts = [];
@@ -34,55 +34,54 @@ async function loadCategoriesList() {
         const categories = await resCat.json();
         const productData = await resProd.json();
         
-        // AJUSTE CRITICAL: Garante que allProducts seja um Array
         allProducts = productData.products ? productData.products : productData;
         
         if(!container) return;
         container.innerHTML = '';
 
         categories.forEach(cat => {
-    const data = encodeURIComponent(JSON.stringify(cat));
-    const totalInCat = allProducts.filter(p => p.category === cat.name).length;
+            const data = encodeURIComponent(JSON.stringify(cat));
+            const totalInCat = allProducts.filter(p => p.category === cat.name).length;
 
-    container.innerHTML += `
-        <div class="bg-[#111827] p-6 rounded-2xl border border-gray-800 hover:border-accent/40 transition group relative shadow-lg">
-            <div class="flex justify-between items-start mb-6">
-                <div>
-                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
-                        ${cat.name}
-                        <span class="text-[10px] bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded-full">${totalInCat} itens</span>
-                    </h3>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="editCategory('${data}')" 
-                        class="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl hover:bg-blue-500 hover:text-white transition-all duration-300" 
-                        title="Editar Categoria">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                    </button>
+            container.innerHTML += `
+                <div class="bg-[#111827] p-5 md:p-6 rounded-2xl border border-gray-800 hover:border-accent/40 transition group relative shadow-lg">
+                    <div class="flex justify-between items-start gap-2 mb-6">
+                        <div class="break-all">
+                            <h3 class="text-lg md:text-xl font-bold text-white flex flex-wrap items-center gap-2">
+                                <span>${cat.name}</span>
+                                <span class="text-[10px] bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded-full font-bold whitespace-nowrap">${totalInCat} itens</span>
+                            </h3>
+                        </div>
+                        <div class="flex gap-1.5 shrink-0">
+                            <button onclick="editCategory('${data}')" 
+                                class="p-2 md:p-2.5 bg-blue-500/10 text-blue-400 rounded-xl hover:bg-blue-500 hover:text-white transition-all duration-300" 
+                                title="Editar Categoria">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
 
-                    <button onclick="askDeleteCat('${cat._id}', '${cat.name}')" 
-                        class="p-2.5 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all duration-300" 
-                        title="Excluir Categoria">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-                ${cat.subcategories.map(sub => {
-                    const count = allProducts.filter(p => p.category === cat.name && p.subcategory === sub).length;
-                    return `
-                        <div class="bg-gray-800/40 border border-gray-700/50 p-2 rounded-lg flex justify-between items-center">
-                            <span class="text-xs text-gray-400">${sub}</span>
-                            <span class="text-[10px] font-bold ${count > 0 ? 'text-accent' : 'text-gray-600'}">${count}</span>
-                        </div>`;
-                }).join('')}
-            </div>
-        </div>`;
-});
+                            <button onclick="askDeleteCat('${cat._id}', '${cat.name}')" 
+                                class="p-2 md:p-2.5 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all duration-300" 
+                                title="Excluir Categoria">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 min-[400px]:grid-cols-2 gap-2">
+                        ${cat.subcategories.map(sub => {
+                            const count = allProducts.filter(p => p.category === cat.name && p.subcategory === sub).length;
+                            return `
+                                <div class="bg-gray-800/40 border border-gray-700/50 p-2 rounded-lg flex justify-between items-center gap-1 overflow-hidden">
+                                    <span class="text-xs text-gray-400 truncate" title="${sub}">${sub}</span>
+                                    <span class="text-[10px] font-bold shrink-0 ${count > 0 ? 'text-accent' : 'text-gray-600'}">${count}</span>
+                                </div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+        });
     } catch (err) { 
         console.error("Erro ao carregar categorias:", err); 
     }
@@ -95,10 +94,10 @@ function renderSubTags() {
     container.innerHTML = currentSubcategories.map(sub => {
         const count = allProducts.filter(p => p.category === catName && p.subcategory === sub).length;
         return `
-            <span class="bg-gray-800 text-white border ${count > 0 ? 'border-accent/30' : 'border-gray-700'} px-3 py-1.5 rounded-lg text-sm flex items-center gap-3 font-bold">
-                ${sub} 
-                <span class="text-[10px] bg-black/30 px-1.5 rounded text-accent">${count}</span>
-                <button onclick="askRemoveSub('${sub}')" class="text-gray-500 hover:text-red-500 transition">×</button>
+            <span class="bg-gray-800 text-white border ${count > 0 ? 'border-accent/30' : 'border-gray-700'} px-3 py-1.5 rounded-lg text-sm flex items-center gap-2.5 font-bold">
+                <span class="truncate max-w-[120px]">${sub}</span> 
+                <span class="text-[10px] bg-black/30 px-1.5 py-0.5 rounded text-accent">${count}</span>
+                <button onclick="askRemoveSub('${sub}')" class="text-gray-500 hover:text-red-500 transition font-normal text-base">&times;</button>
             </span>`;
     }).join('');
 }
@@ -139,7 +138,6 @@ function askDeleteCat(id, name) {
     
     document.getElementById('confirm-msg').innerHTML = `Tem certeza que deseja excluir a categoria <strong>${name}</strong>?`;
     
-    // Abre o modal
     const modal = document.getElementById('custom-confirm');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -153,7 +151,7 @@ async function closeConfirm(confirmado) {
     if (confirmado) {
         if (deleteCatId) {
             btnSim.disabled = true;
-            if (btnNao) btnNao.classList.add('opacity-0', 'pointer-events-none'); // Esconde o "Não" suavemente
+            if (btnNao) btnNao.classList.add('opacity-0', 'pointer-events-none'); 
             btnSim.innerHTML = `
                 <div class="flex items-center justify-center gap-2">
                     <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -221,7 +219,6 @@ function openCatForm() {
     container.classList.remove('hidden');
     btnOpen.classList.add('hidden');
     
-    // Se não estiver editando, garante que o título esteja como "Nova"
     if (!editingCatId) {
         document.getElementById('cat-form-title').innerText = "Nova Categoria";
     }
@@ -234,13 +231,11 @@ function closeCatForm() {
     container.classList.add('hidden');
     btnOpen.classList.remove('hidden');
     
-    // Reset completo do estado de edição ao fechar
     editingCatId = null;
     currentSubcategories = [];
     document.getElementById('cat-name').value = '';
     document.getElementById('sub-input').value = '';
     
-    // Restaura o botão de salvar para o padrão original
     const saveBtn = document.getElementById('cat-save-btn');
     saveBtn.innerText = "Salvar Categoria";
     saveBtn.classList.remove('bg-blue-600', 'text-white');
@@ -261,7 +256,6 @@ async function saveFullCategory() {
     }
 
     try {
-        // 2. EFEITO NO BOTÃO AO SALVAR (ESTILO PRODUTOS)
         saveBtn.disabled = true;
         saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
         saveBtn.innerHTML = `
@@ -297,7 +291,6 @@ async function saveFullCategory() {
         console.error("Erro ao salvar categoria:", err);
         alert("Erro de conexão com o servidor.");
     } finally {
-        // 3. RESTAURA O BOTÃO
         saveBtn.disabled = false;
         saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         saveBtn.innerHTML = originalBtnText;
@@ -308,14 +301,12 @@ function editCategory(catJson) {
     const cat = JSON.parse(decodeURIComponent(catJson));
     editingCatId = cat._id; 
 
-    // Abre o formulário antes de preencher
     openCatForm();
 
     document.getElementById('cat-form-title').innerText = "Editar Categoria";
     const saveBtn = document.getElementById('cat-save-btn');
     saveBtn.innerText = "Atualizar Categoria";
     
-    // Estilo visual de edição (Azul)
     saveBtn.classList.remove('bg-accent', 'text-black');
     saveBtn.classList.add('bg-blue-600', 'text-white');
 
@@ -330,7 +321,7 @@ function cancelCatEdit() {
     closeCatForm();
 }
 
-// Vinculação de eventos
+// Vinculação de eventos seguro
 document.getElementById('confirm-yes').onclick = () => closeConfirm(true);
 document.getElementById('sub-input')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); addSubToList(); }

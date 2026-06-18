@@ -342,12 +342,16 @@ function getTagStyle(text) {
     return `${s.bg} ${s.text} ${s.border}`;
 }
 
+/* ──────────────────────────────────────────
+   RENDER DA TABELA (Responsiva)
+────────────────────────────────────────── */
+
 function renderProducts() {
     const container = document.getElementById('product-list-body');
     if (!container) return;
 
     if (allProducts.length === 0) {
-        container.innerHTML = `<tr><td colspan="7" class="p-10 text-center text-gray-500 italic">Nenhum produto encontrado.</td></tr>`;
+        container.innerHTML = `<tr class="block md:table-row"><td colspan="7" class="block md:table-cell p-10 text-center text-gray-500 italic">Nenhum produto encontrado.</td></tr>`;
         return;
     }
 
@@ -357,7 +361,6 @@ function renderProducts() {
     container.innerHTML = allProducts.map(p => {
         const hasVars = p.hasVariations && p.variations?.length > 0;
 
-        // Calcula totais de estoque por loja
         let srTotal = 0, coTotal = 0, ibTotal = 0;
         if (hasVars) {
             p.variations.forEach(v => {
@@ -384,42 +387,94 @@ function renderProducts() {
                     </span>`;
         };
 
-        let html = `
-        <tr class="hover:bg-white/[0.02] transition-colors border-b border-gray-800/50 group">
-            <td class="p-4">
-                <div class="flex items-center gap-4">
-                    <div class="w-6 flex justify-center">
-                        ${hasVars
-                            ? `<button onclick="toggleVariationRows('${p._id}', this)" class="text-gray-500 hover:text-accent flex items-center justify-center transition-all">${arrowIcon}</button>`
-                            : ''}
+        // NOVO: Container de Variações exclusivo para MOBILE (Fica dentro do bloco do Produto)
+        let mobileVariationsHtml = '';
+        if (hasVars) {
+            mobileVariationsHtml = `<div class="var-mobile-${p._id} hidden md:hidden mt-4 bg-gray-900/60 rounded-xl p-3 border border-gray-800 w-full shadow-inner">`;
+            p.variations.forEach(v => {
+                const vSR = v.stock_by_store?.SaoRoque ?? 0;
+                const vCO = v.stock_by_store?.Cotia    ?? 0;
+                const vIB = v.stock_by_store?.Ibiuna   ?? 0;
+                mobileVariationsHtml += `
+                    <div class="mb-3 last:mb-0 pb-3 last:pb-0 border-b border-gray-800/50 last:border-0">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-[11px] flex items-center gap-2">
+                                <span class="font-bold text-accent uppercase">${v.type}:</span>
+                                <span class="text-gray-300 font-medium">${v.value}</span>
+                            </div>
+                            <span class="font-mono text-[10px] text-gray-500">${v.sku || '---'}</span>
+                        </div>
+                        <div class="flex items-center justify-between bg-black/20 p-2 rounded-lg border border-gray-800/30">
+                            <div class="flex flex-col items-center"><span class="text-[8px] text-gray-500 uppercase font-bold tracking-widest mb-1">S. Roque</span><span class="text-xs font-bold text-orange-400">${vSR}</span></div>
+                            <div class="flex flex-col items-center"><span class="text-[8px] text-gray-500 uppercase font-bold tracking-widest mb-1">Cotia</span><span class="text-xs font-bold text-sky-400">${vCO}</span></div>
+                            <div class="flex flex-col items-center"><span class="text-[8px] text-gray-500 uppercase font-bold tracking-widest mb-1">Ibiúna</span><span class="text-xs font-bold text-purple-400">${vIB}</span></div>
+                        </div>
                     </div>
-                    <div>
+                `;
+            });
+            mobileVariationsHtml += `</div>`;
+        }
+
+        // Adicionado: md:border-b para restaurar a linha da tabela no Desktop
+        let html = `
+        <tr class="block md:table-row bg-[#111827] md:bg-transparent rounded-2xl border border-gray-800 md:border-b md:border-gray-800/60 md:border-x-0 md:border-t-0 mb-6 md:mb-0 hover:bg-white/[0.02] transition-colors group shadow-lg md:shadow-none overflow-hidden">
+            
+            <!-- PRODUTO -->
+            <td class="block md:table-cell p-4 md:py-4 border-b border-gray-800/60 md:border-none bg-gray-900/30 md:bg-transparent">
+                <div class="flex items-start md:items-center gap-4">
+                    <div class="w-6 flex justify-center mt-1 md:mt-0">
+                        ${hasVars ? `<button onclick="toggleVariationRows('${p._id}', this)" class="text-gray-500 hover:text-accent flex items-center justify-center transition-all bg-gray-800 md:bg-transparent p-1.5 md:p-0 rounded-lg">${arrowIcon}</button>` : ''}
+                    </div>
+                    <div class="flex-1 w-full">
                         <div class="flex items-center gap-2 flex-wrap">
                             <span class="text-sm font-bold text-white group-hover:text-accent transition-colors">${p.name}</span>
                             ${hasVars ? `<span class="text-[9px] font-black bg-sky-950/50 text-sky-400 border border-sky-900/40 px-1.5 py-0.5 rounded uppercase">Variações</span>` : ''}
                         </div>
                         <div class="text-[10px] text-gray-500 uppercase tracking-tight">${p.category || ''} • ${p.subcategory || 'Geral'}</div>
-                        <div class="flex flex-wrap mt-1">${attrBadges}</div>
+                        <div class="flex flex-wrap mt-2 md:mt-1">${attrBadges}</div>
+                        
+                        <!-- Variações renderizadas dentro do Card no Celular -->
+                        ${mobileVariationsHtml}
                     </div>
                 </div>
             </td>
-            <td class="p-4 text-center font-mono text-xs text-gray-400">${p.sku || '---'}</td>
-            <td class="p-4 text-center">${stockBadge(srTotal, 'orange')}</td>
-            <td class="p-4 text-center">${stockBadge(coTotal, 'sky')}</td>
-            <td class="p-4 text-center">${stockBadge(ibTotal, 'purple')}</td>
-            <td class="p-4 text-center font-black text-white text-sm">
-                R$ ${parseFloat(p.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+
+            <!-- SKU -->
+            <td class="flex md:table-cell justify-between items-center p-3 md:p-4 border-b border-gray-800/40 md:border-none mx-2 md:mx-0">
+                <span class="md:hidden text-[10px] uppercase font-bold text-gray-500 tracking-widest">SKU</span>
+                <span class="text-center font-mono text-xs text-gray-400">${p.sku || '---'}</span>
             </td>
-            <td class="p-4 text-right">
-                <button onclick="editProduct('${p._id}')"
-                    class="p-2 hover:bg-accent/20 text-gray-400 hover:text-accent rounded-lg transition-colors"
-                    title="Editar atributos">
+
+            <!-- ESTOQUES -->
+            <td class="flex md:table-cell justify-between items-center p-3 md:p-4 border-b border-gray-800/40 md:border-none mx-2 md:mx-0">
+                <span class="md:hidden text-[10px] uppercase font-bold text-gray-500 tracking-widest">São Roque</span>
+                <span class="text-center">${stockBadge(srTotal, 'orange')}</span>
+            </td>
+            <td class="flex md:table-cell justify-between items-center p-3 md:p-4 border-b border-gray-800/40 md:border-none mx-2 md:mx-0">
+                <span class="md:hidden text-[10px] uppercase font-bold text-gray-500 tracking-widest">Cotia</span>
+                <span class="text-center">${stockBadge(coTotal, 'sky')}</span>
+            </td>
+            <td class="flex md:table-cell justify-between items-center p-3 md:p-4 border-b border-gray-800/40 md:border-none mx-2 md:mx-0">
+                <span class="md:hidden text-[10px] uppercase font-bold text-gray-500 tracking-widest">Ibiúna</span>
+                <span class="text-center">${stockBadge(ibTotal, 'purple')}</span>
+            </td>
+
+            <!-- PREÇO -->
+            <td class="flex md:table-cell justify-between items-center p-3 md:p-4 border-b border-gray-800/40 md:border-none mx-2 md:mx-0">
+                <span class="md:hidden text-[10px] uppercase font-bold text-gray-500 tracking-widest">Preço</span>
+                <span class="text-center font-black text-white text-sm">R$ ${parseFloat(p.price || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+            </td>
+
+            <!-- AÇÕES -->
+            <td class="block md:table-cell p-4 md:text-right bg-gray-900/30 md:bg-transparent">
+                <button onclick="editProduct('${p._id}')" class="w-full md:w-auto p-3 md:p-2 bg-gray-800/80 md:bg-transparent flex justify-center items-center gap-2 hover:bg-accent/20 text-gray-300 hover:text-accent rounded-xl transition-colors border border-gray-700 md:border-none" title="Editar atributos">
                     ${editIcon}
+                    <span class="md:hidden text-xs font-bold uppercase tracking-widest">Editar Produto</span>
                 </button>
             </td>
         </tr>`;
 
-        // Linhas filhas das variações
+        // Linhas filhas (Variações DESKTOP APENAS)
         if (hasVars) {
             p.variations.forEach(v => {
                 const vSR = v.stock_by_store?.SaoRoque ?? 0;
@@ -427,11 +482,12 @@ function renderProducts() {
                 const vIB = v.stock_by_store?.Ibiuna   ?? 0;
 
                 html += `
-        <tr class="child-of-${p._id} hidden bg-black/20 border-b border-gray-800/30">
-            <td class="p-2 pl-14">
-                <div class="flex items-center gap-3 relative">
-                    <div class="absolute -left-6 top-0 bottom-0 w-px bg-gray-700"></div>
-                    <div class="absolute -left-6 top-1/2 w-4 h-px bg-gray-700"></div>
+        <tr class="var-desktop-${p._id} hidden bg-black/20 md:border-b border-gray-800/30">
+            <td class="p-2 pl-14 relative">
+                <div class="absolute -left-6 top-0 bottom-0 w-px bg-gray-700"></div>
+                <div class="absolute -left-6 top-1/2 w-4 h-px bg-gray-700"></div>
+                
+                <div class="flex items-center justify-start">
                     <div class="text-[11px] flex items-center gap-2">
                         <span class="font-bold text-accent uppercase">${v.type}:</span>
                         <span class="text-gray-300">${v.value}</span>
@@ -454,13 +510,27 @@ function renderProducts() {
 }
 
 function toggleVariationRows(productId, btn) {
-    const rows    = document.querySelectorAll(`.child-of-${productId}`);
-    const isHidden = rows[0]?.classList.contains('hidden');
-    rows.forEach(row => {
-        row.classList.toggle('hidden', !isHidden);
-        row.classList.toggle('table-row', isHidden);
-    });
-    btn.classList.toggle('rotate-90', isHidden);
+    const desktopRows = document.querySelectorAll(`.var-desktop-${productId}`);
+    const mobileContainer = document.querySelector(`.var-mobile-${productId}`);
+    
+    // Verifica se já está expandido analisando a rotação do botão
+    const isExpanded = btn.classList.contains('rotate-90');
+    
+    if (isExpanded) {
+        // Ação de RECOLHER
+        btn.classList.remove('rotate-90');
+        desktopRows.forEach(row => {
+            row.classList.remove('md:table-row'); // Tira a classe de tabela
+        });
+        if (mobileContainer) mobileContainer.classList.add('hidden'); // Esconde no celular
+    } else {
+        // Ação de EXPANDIR
+        btn.classList.add('rotate-90');
+        desktopRows.forEach(row => {
+            row.classList.add('md:table-row'); // Adiciona a classe que força a exibição apenas no Desktop
+        });
+        if (mobileContainer) mobileContainer.classList.remove('hidden'); // Mostra no celular
+    }
 }
 
 /* ──────────────────────────────────────────
@@ -491,15 +561,15 @@ function renderPaginationControls() {
 
     nav.className = "flex flex-col md:flex-row items-center justify-between gap-6 mt-8 pb-10 pt-6 border-t border-gray-800";
     nav.innerHTML = `
-        <div class="text-xs text-gray-500 font-medium order-2 md:order-1">
+        <div class="text-xs text-gray-500 font-medium order-2 md:order-1 text-center md:text-left">
             Exibindo <span class="text-white">${startItem}–${endItem}</span> de <span class="text-white">${totalItems}</span> resultados
         </div>
-        <div class="flex items-center gap-2 order-1 md:order-2">
+        <div class="flex flex-wrap items-center justify-center gap-2 order-1 md:order-2 w-full md:w-auto">
             <button onclick="loadInitialData(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}
                 class="p-2 bg-gray-900 border border-gray-800 rounded-xl hover:bg-gray-800 disabled:opacity-10 text-accent transition-all">
                 ${iconL}
             </button>
-            <div class="flex items-center gap-1.5">
+            <div class="flex flex-wrap justify-center items-center gap-1.5">
                 ${getPages().map(p =>
                     p === '...'
                         ? `<span class="px-2 text-gray-600 font-bold">...</span>`
