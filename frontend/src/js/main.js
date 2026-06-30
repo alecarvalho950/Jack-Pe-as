@@ -27,26 +27,26 @@ const STORE_SCHEMA_KEYS = {
 };
 
 const TAG_PALETTE = [
-    { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
-    { bg: 'bg-sky-500/10',     text: 'text-sky-400',     border: 'border-sky-500/20' },
+    { bg: 'bg-[#7ed1cc]/10', text: 'text-[#007267]', border: 'border-[#007267]' },
+    { bg: 'bg-[#0ea5e9]/10',     text: 'text-[#0ea5e9]',     border: 'border-[#0ea5e9]' },
     { bg: 'bg-amber-500/10',   text: 'text-amber-400',   border: 'border-amber-500/20' },
     { bg: 'bg-rose-500/10',    text: 'text-rose-400',    border: 'border-rose-500/20' },
     { bg: 'bg-indigo-500/10',  text: 'text-indigo-400',  border: 'border-indigo-500/20' },
-    { bg: 'bg-orange-500/10',  text: 'text-orange-400',  border: 'border-orange-500/20' },
+    { bg: 'bg-orange-500/10',  text: 'text-[#f97800]',  border: 'border-[#f97800]' },
     { bg: 'bg-purple-500/10',  text: 'text-purple-400',  border: 'border-purple-500/20' },
-    { bg: 'bg-cyan-500/10',    text: 'text-cyan-400',    border: 'border-cyan-500/20' },
-    { bg: 'bg-lime-500/10',    text: 'text-lime-400',    border: 'border-lime-500/20' },
+    { bg: 'bg-cyan-500/10',    text: 'text-[#0094fd]',    border: 'border-[#0094fd]' },
+    { bg: 'bg-lime-500/10',    text: 'text-[#09af00]',    border: 'border-[#09af00]' },
     { bg: 'bg-fuchsia-500/10', text: 'text-fuchsia-400', border: 'border-fuchsia-500/20' },
     { bg: 'bg-pink-500/10',    text: 'text-pink-400',    border: 'border-pink-500/20' },
     { bg: 'bg-violet-500/10',  text: 'text-violet-400',  border: 'border-violet-500/20' },
     { bg: 'bg-teal-500/10',    text: 'text-teal-400',    border: 'border-teal-500/20' },
-    { bg: 'bg-red-500/10',     text: 'text-red-400',     border: 'border-red-500/20' },
+    { bg: 'bg-red-500/10',     text: 'text-[#D32F2F]',     border: 'border-[#D32F2F]' },
     { bg: 'bg-blue-600/10',    text: 'text-blue-400',    border: 'border-blue-600/20' },
     { bg: 'bg-yellow-500/10',  text: 'text-yellow-300',  border: 'border-yellow-500/20' },
     { bg: 'bg-slate-400/10',   text: 'text-slate-300',   border: 'border-slate-400/20' },
-    { bg: 'bg-green-600/10',   text: 'text-green-400',   border: 'border-green-600/20' },
+    { bg: 'bg-green-600/10',   text: 'text-[#008b00]',   border: 'border-[#008b00]' },
     { bg: 'bg-zinc-400/10',    text: 'text-zinc-300',    border: 'border-zinc-400/20' },
-    { bg: 'bg-blue-400/10',    text: 'text-blue-300',    border: 'border-blue-400/20' }
+    { bg: 'bg-[#002cf1]/10',    text: 'text-[#002cf1]',    border: 'border-[#002cf1]' }
 ];
 
 /* ──────────────────────────────────────────
@@ -152,6 +152,7 @@ function openStoreSelector() {
         backdrop.classList.remove("opacity-0");
         if (card) card.classList.remove("scale-95");
     }, 10);
+    updateStoreBadgesUI();
 }
 
 function closeStoreSelector() {
@@ -191,6 +192,7 @@ function selectStore(storeName) {
 
     activeStore = storeName;
     localStorage.setItem("jack_pecas_preferred_store", storeName);
+    updateStoreBadgesUI();
     updateStoreLabel(storeName);
     closeStoreSelector();
     renderQuickNav();
@@ -205,6 +207,25 @@ function selectStore(storeName) {
 
     // Envia o evento para o servidor computar no Dashboard
     sendAnalyticsEvent('select_store', locationKey);
+}
+
+function updateStoreBadgesUI() {
+    // Busca todos os spans que possuem o atributo data-store
+    const badges = document.querySelectorAll('.store-badge');
+    
+    badges.forEach(badge => {
+        const storeName = badge.getAttribute('data-store');
+        
+        if (activeStore === storeName) {
+            // Estilo quando estiver SELECIONADO: Cor amarela vibrante e texto destacado
+            badge.textContent = "Selecionado";
+            badge.className = "store-badge text-[9px] bg-[#FFC107] text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-[#FFC107]";
+        } else {
+            // Estilo Padrão para os botões não ativos: Fundo branco comum
+            badge.textContent = "Selecionar";
+            badge.className = "store-badge text-[9px] bg-white text-[#0a0f1a] group-hover:bg-[#FFC107] group-hover:text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-white";
+        }
+    });
 }
 
 /* ──────────────────────────────────────────
@@ -222,8 +243,8 @@ function renderQuickNav() {
     if (!nav || !activeStore) return;
 
     const isHomeActive  = currentView === "HOME" || !activeCat;
-    const styleInactive = "bg-accent/10 border border-accent/20 text-white hover:bg-accent/20";
-    const styleActive   = "bg-accent border border-accent text-dark font-black shadow-lg shadow-accent/20";
+    const styleInactive = "botao-filtro hover:bg-[#0a0f1a] hover:border-accent/30 hover:text-[#fefefe] transition-all";
+    const styleActive   = "bg-cor-azul-escuro border border-white text-white font-black shadow-lg shadow-accent/20";
 
     let html = `<button onclick="resetAll()" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${isHomeActive ? styleActive : styleInactive}">Tudo</button>`;
 
@@ -418,26 +439,26 @@ function renderCard(p) {
         if (isOutOfStock) {
             addBtn = `<button disabled class="bg-gray-900 text-gray-600 font-bold text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl cursor-not-allowed border border-gray-800/40">Indisponível</button>`;
         } else if (alreadyInCart) {
-            addBtn = `<button disabled class="bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 font-black text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-1.5">
+            addBtn = `<button disabled class="bg-[#008b00] text-white border border-emerald-800/50 font-black text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-1.5">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                         Adicionado
                       </button>`;
         } else {
             addBtn = `<button onclick="addToCart('${itemId}','${encodeURIComponent(p.name)}',${p.price},'${lojaAtual}', ${currentStock})"
-                        class="bg-white hover:bg-accent text-dark font-black text-[10px] md:text-xs uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg hover:shadow-accent/20">
+                        class="bg-cor-amarelo hover:bg-[#0a0f1a] text-[#0a0f1a] hover:text-white border border-gray-800 hover:border-white font-black text-[10px] md:text-xs uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg hover:shadow-accent/20">
                         Adicionar
                       </button>`;
         }
 
         return `
-            <div class="gpu-card bg-gradient-to-r from-card to-card/70 border border-gray-800/80 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 w-full relative transition-all duration-300 ${stockCardClasses}">
-                ${isOutOfStock ? `<div class="absolute top-3 right-3 bg-rose-950/80 border border-rose-800/60 text-rose-400 font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado na Loja</div>` : ""}
+            <div class="gpu-card bg-white border border-gray-800 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 w-full relative transition-all duration-300 ${stockCardClasses}">
+                ${isOutOfStock ? `<div class="absolute top-3 right-3 bg-[#D32F2F] border border-[#B71C1C] text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado na Loja</div>` : ""}
                 <div class="flex-grow space-y-2.5 md:max-w-[65%]">
                     <div class="flex items-center gap-2">
-                        <span class="text-[9px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || 'Peça'}</span>
-                        ${p.subcategory ? `<span class="text-[9px] font-bold text-gray-400 uppercase tracking-wide">/ ${p.subcategory}</span>` : ''}
+                        <span class="text-[9px] font-black text-[#FFC107] bg-[#0a0f1a] px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || 'Peça'}</span>
+                        ${p.subcategory ? `<span class="text-[9px] font-bold text-gray-500 uppercase tracking-wide">/ ${p.subcategory}</span>` : ''}
                     </div>
-                    <h4 class="text-sm md:text-base font-extrabold text-gray-100 leading-snug tracking-tight">${p.name}</h4>
+                    <h4 class="text-sm md:text-base font-extrabold text-[#0a0f1a] leading-snug tracking-tight">${p.name}</h4>
                     <div class="flex flex-wrap gap-1.5 pt-0.5">
                         ${p.attributes ? Object.entries(p.attributes).map(([k,v]) => v ? `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold border uppercase tracking-wide ${getTagStyle(v)}">${v}</span>` : "").join("") : ""}
                     </div>
@@ -445,7 +466,7 @@ function renderCard(p) {
                 <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-gray-800/80 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
                     <div class="flex flex-col md:items-end">
                         <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Preço à vista</span>
-                        <p class="text-2xl md:text-3xl font-black ${isOutOfStock ? 'text-gray-600' : 'text-accent font-mono'} tracking-tight leading-none mt-1">
+                        <p class="text-2xl md:text-3xl font-black ${isOutOfStock ? 'text-gray-600' : 'text-[#FFC107] font-mono'} tracking-tight leading-none mt-1">
                             <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${parseFloat(p.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </p>
                     </div>
@@ -479,27 +500,27 @@ function renderCard(p) {
         if (isVOOS) {
             varBtn = `<span class="text-[10px] font-bold text-gray-600 uppercase tracking-wider px-4 py-2.5">Indisponível</span>`;
         } else if (alreadyInCart) {
-            varBtn = `<button disabled class="bg-emerald-900/40 text-emerald-400 border border-emerald-800/50 font-black text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg flex items-center gap-1.5">
+            varBtn = `<button disabled class="bg-[#008b00] text-white border border-[#09af00] font-black text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg flex items-center gap-1.5">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                         Adicionado
                       </button>`;
         } else {
             varBtn = `<button onclick="addToCart('${varId}','${encodeURIComponent(varFullName)}',${v.price || p.price},'${lojaAtual}', ${vStock})"
-                        class="bg-gray-800 hover:bg-accent text-gray-200 hover:text-dark font-black text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all active:scale-95 border border-gray-700/60 hover:border-transparent">
+                        class="bg-cor-amarelo hover:bg-[#0a0f1a] text-[#0a0f1a] hover:text-white font-black text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all active:scale-95 border border-gray-800 hover:border-white">
                         Adicionar
                       </button>`;
         }
 
         return `
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border border-gray-800/40 bg-card/40 transition-all ${vStyleClasses}">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border border-gray-800/40 bg-white transition-all ${vStyleClasses}">
                 <div class="flex items-center gap-3">
-                    <div class="bg-gray-800 text-[10px] font-black text-gray-300 px-2.5 py-1 rounded-md border border-gray-700/50 uppercase">
-                        ${v.type}: <span class="text-accent">${v.value}</span>
+                    <div class="bg-cor-azul-escuro text-[10px] font-black text-white px-2.5 py-1 rounded-md border border-gray-800 uppercase">
+                        ${v.type}: <span class="text-[#FFC107]">${v.value}</span>
                     </div>
-                    ${isVOOS ? `<span class="text-[9px] font-extrabold uppercase text-rose-500 tracking-wider bg-rose-950/40 px-2 py-0.5 rounded-md border border-rose-900/30">Sem estoque</span>` : ""}
+                    ${isVOOS ? `<span class="text-[9px] font-extrabold uppercase text-white tracking-wider bg-[#D32F2F] px-2 py-0.5 rounded-md border border-[#B71C1C]">Sem estoque</span>` : ""}
                 </div>
                 <div class="flex items-center justify-between sm:justify-end gap-6 mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-gray-800/40 sm:border-t-0">
-                    <p class="text-lg font-black ${isVOOS ? 'text-gray-600' : 'text-accent font-mono'}">
+                    <p class="text-lg font-black ${isVOOS ? 'text-gray-600' : 'text-[#FFC107] font-mono'}">
                         <span class="text-[10px] font-bold mr-0.5">R$</span>${parseFloat(v.price || p.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </p>
                     ${varBtn}
@@ -508,15 +529,15 @@ function renderCard(p) {
     }).join("");
 
     return `
-        <div class="w-full bg-gradient-to-r from-card to-card/70 border border-gray-800/80 rounded-2xl overflow-hidden transition-all duration-300 ${isParentOutOfStock ? 'opacity-50' : ''}">
+        <div class="w-full bg-white border border-gray-800 rounded-2xl overflow-hidden transition-all duration-300 ${isParentOutOfStock ? 'opacity-50' : ''}">
             <div onclick="toggleDropdown('${productId}')" class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 w-full relative cursor-pointer hover:bg-gray-800/10 group select-none">
-                ${isParentOutOfStock ? `<div class="absolute top-3 right-3 bg-rose-950/80 border border-rose-800/60 text-rose-400 font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado</div>` : ""}
+                ${isParentOutOfStock ? `<div class="absolute top-3 right-3 bg-[#D32F2F] border border-[#B71C1C] text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado</div>` : ""}
                 <div class="flex-grow space-y-2.5 md:max-w-[65%]">
                     <div class="flex items-center gap-2">
-                        <span class="text-[9px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || 'Peça'}</span>
-                        <span class="text-[9px] font-black text-sky-400 bg-sky-950/50 border border-sky-900/40 px-2 py-0.5 rounded-md uppercase tracking-wider">Possui Variações</span>
+                        <span class="text-[9px] font-black text-[#FFC107] bg-cor-azul-escuro px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || 'Peça'}</span>
+                        <span class="text-[9px] font-black text-white bg-cor-amarelo border border-[#0a0f1a] px-2 py-0.5 rounded-md uppercase tracking-wider">Possui Variações</span>
                     </div>
-                    <h4 class="text-sm md:text-base font-extrabold text-gray-100 leading-snug tracking-tight group-hover:text-accent transition-colors">${p.name}</h4>
+                    <h4 class="text-sm md:text-base font-extrabold text-[#0a0f1a] leading-snug tracking-tight transition-colors">${p.name}</h4>
                     <div class="flex flex-wrap gap-1.5 pt-0.5">
                         ${p.attributes ? Object.entries(p.attributes).map(([k,v]) => v ? `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold border uppercase tracking-wide ${getTagStyle(v)}">${v}</span>` : "").join("") : ""}
                     </div>
@@ -524,18 +545,18 @@ function renderCard(p) {
                 <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-gray-800/80 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
                     <div class="flex flex-col md:items-end">
                         <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">A partir de</span>
-                        <p class="text-2xl md:text-3xl font-black text-white font-mono tracking-tight leading-none mt-1">
+                        <p class="text-2xl md:text-3xl font-black text-[#FFC107] font-mono tracking-tight leading-none mt-1">
                             <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${parseFloat(minPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </p>
                     </div>
-                    <div id="arrow-${productId}" class="text-accent bg-gray-800/60 p-2.5 rounded-xl border border-gray-700/40 group-hover:bg-accent group-hover:text-dark transition-all duration-300">
+                    <div id="arrow-${productId}" class="text-[#0a0f1a] bg-cor-amarelo p-2.5 rounded-xl border border-gray-800 group-hover:bg-[#0a0f1a] group-hover:text-white transition-all duration-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </div>
                 </div>
             </div>
-            <div id="dropdown-${productId}" class="hidden border-t border-gray-800/60 bg-gray-950/20 px-5 pb-5 pt-2">
+            <div id="dropdown-${productId}" class="hidden border-t border-gray-800 bg-white px-5 pb-5 pt-2">
                 <p class="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-3">Selecione a opção desejada:</p>
                 <div class="flex flex-col gap-2.5">${variationsHTML}</div>
             </div>
@@ -560,7 +581,7 @@ function createSectionHTML(title, products, targetView, cat, sub = null) {
         <div class="animate-in mb-10">
             <div class="flex items-center justify-between mb-4 px-1">
                 <h3 class="text-xs font-black uppercase tracking-[0.3em] text-gray-500">${title}</h3>
-                <button onclick="changeView('${targetView}','${cat}','${sub || ""}')" class="text-[9px] font-black text-accent border border-accent/20 px-4 py-1.5 rounded-full uppercase hover:bg-accent hover:text-black transition-all">Ver Tudo</button>
+                <button onclick="changeView('${targetView}','${cat}','${sub || ""}')" class="text-[9px] bg-cor-azul-escuro hover:bg-[#FFC107] text-white hover:text-[#0a0f1a] font-black border border-accent/20 px-4 py-1.5 rounded-full uppercase transition-all">Ver Tudo</button>
             </div>
             <div class="flex flex-col gap-3">${products.map(p => renderCard(p)).join("")}</div>
         </div>`;
@@ -578,7 +599,7 @@ function renderAttributeSelectors(products, container) {
     container.innerHTML = "";
     Object.entries(attrOptions).forEach(([key, values]) => {
         const select = document.createElement("select");
-        select.className = `bg-card border border-gray-700 rounded-lg px-3 py-2 pr-8 text-[10px] font-black uppercase outline-none focus:border-accent transition-all ${activeFilters[key] ? "border-accent text-accent" : "text-gray-400"}`;
+        select.className = `botao-filtro hover:bg-[#0a0f1a] hover:text-white rounded-lg px-3 py-2 pr-8 text-[10px] font-black uppercase outline-none focus:border-accent transition-all ${activeFilters[key] ? "bg-[#0a0f1a] border-white text-white hover:border-[#0a0f1a]" : "text-[#0a0f1a]"}`;
         select.onchange  = e => setAttrFilter(key, e.target.value);
         select.innerHTML = `<option value="">${key}</option>` +
             Array.from(values).sort().map(v => `<option value="${v}" ${activeFilters[key] === v ? "selected" : ""}>${v}</option>`).join("");
@@ -589,13 +610,21 @@ function renderAttributeSelectors(products, container) {
 function setupBrandSelect() {
     const subSelect = document.getElementById("sub-filter");
     if (!subSelect) return;
+    
     const subs = [...new Set(
         allProducts
             .filter(p => p.category && p.category.trim().toLowerCase() === activeCat.trim().toLowerCase() && p.subcategory)
             .map(p => p.subcategory)
     )];
+    
     subSelect.innerHTML = `<option value="">Subcategoria</option>` +
         subs.sort().map(s => `<option value="${s}" ${activeSub === s ? "selected" : ""}>${s}</option>`).join("");
+
+    if (activeSub && activeSub !== "") {
+        subSelect.className = "bg-cor-azul-escuro border border-white hover:text-gray-500 rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none text-white min-w-[100px]";
+    } else {
+        subSelect.className = "botao-filtro border-gray-700 hover:bg-[#0a0f1a] hover:text-white rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none focus:border-accent min-w-[100px]";
+    }
 }
 
 function renderPager(current, total, totalItems, footer) {
@@ -609,23 +638,23 @@ function renderPager(current, total, totalItems, footer) {
         <div class="flex flex-col items-center gap-4 w-full max-w-xs mx-auto">
             <div class="text-center space-y-1">
                 <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
-                    Exibindo <span class="text-accent">${startItem}-${endItem}</span> de <span class="text-white">${totalItems}</span> produtos
+                    Exibindo <span class="text-[#FFC107]">${startItem}-${endItem}</span> de <span class="text-[#FFC107]">${totalItems}</span> produtos
                 </p>
                 <div class="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
                     <div class="h-full bg-accent transition-all duration-500" style="width:${(current/total)*100}%"></div>
                 </div>
             </div>
-            <div class="flex items-center gap-2 bg-card border border-gray-800 p-1.5 rounded-2xl w-full justify-between shadow-2xl">
+            <div class="flex items-center gap-2 bg-cor-amarelo border border-gray-800 p-1.5 rounded-2xl w-full justify-between shadow-2xl">
                 <button onclick="goToPage(${current-1})" ${current===1?"disabled":""} class="flex-1 flex items-center justify-center py-3 rounded-xl transition-all active:scale-95 disabled:opacity-20 disabled:grayscale">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[#0a0f1a]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"/></svg>
                 </button>
                 <div class="px-4 border-x border-gray-800">
-                    <span class="text-xs font-black text-white font-mono">${String(current).padStart(2,"0")}</span>
+                    <span class="text-xs font-black text-[#0a0f1a] font-mono">${String(current).padStart(2,"0")}</span>
                     <span class="text-[10px] font-bold text-gray-600 uppercase mx-1">/</span>
-                    <span class="text-[10px] font-bold text-gray-600 uppercase">${String(total).padStart(2,"0")}</span>
+                    <span class="text-[10px] font-bold text-[#0a0f1a] uppercase">${String(total).padStart(2,"0")}</span>
                 </div>
                 <button onclick="goToPage(${current+1})" ${current===total?"disabled":""} class="flex-1 flex items-center justify-center py-3 rounded-xl transition-all active:scale-95 disabled:opacity-20 disabled:grayscale">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[#0a0f1a]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
                 </button>
             </div>
         </div>`;
@@ -784,29 +813,29 @@ function updateCartUI() {
         listContainer.innerHTML = cart.map(item => {
             const itemTotal = item.price * item.quantity;
             return `
-                <div class="p-4 bg-dark/60 border border-gray-800 rounded-xl flex flex-col gap-3">
+                <div class="p-4 bg-white border border-gray-800 rounded-xl flex flex-col gap-3">
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex-grow">
-                            <h5 class="text-xs font-extrabold text-gray-100 leading-snug">${item.name}</h5>
-                            <span class="text-[9px] font-black text-accent bg-accent/10 px-1.5 py-0.5 rounded uppercase mt-1 inline-block tracking-wide">
+                            <h5 class="text-xs font-extrabold text-[#0a0f1a] leading-snug">${item.name}</h5>
+                            <span class="text-[9px] font-black text-[#FFC107] px-1.5 py-0.5 rounded uppercase mt-1 inline-block tracking-wide">
                                 Filial: ${item.store}
                             </span>
                         </div>
-                        <span class="text-xs font-black text-gray-400 font-mono shrink-0">
+                        <span class="text-xs font-black text-[#FFC107] font-mono shrink-0">
                             ${item.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                         </span>
                     </div>
                     
                     <div class="flex flex-col gap-1 pt-2 border-t border-gray-800/50">
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center bg-dark border border-gray-800 rounded-lg p-0.5">
+                            <div class="flex items-center bg-cor-azul-escuro border border-gray-800 rounded-lg p-0.5">
                                 <button onclick="updateQuantity('${item.id}','${item.store}',-1)"
-                                    class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-rose-400 rounded-md transition-colors active:scale-90 font-black text-sm">−</button>
+                                    class="w-7 h-7 flex items-center justify-center text-[#D32F2F] hover:text-[#B71C1C] rounded-md transition-colors active:scale-90 font-black text-sm">−</button>
                                 <span class="w-8 text-center text-xs font-black font-mono text-white">${item.quantity}</span>
                                 <button onclick="updateQuantity('${item.id}','${item.store}',1)"
-                                    class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-accent rounded-md transition-colors active:scale-90 font-black text-sm">+</button>
+                                    class="w-7 h-7 flex items-center justify-center text-[#008b00] hover:text-[#09af00] rounded-md transition-colors active:scale-90 font-black text-sm">+</button>
                             </div>
-                            <span class="text-xs font-black text-accent font-mono">
+                            <span class="text-lg font-black text-[#0a0f1a] font-mono">
                                 ${itemTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                             </span>
                         </div>
