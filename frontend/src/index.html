@@ -1,30 +1,36 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <title>Catálogo | Jack Peças</title>
 
     <meta name="google-site-verification" content="0HDoyvuwkkQdC4Yc5IzoxrVXN-4NJcR7D1_QmRN2FvI" />
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://jack-pe-as.vercel.app/">
     <meta property="og:title" content="Jack Peças">
-    <meta property="og:description" content="Qualidade em cada componente. Telas Displays, Baterias, Acessórios e Peças de Reposição com o melhor preço.">
+    <meta property="og:description"
+        content="Qualidade em cada componente. Telas Displays, Baterias, Acessórios e Peças de Reposição com o melhor preço.">
     <meta property="og:image" content="https://res.cloudinary.com/drdu6ryip/image/upload/v1771644115/logo_f65eyc.png">
-    <meta name="description" content="O melhor catálogo de peças para celulares: Telas Displays, Baterias e Acessórios. Qualidade garantida com Jack Peças.">
-    <meta name="keywords" content="peças de celular, jack pecas cotia, jack pecas sao roque, jack pecas ibiuna, jackpecas, distribuidora jackpecas, distribuidora jack pecas, display atacado, baterias de celular, jack peças, acessórios mobile, manutenção de celular, jack pecas, tela display, tela para celular, distribuidora telas de celular, distribuidora de peças de celular, fonrcedor telas displays, forncedor telas de celular, fornecedor baterias de celular, fornecedor acessórios para celular">
+    <meta name="description"
+        content="O melhor catálogo de peças para celulares: Telas Displays, Baterias e Acessórios. Qualidade garantida com Jack Peças.">
+    <meta name="keywords"
+        content="peças de celular, jack pecas cotia, jack pecas sao roque, jack pecas ibiuna, jackpecas, distribuidora jackpecas, distribuidora jack pecas, display atacado, baterias de celular, jack peças, acessórios mobile, manutenção de celular, jack pecas, tela display, tela para celular, distribuidora telas de celular, distribuidora de peças de celular, fonrcedor telas displays, forncedor telas de celular, fornecedor baterias de celular, fornecedor acessórios para celular">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://jack-pe-as.vercel.app/">
 
-    <link rel="icon" type="image/png" href="https://res.cloudinary.com/drdu6ryip/image/upload/v1771549494/icone-jackpecas_q6vq4a.png">
-    <link rel="apple-touch-icon" href="https://res.cloudinary.com/drdu6ryip/image/upload/v1771549494/icone-jackpecas_q6vq4a.png">
+    <link rel="icon" type="image/png"
+        href="https://res.cloudinary.com/drdu6ryip/image/upload/v1771549494/icone-jackpecas_q6vq4a.png">
+    <link rel="apple-touch-icon"
+        href="https://res.cloudinary.com/drdu6ryip/image/upload/v1771549494/icone-jackpecas_q6vq4a.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: { accent: '#fbbf24', dark: '#0a0f1a', card: '#111827' },
+                    colors: { accent: '#fbbf24', dark: '#0a0f1a', card: '#111827', 'cor-azul-escuro': '#0307cc' },
                     backgroundImage: {
                         'hero-pattern': 'radial-gradient(circle at 50% 50%, rgba(251, 191, 36, 0.08) 0%, transparent 80%)'
                     }
@@ -34,12 +40,43 @@
     </script>
     <style>
         /*#0a0f1a*/
-        body { background-color: #FFFFFF; color: #0a0f1a; scroll-behavior: smooth; }
-        .hide-scroll::-webkit-scrollbar { display: none; }
-        .animate-in { animation: fadeIn 0.5s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .text-glow { text-shadow: 0 0 40px rgba(251, 191, 36, 0.3); }
-        select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.7rem center; background-size: 1em; }
+        body {
+            background-color: #e1f5fe;
+            color: #0a0f1a;
+            scroll-behavior: smooth;
+        }
+
+        .hide-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .animate-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .text-glow {
+            text-shadow: 0 0 40px rgba(251, 191, 36, 0.3);
+        }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.7rem center;
+            background-size: 1em;
+        }
 
         .gpu-card {
             backface-visibility: hidden;
@@ -47,33 +84,59 @@
             transform: translateZ(0);
         }
 
-        #catalog-content { contain: paint; min-height: 100vh; }
+        #catalog-content {
+            contain: paint;
+            min-height: 100vh;
+        }
 
         .loader {
-            width: 48px; height: 48px;
+            width: 48px;
+            height: 48px;
             border: 3px solid rgba(255, 255, 255, 0.1);
             border-bottom-color: #fbbf24;
             border-radius: 50%;
             display: inline-block;
             animation: rotation 1s linear infinite;
         }
-        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
 
         /* Badge do carrinho */
-        #cart-badge { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        #cart-badge.bump { transform: scale(1.5); }
+        #cart-badge {
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #cart-badge.bump {
+            transform: scale(1.5);
+        }
 
         /* Cores predefinidas */
-        .cor-amarelo {
+        .text-cor-amarelo {
             color: #FFC107;
         }
 
-        .cor-azul-escuro {
-            color: #0a0f1a;
+        .text-cor-azul {
+            color: #0307cc;
+        }
+
+        .text-cor-verde {
+            color: #008b00;
         }
 
         .bg-cor-azul-escuro {
-            background-color: #0a0f1a;
+            background-color: #0307cc;
+        }
+
+        .hover:bg-cor-azul-escuro {
+            background-color: #0307cc;
         }
 
         .bg-cor-amarelo {
@@ -91,53 +154,61 @@
             color: #0a0f1a;
             border: 1px solid #0a0f1a;
         }
-        
-
     </style>
 </head>
+
 <body class="min-h-screen flex flex-col font-sans relative overflow-x-hidden">
 
     <!-- ══════════════════════════════════════════════
          BARRA DE TOPO: LOJA ATIVA + BOTÃO DO CARRINHO
          ══════════════════════════════════════════════ -->
-    <div class="w-full bg-cor-amarelo border-b border-gray-800/80 px-4 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-50">
+    <div
+        class="w-full bg-cor-amarelo border-b border-gray-800/80 px-4 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-50">
 
         <!-- Indicador de loja ativa (clicável para trocar) -->
         <button onclick="openStoreSelector()"
             class="flex items-center gap-2.5 botao-top-bar rounded-xl px-3 py-2 transition-all active:scale-95 group">
             <span class="relative flex h-2 w-2 shrink-0">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span
+                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <div class="text-left leading-none">
                 <p class="text-[8px] font-black text-gray-500 uppercase tracking-widest">Loja ativa</p>
-                <p id="top-store-name" class="text-[11px] font-black text-[#0a0f1a] uppercase tracking-wider mt-0.5 group-hover:text-accent transition-colors">Selecionar →</p>
+                <p id="top-store-name"
+                    class="text-[11px] font-black text-cor-azul uppercase tracking-wider mt-0.5 group-hover:text-accent transition-colors">
+                    Selecionar →</p>
             </div>
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-gray-600 group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                class="w-3 h-3 text-gray-600 group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor" stroke-width="3">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
         </button>
 
         <!-- Botão carrinho na topbar -->
         <button onclick="toggleCartPanel()"
-            class="relative flex items-center gap-2 botao-top-bar hover:bg-[#0a0f1a] hover:text-white font-black text-[10px] uppercase tracking-wider px-3 py-2 rounded-xl transition-all active:scale-95 group">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            class="relative flex items-center gap-2 botao-top-bar hover:bg-cor-azul-escuro hover:text-white font-black text-[10px] uppercase tracking-wider px-3 py-2 rounded-xl transition-all active:scale-95 group">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
             </svg>
             <span>Carrinho</span>
-            <span id="cart-badge" class="bg-cor-azul-escuro text-[#FFC107] text-[10px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center hidden">0</span>
+            <span id="cart-badge"
+                class="bg-cor-azul-escuro text-white text-[10px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center hidden">0</span>
         </button>
     </div>
 
     <nav class="py-8 text-center">
-        <h1 onclick="resetAll()" class="text-3xl font-black tracking-[0.2em] text-[#0a0f1a] cursor-pointer uppercase italic inline-block">
-            JACK<span class="text-[#FFC107]">PEÇAS</span>
+        <h1 onclick="resetAll()"
+            class="text-3xl font-black tracking-[0.2em] text-cor-azul cursor-pointer uppercase italic inline-block">
+            JACK<span class="text-cor-amarelo">PEÇAS</span>
         </h1>
     </nav>
 
     <header id="hero-banner" class="relative overflow-hidden bg-hero-pattern pb-16 px-4">
         <div class="max-w-4xl mx-auto text-center space-y-6 animate-in">
-            <h2 class="text-5xl md:text-7xl font-black italic tracking-tighter leading-none">
+            <h2 class="text-5xl text-cor-azul md:text-7xl font-black italic tracking-tighter leading-none">
                 QUALIDADE EM <br>
                 <span class="text-accent text-glow">CADA COMPONENTE</span>
             </h2>
@@ -148,8 +219,10 @@
                 <input type="text" id="public-search" oninput="handleSearch()" placeholder="O QUE VOCÊ PROCURA HOJE?"
                     class="w-full bg-white border-2 border-[#0a0f1a] rounded-2xl py-4 px-14 text-base md:text-xs text-[#0a0f1a] font-bold focus:border-gray-400 outline-none transition-all shadow-2xl">
                 <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#0a0f1a]">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
                     </svg>
                 </div>
             </div>
@@ -158,13 +231,17 @@
 
     <main class="flex-grow w-full mx-auto px-4 relative">
 
-        <div id="filter-bar" class="sticky top-[60px] z-40 bg-cor-amarelo border-b border-t border-gray-800 px-4 py-3 -mx-4 mb-6">
+        <div id="filter-bar"
+            class="sticky top-[60px] z-40 bg-cor-amarelo border-b border-t border-gray-800 px-4 py-3 -mx-4 mb-6">
             <div class="max-w-7xl mx-auto space-y-3">
                 <div class="flex items-center gap-2">
                     <div id="quick-nav" class="flex-grow flex gap-2 overflow-x-auto hide-scroll pb-1"></div>
-                    <button onclick="toggleFilters()" class="flex items-center gap-2 botao-filtro px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all active:scale-95">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    <button onclick="toggleFilters()"
+                        class="flex items-center gap-2 botao-filtro hover:bg-cor-azul-escuro hover:text-white hover:border-white px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                         </svg>
                         Filtros
                     </button>
@@ -178,14 +255,16 @@
                             </select>
                         </div>
                         <div id="attribute-filters" class="flex flex-wrap gap-2"></div>
-                        <button onclick="resetAll()" class="ml-auto text-[10px] font-black text-[0a0f1a] hover:text-white uppercase px-2">Limpar</button>
+                        <button onclick="resetAll()"
+                            class="ml-auto text-[10px] font-black text-[0a0f1a] hover:text-white uppercase px-2">Limpar</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div id="view-header" class="mb-10 hidden animate-in">
-            <h2 id="active-title" class="text-2xl font-black uppercase italic tracking-tight border-l-4 border-accent pl-4"></h2>
+            <h2 id="active-title"
+                class="text-2xl font-black uppercase italic tracking-tight border-l-4 border-accent pl-4"></h2>
         </div>
 
         <div id="catalog-content" class="space-y-20 pb-20"></div>
@@ -205,43 +284,47 @@
             class="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-card border-l border-gray-800 z-[70] shadow-2xl flex flex-col translate-x-full transition-transform duration-300 ease-in-out gpu-card">
 
             <!-- Header -->
-            <div class="bg-cor-azul-escuro p-5 border-b border-gray-800 flex items-center justify-between shrink-0">
+            <div class="bg-cor-amarelo p-5 border-b border-gray-800 flex items-center justify-between shrink-0">
                 <div>
                     <h3 class="text-sm font-black uppercase tracking-wider text-white">Seu Pedido</h3>
-                    <p id="cart-store-label" class="text-[10px] font-black text-[#FFC107] uppercase tracking-widest mt-0.5">—</p>
+                    <p id="cart-store-label"
+                        class="text-[10px] font-black text-cor-azul uppercase tracking-widest mt-0.5">—</p>
                 </div>
-                <button onclick="toggleCartPanel()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-700 hover:bg-red-900 transition-colors text-gray-400 hover:text-white">
+                <button onclick="toggleCartPanel()"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-700 hover:bg-red-900 transition-colors text-gray-400 hover:text-white">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
 
             <!-- Lista de itens -->
-            <div id="cart-items-list" class="flex-grow bg-white overflow-y-auto p-5 space-y-3 hide-scroll">
+            <div id="cart-items-list" class="flex-grow bg-[#e1f5fe] overflow-y-auto p-5 space-y-3 hide-scroll">
                 <div class="text-center py-12 text-gray-500 font-bold uppercase text-xs tracking-wider">
                     Seu carrinho está vazio.
                 </div>
             </div>
 
             <!-- Footer com totais e botão -->
-            <div class="p-5 bg-cor-azul-escuro space-y-4 shrink-0">
+            <div class="p-5 bg-cor-amarelo space-y-4 shrink-0">
                 <div class="flex items-center justify-between font-black uppercase text-xs tracking-wider">
-                    <span class="text-gray-400">Total de itens:</span>
-                    <span id="cart-total-qty" class="text-white">0</span>
+                    <span class="text-white">Total de itens:</span>
+                    <span id="cart-total-qty" class="text-cor-azul">0</span>
                 </div>
                 <div class="flex items-center justify-between font-black uppercase text-sm">
-                    <span class="text-gray-400">Valor total:</span>
-                    <span id="cart-total-price" class="text-[#FFC107] text-xl font-black font-mono">R$ 0,00</span>
+                    <span class="text-white">Valor total:</span>
+                    <span id="cart-total-price" class="text-cor-verde text-xl font-black font-mono">R$ 0,00</span>
                 </div>
                 <button onclick="checkoutCart()"
                     class="w-full bg-[#008b00] hover:bg-[#09af00] active:scale-[0.98] text-white font-black text-xs uppercase tracking-widest py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20">
                     <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397 0 11.966 0c3.178.001 6.169 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.902-11.91 11.902-2.01-.001-3.993-.51-5.741-1.486L0 24zm6.59-4.846c1.785 1.058 3.565 1.61 5.322 1.61 5.4 0 9.79-4.386 9.793-9.774.002-2.611-1.015-5.065-2.864-6.917C17.043 2.221 14.593 1.2 11.97 1.2c-5.405 0-9.794 4.387-9.797 9.776-.001 1.84.498 3.633 1.442 5.213l-1.03 3.755 3.862-1.011zm12.31-4.707c-.312-.156-1.847-.91-2.134-1.014-.286-.105-.495-.156-.704.156-.21.312-.81 1.014-.992 1.22-.183.208-.365.235-.677.08-1.554-.775-2.585-1.353-3.615-3.123-.273-.47.272-.436.78-1.45.084-.17.043-.314-.021-.444-.063-.13-.547-1.317-.749-1.802-.197-.474-.397-.41-.547-.417-.14-.007-.302-.008-.464-.008-.162 0-.426.06-.649.303-.222.242-.848.828-.848 2.019 0 1.191.867 2.34 1.049 2.583.182.243 1.705 2.603 4.132 3.652.578.249 1.03.398 1.382.511.58.184 1.11.158 1.528.096.467-.07 1.444-.59 1.648-1.16.204-.572.204-1.063.142-1.165-.062-.101-.227-.156-.54-.312z"/>
+                        <path
+                            d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397 0 11.966 0c3.178.001 6.169 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.902-11.91 11.902-2.01-.001-3.993-.51-5.741-1.486L0 24zm6.59-4.846c1.785 1.058 3.565 1.61 5.322 1.61 5.4 0 9.79-4.386 9.793-9.774.002-2.611-1.015-5.065-2.864-6.917C17.043 2.221 14.593 1.2 11.97 1.2c-5.405 0-9.794 4.387-9.797 9.776-.001 1.84.498 3.633 1.442 5.213l-1.03 3.755 3.862-1.011zm12.31-4.707c-.312-.156-1.847-.91-2.134-1.014-.286-.105-.495-.156-.704.156-.21.312-.81 1.014-.992 1.22-.183.208-.365.235-.677.08-1.554-.775-2.585-1.353-3.615-3.123-.273-.47.272-.436.78-1.45.084-.17.043-.314-.021-.444-.063-.13-.547-1.317-.749-1.802-.197-.474-.397-.41-.547-.417-.14-.007-.302-.008-.464-.008-.162 0-.426.06-.649.303-.222.242-.848.828-.848 2.019 0 1.191.867 2.34 1.049 2.583.182.243 1.705 2.603 4.132 3.652.578.249 1.03.398 1.382.511.58.184 1.11.158 1.528.096.467-.07 1.444-.59 1.648-1.16.204-.572.204-1.063.142-1.165-.062-.101-.227-.156-.54-.312z" />
                     </svg>
                     Enviar Pedido
                 </button>
-                <button onclick="clearCart()" class="w-full bg-[#D32F2F] hover:bg-[#B71C1C] text-xs font-black text-white rounded-xl py-4 uppercase tracking-widest transition-colors">
+                <button onclick="clearCart()"
+                    class="w-full bg-[#D32F2F] hover:bg-[#B71C1C] text-xs font-black text-white rounded-xl py-4 uppercase tracking-widest transition-colors">
                     Limpar carrinho
                 </button>
             </div>
@@ -257,34 +340,40 @@
 
                 <div>
                     <nav class="py-8 text-center">
-                        <h1 onclick="resetAll()" class="text-3xl font-black tracking-[0.2em] text-[#0a0f1a] cursor-pointer uppercase italic inline-block">
-                            JACK<span class="text-[#FFC107]">PEÇAS</span>
+                        <h1 onclick="resetAll()"
+                            class="text-3xl font-black tracking-[0.2em] text-cor-azul cursor-pointer uppercase italic inline-block">
+                            JACK<span class="text-cor-amarelo">PEÇAS</span>
                         </h1>
                     </nav>
-                    <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-1">Escolha a loja mais próxima da sua localização</p>
+                    <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-1">Escolha a loja mais
+                        próxima da sua localização</p>
                 </div>
 
-            <div class="flex flex-col gap-3">
-                <button onclick="selectStore('São Roque')"
-                    class="w-full bg-cor-azul-escuro border border-gray-800 text-white hover:text-[#FFC107] font-black uppercase text-xs tracking-wider py-4 px-5 rounded-2xl flex items-center justify-between transition-all group active:scale-[0.98]">
-                    <span>Unidade São Roque</span>
-                    <span data-store="São Roque" class="store-badge text-[9px] bg-white text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-white">Selecionar</span>
-                </button>
-                
-                <button onclick="selectStore('Cotia')"
-                    class="w-full bg-cor-azul-escuro border border-gray-800 text-white hover:text-[#FFC107] font-black uppercase text-xs tracking-wider py-4 px-5 rounded-2xl flex items-center justify-between transition-all group active:scale-[0.98]">
-                    <span>Unidade Cotia</span>
-                    <span data-store="Cotia" class="store-badge text-[9px] bg-white text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-white">Selecionar</span>
-                </button>
-                
-                <button onclick="selectStore('Ibiúna')"
-                    class="w-full bg-cor-azul-escuro border border-gray-800 text-white hover:text-[#FFC107] font-black uppercase text-xs tracking-wider py-4 px-5 rounded-2xl flex items-center justify-between transition-all group active:scale-[0.98]">
-                    <span>Unidade Ibiúna</span>
-                    <span data-store="Ibiúna" class="store-badge text-[9px] bg-white text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-white">Selecionar</span>
-                </button>
-            </div>
+                <div class="flex flex-col gap-3">
+                    <button onclick="selectStore('São Roque')"
+                        class="w-full bg-cor-azul-escuro border border-gray-800 text-white hover:text-cor-amarelo font-black uppercase text-xs tracking-wider py-4 px-5 rounded-2xl flex items-center justify-between transition-all group active:scale-[0.98]">
+                        <span>Unidade São Roque</span>
+                        <span data-store="São Roque"
+                            class="store-badge text-[9px] bg-white text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-white">Selecionar</span>
+                    </button>
 
-                <p class="text-[8px] font-black text-gray-600 uppercase tracking-widest">Jack Peças Distribuidora © 2026</p>
+                    <button onclick="selectStore('Cotia')"
+                        class="w-full bg-cor-azul-escuro border border-gray-800 text-white hover:text-cor-amarelo font-black uppercase text-xs tracking-wider py-4 px-5 rounded-2xl flex items-center justify-between transition-all group active:scale-[0.98]">
+                        <span>Unidade Cotia</span>
+                        <span data-store="Cotia"
+                            class="store-badge text-[9px] bg-white text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-white">Selecionar</span>
+                    </button>
+
+                    <button onclick="selectStore('Ibiúna')"
+                        class="w-full bg-cor-azul-escuro border border-gray-800 text-white hover:text-cor-amarelo font-black uppercase text-xs tracking-wider py-4 px-5 rounded-2xl flex items-center justify-between transition-all group active:scale-[0.98]">
+                        <span>Unidade Ibiúna</span>
+                        <span data-store="Ibiúna"
+                            class="store-badge text-[9px] bg-white text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-white">Selecionar</span>
+                    </button>
+                </div>
+
+                <p class="text-[8px] font-black text-gray-600 uppercase tracking-widest">Jack Peças Distribuidora © 2026
+                </p>
             </div>
         </div>
 
@@ -293,4 +382,5 @@
     <script src="./js/main.js"></script>
     <script src="js/analytics.js"></script>
 </body>
+
 </html>
