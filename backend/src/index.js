@@ -9,6 +9,27 @@ const axios    = require('axios');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Configuração do Servidor HTTP + Socket.io
+const http = require('http').createServer(app);
+const io = require('socket.io')(http, {
+    cors: {
+        origin: "*", // Ajuste para a URL do seu front (Vercel) em produção se quiser mais segurança
+        methods: ["GET", "POST"]
+    }
+});
+
+// Canal global de conexões para monitoramento
+io.on('connection', (socket) => {
+    console.log(`🔌 [SOCKET] Novo cliente conectado: ${socket.id}`);
+    
+    socket.on('disconnect', () => {
+        console.log(`❌ [SOCKET] Cliente desconectado: ${socket.id}`);
+    });
+});
+
+// Compartilha o 'io' globalmente para ser usado dentro das funções de webhook se necessário
+global.io = io;
+
 // ============================================================
 // RATE LIMITER + RETRY
 // ============================================================
@@ -626,6 +647,14 @@ async function processStockWebhook(data) {
         produto.updatedAt = new Date();
         await produto.save();
         console.log(`🎉 [SUCESSO ESTOQUE] Banco atualizado com sucesso para o produto: "${produto.name}"!\n`);
+        io.emit('stock_updated', {
+            blingId: produto.blingId,
+            sku: produto.sku,
+            name: produto.name,
+            hasVariations: produto.hasVariations,
+            stock_by_store: produto.stock_by_store,
+            variations: produto.variations // Envia a array atualizada para o front tratar se for filho
+        });
     } catch (err) {
         console.error("🚨 [ERRO CRÍTICO ESTOQUE] Falha ao processar ou salvar no MongoDB:", err.stack);
     }
@@ -728,6 +757,9 @@ async function processProductWebhook(data) {
 
             console.log(`🎉 [SUCESSO VARIAÇÃO] Filho "${nomeProduto}" sincronizado com segurança dentro do Pai!\n`);
             await Product.findOneAndDelete({ blingId: blingId, hasVariations: false });
+
+            //Notifica o front sobre a variação atualizada
+            io.emit('product_updated', { id: idPaiBling, msg: 'Variação atualizada' });
             return;
         }
 
@@ -774,6 +806,7 @@ async function processProductWebhook(data) {
         await produto.save();
         
         console.log(`🎉 [SUCESSO] Produto principal "${produto.name}" sincronizado com sucesso!\n`);
+        io.emit('product_updated', { id: produto.blingId, msg: 'Produto raiz atualizado' });
 
     } catch (err) {
         console.error("🚨 [ERRO CRÍTICO PRODUTO] Falha ao cadastrar/atualizar produto:", err.stack);
@@ -808,6 +841,7 @@ async function processProductDeleteWebhook(blingId) {
             
             await paiDaVariacao.save();
             console.log(`🗑️ [SUCESSO EXCLUSÃO] Variação filha removida com sucesso.`);
+            io.emit('product_deleted', { blingId: idString });
             return;
         }
 
@@ -1253,6 +1287,6 @@ app.post('/api/login', (req, res) => {
 // START
 // ============================================================
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor JACK PEÇAS rodando na porta ${PORT}`);
+http.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor JACK PEÇAS rodando com Socket.io na porta ${PORT}`);
 });

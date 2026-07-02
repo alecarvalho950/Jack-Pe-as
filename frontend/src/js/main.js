@@ -7,6 +7,7 @@ let activeSub = null;
 let activeFilters = {};
 let currentPage = 1;
 const ITEMS_PER_PAGE = 20;
+let socket;
 
 // Estado Global do Carrinho e Loja Ativa
 let cart = [];
@@ -128,6 +129,7 @@ async function init() {
       headers: { "Content-Type": "application/json" },
     };
 
+    // 1. Busca inicial dos dados
     const [resCat, resProd] = await Promise.all([
       fetch(`${API_BASE_URL}/api/categories`, fetchOptions),
       fetch(`${API_BASE_URL}/api/products?limit=9999`, fetchOptions),
@@ -139,6 +141,19 @@ async function init() {
     categories = await resCat.json();
     const prodData = await resProd.json();
     allProducts = prodData.products || [];
+
+    // 2. CONEXÃO COM O SOCKET.IO
+    if (typeof io !== 'undefined') {
+      socket = io(API_BASE_URL);
+
+      // Ouvir atualizações de estoque em tempo real
+      socket.on("product_stock_updated", (data) => {
+        console.log("⚡ Estoque atualizado via Socket:", data);
+        handleSocketStockUpdate(data);
+      });
+    } else {
+      console.warn("⚠️ Socket.io não encontrado. Verifique a importação no HTML.");
+    }
 
     const savedStore = localStorage.getItem("jack_pecas_preferred_store");
     if (savedStore && STORE_CONTACTS[savedStore]) {
@@ -163,6 +178,62 @@ async function init() {
       container.innerHTML = `<p class="text-red-500 text-center py-10 uppercase font-black text-xs">Erro ao conectar com o servidor.</p>`;
     if (overlay) overlay.remove();
   }
+}
+
+/* ──────────────────────────────────────────
+   FUNÇÃO AUXILIAR PARA REAL-TIME
+────────────────────────────────────────── */
+
+// Processa a atualização vinda do servidor e atualiza a UI de forma cirúrgica
+function handleSocketStockUpdate(data) {
+  // Encontra o produto no nosso array local global
+  const targetProduct = allProducts.find(p => (p._id || p.id) === data.productId);
+  
+  if (!targetProduct) return;
+
+  // Se a atualização for de uma variação específica
+  if (data.isVariation && targetProduct.variations) {
+    const vIdx = targetProduct.variations.findIndex(v => v.id_variant_bling === data.variantBlingId || v._id === data.variantId);
+    if (vIdx !== -1) {
+      targetProduct.variations[vIdx].stock_by_store = data.stock_by_store;
+      
+      // Atualiza o limite máximo no carrinho se o item já estiver lá
+      const varCartId = `${data.productId}-${vIdx}`;
+      const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
+      const newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
+      verificarLimitesCarrinhoRealTime(varCartId, newStock);
+    }
+  } else {
+    // Se for produto simples, atualiza o stock_by_store dele
+    targetProduct.stock_by_store = data.stock_by_store;
+    
+    const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
+    const newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
+    verificarLimitesCarrinhoRealTime(data.productId, newStock);
+  }
+
+  // Remanda renderizar a tela com os novos dados de estoque refletidos
+  render();
+}
+
+// Verifica se a nova quantidade derruba ou limita o que o usuário já tem no carrinho
+function verificarLimitesCarrinhoRealTime(itemId, newStock) {
+  const cartItem = cart.find(item => item.id === itemId);
+  if (!cartItem) return;
+
+  // Atualiza o maxStock guardado no objeto do carrinho
+  cartItem.maxStock = newStock;
+
+  // Se o estoque virou 0 ou menor do que ele tinha adicionado, ajustamos e avisamos
+  if (newStock <= 0) {
+    alert(`O produto "${cartItem.name}" esgotou na unidade ativa e foi removido do seu carrinho.`);
+    cart = cart.filter(item => item.id !== itemId);
+  } else if (cartItem.quantity > newStock) {
+    alert(`A quantidade do produto "${cartItem.name}" no seu carrinho foi ajustada para ${newStock} devido à disponibilidade do estoque.`);
+    cartItem.quantity = newStock;
+  }
+
+  updateCartUI();
 }
 
 /* ──────────────────────────────────────────
