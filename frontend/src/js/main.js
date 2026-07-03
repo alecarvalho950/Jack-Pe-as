@@ -199,58 +199,51 @@ async function init() {
 
 // Processa a atualização vinda do servidor e atualiza a UI de forma cirúrgica
 function handleSocketStockUpdate(data) {
-  console.log("📥 [FRONT-SOCKET] Dados recebidos no cliente:", data);
+  console.log("📥 [FRONT-SOCKET] Dados de estoque recebidos:", data);
 
-  // 1. Busca robusta: compara o ID limpando possíveis espaços ou formatos
   const targetProduct = allProducts.find(p => {
     const prodId = p._id || p.id;
     return String(prodId) === String(data.productId);
   });
   
   if (!targetProduct) {
-    console.warn(`⚠️ [FRONT-SOCKET] Produto com ID ${data.productId} não foi encontrado no array local allProducts.`);
+    console.warn(`⚠️ [FRONT-SOCKET] Produto ${data.productId} não encontrado localmente.`);
     return;
   }
-
-  console.log(`🎯 [FRONT-SOCKET] Produto localizado no front: "${targetProduct.name}"`);
 
   const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
   let newStock = 0;
 
-  // 2. Se a atualização for de uma variação específica
   if (data.isVariation && targetProduct.variations) {
-    console.log(`🧬 Tratando como variação. Procurando Bling ID: ${data.variantBlingId}`);
+    console.log(`🧬 Tratando variação. Procurando Bling ID: ${data.variantBlingId}`);
     
-    // Procura na array de variações usando o ID do banco ou o ID do Bling
     const vIdx = targetProduct.variations.findIndex(v => 
       String(v.blingId) === String(data.variantBlingId) || 
       String(v._id) === String(data.variantId)
     );
 
     if (vIdx !== -1) {
+      // Atualiza o estoque da variação específica
       targetProduct.variations[vIdx].stock_by_store = data.stock_by_store;
       newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
       
       console.log(`✅ [FRONT-SOCKET] Estoque da variação "${targetProduct.variations[vIdx].name}" atualizado para ${newStock}`);
       
+      // 🔥 CORREÇÃO: O ID do item de variação no carrinho usa o padrão "ID_PAI-INDICE"
       const varCartId = `${targetProduct._id || targetProduct.id}-${vIdx}`;
       verificarLimitesCarrinhoRealTime(varCartId, newStock, targetProduct.variations[vIdx].name);
-    } else {
-      console.warn("⚠️ [FRONT-SOCKET] Variação não encontrada dentro do produto.");
     }
   } else {
-    // 3. Se for produto simples
+    // Produto simples
     targetProduct.stock_by_store = data.stock_by_store;
     newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
     
     console.log(`✅ [FRONT-SOCKET] Estoque do produto simples atualizado para ${newStock}`);
-    
     verificarLimitesCarrinhoRealTime(targetProduct._id || targetProduct.id, newStock, targetProduct.name);
   }
 
-  // 4. Força a UI a se redesenhar inteira com o novo array modificado!
   console.log("🎨 [FRONT-SOCKET] Forçando renderização da tela...");
-  render();
+  render(); 
 }
 
 function handleSocketProductUpdate(updatedProduct) {
@@ -284,16 +277,33 @@ function handleSocketProductDelete(blingId) {
   if (!blingId) return;
   console.log(`🗑️ Removendo produto Bling ID ${blingId} da tela por exclusão.`);
   
-  // Filtra removendo o pai ou produtos cujas variações tenham esse blingId
+  // 1. Remove do array mestre de produtos
   allProducts = allProducts.filter(p => {
     if (String(p.blingId) === String(blingId)) return false;
     if (p.variations) {
       p.variations = p.variations.filter(v => String(v.blingId) !== String(blingId));
-      if (p.variations.length === 0 && p.hasVariations) return false; // remove o pai se acabarem as variações
+      if (p.variations.length === 0 && p.hasVariations) return false; 
     }
     return true;
   });
 
+  // 2. 🔥 SOLUÇÃO PARA O SUMIÇO IMEDIATO:
+  if (typeof filteredProducts !== 'undefined') {
+    filteredProducts = filteredProducts.filter(p => {
+      if (String(p.blingId) === String(blingId)) return false;
+      if (p.variations) {
+        p.variations = p.variations.filter(v => String(v.blingId) !== String(blingId));
+        if (p.variations.length === 0 && p.hasVariations) return false;
+      }
+      return true;
+    });
+  }
+
+  // 3. Se a exclusão afetou algo no carrinho, limpa também por segurança
+  cart = cart.filter(item => !item.id.startsWith(blingId));
+  updateCartUI();
+
+  // Re-renderiza imediatamente a listagem limpa na tela
   render();
 }
 
@@ -318,14 +328,15 @@ function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
 
 // Verifica se a nova quantidade derruba ou limita o que o usuário já tem no carrinho
 function verificarLimitesCarrinhoRealTime(itemId, newStock, itemName) {
-  const cartItem = cart.find(item => item.id === itemId);
+  // Encontra o item exato no carrinho (seja variação ou simples)
+  const cartItem = cart.find(item => String(item.id) === String(itemId));
   if (!cartItem) return;
 
   cartItem.maxStock = newStock;
 
   if (newStock <= 0) {
     mostrarAvisoCarrinho(`O produto "${itemName}" esgotou na unidade ativa e foi removido do seu carrinho.`);
-    cart = cart.filter(item => item.id !== itemId);
+    cart = cart.filter(item => String(item.id) !== String(itemId));
   } else if (cartItem.quantity > newStock) {
     mostrarAvisoCarrinho(`A quantidade de "${itemName}" no seu carrinho foi ajustada para ${newStock} devido à disponibilidade do estoque.`);
     cartItem.quantity = newStock;
