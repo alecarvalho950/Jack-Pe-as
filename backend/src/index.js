@@ -778,8 +778,14 @@ async function processProductWebhook(data) {
             console.log(`🎉 [SUCESSO VARIAÇÃO] Filho "${nomeProduto}" sincronizado com segurança dentro do Pai!\n`);
             await Product.findOneAndDelete({ blingId: blingId, hasVariations: false });
 
-            //Notifica o front sobre a variação atualizada
-            io.emit('product_updated', { id: idPaiBling, msg: 'Variação atualizada' });
+            if (typeof io !== 'undefined') {
+                // Buscamos o pai atualizado completo com as variações para mandar à rede
+                const paiCompleto = await Product.findOne({ blingId: idPaiBling });
+                if (paiCompleto) {
+                    io.emit('product_updated', { product: paiCompleto });
+                    console.log("⚡ [SOCKET] Evento product_updated (variação) enviado com o objeto completo!");
+                }
+            }
             return;
         }
 
@@ -826,7 +832,10 @@ async function processProductWebhook(data) {
         await produto.save();
         
         console.log(`🎉 [SUCESSO] Produto principal "${produto.name}" sincronizado com sucesso!\n`);
-        io.emit('product_updated', { id: produto.blingId, msg: 'Produto raiz atualizado' });
+        if (typeof io !== 'undefined') {
+            io.emit('product_updated', { product: produto });
+            console.log("⚡ [SOCKET] Evento product_updated (raiz) enviado com o objeto completo!");
+        }
 
     } catch (err) {
         console.error("🚨 [ERRO CRÍTICO PRODUTO] Falha ao cadastrar/atualizar produto:", err.stack);

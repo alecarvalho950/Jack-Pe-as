@@ -146,11 +146,24 @@ async function init() {
     if (typeof io !== 'undefined') {
       socket = io(API_BASE_URL);
 
-      // Ouvir atualizações de estoque em tempo real
+      // Ouvir atualizações de estoque
       socket.on("product_stock_updated", (data) => {
         console.log("⚡ Estoque atualizado via Socket:", data);
         handleSocketStockUpdate(data);
       });
+
+      // Ouvir atualizações ou novos cadastros de produtos (Preço, Nome, Categoria...)
+      socket.on("product_updated", (data) => {
+  console.log("⚡ Notificação de cadastro/atualização via Socket:", data);
+  handleSocketProductUpdate(data.product); // <--- Passando o product direto aqui
+});
+
+      // Ouvir exclusões de produtos
+      socket.on("product_deleted", (data) => {
+        console.log("⚡ Produto excluído via Socket:", data);
+        handleSocketProductDelete(data.blingId);
+      });
+
     } else {
       console.warn("⚠️ Socket.io não encontrado. Verifique a importação no HTML.");
     }
@@ -240,44 +253,129 @@ function handleSocketStockUpdate(data) {
   render();
 }
 
+function handleSocketProductUpdate(updatedProduct) {
+  if (!updatedProduct) return;
+
+  const productId = updatedProduct._id || updatedProduct.id;
+  console.log(`📥 [FRONT-SOCKET] Atualização de produto recebida para: "${updatedProduct.name}"`);
+
+  // Tenta encontrar se esse produto já existe na nossa listagem da tela
+  const idx = allProducts.findIndex(p => String(p._id || p.id) === String(productId));
+
+  if (idx !== -1) {
+    console.log(`📝 Atualizando dados de precificação/nome de "${updatedProduct.name}" na tela.`);
+    allProducts[idx] = updatedProduct;
+  } else {
+    // Se o produto acabou de ser criado no Bling, injeta no início do catálogo!
+    console.log(`✨ Inserindo novo produto criado "${updatedProduct.name}" no início do catálogo.`);
+    allProducts.unshift(updatedProduct);
+  }
+
+  // Atualiza as informações do item caso ele esteja dentro do carrinho do cliente
+  atualizarDadosCarrinhoRealTime(productId, updatedProduct);
+
+  // Força a tela a redesenhar os cards
+  console.log("🎨 [FRONT-SOCKET] Redesenhando catálogo para aplicar novos dados cadastrais...");
+  render();
+}
+
+// Remove o produto da tela imediatamente se ele for excluído no Bling
+function handleSocketProductDelete(blingId) {
+  if (!blingId) return;
+  console.log(`🗑️ Removendo produto Bling ID ${blingId} da tela por exclusão.`);
+  
+  // Filtra removendo o pai ou produtos cujas variações tenham esse blingId
+  allProducts = allProducts.filter(p => {
+    if (String(p.blingId) === String(blingId)) return false;
+    if (p.variations) {
+      p.variations = p.variations.filter(v => String(v.blingId) !== String(blingId));
+      if (p.variations.length === 0 && p.hasVariations) return false; // remove o pai se acabarem as variações
+    }
+    return true;
+  });
+
+  render();
+}
+
+function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
+  cart.forEach(item => {
+    if (item.id.startsWith(productId)) {
+      if (updatedProduct.hasVariations) {
+        const parts = item.id.split('-');
+        const vIdx = parts[1] ? parseInt(parts[1]) : -1;
+        if (vIdx !== -1 && updatedProduct.variations[vIdx]) {
+          item.name = updatedProduct.variations[vIdx].name;
+          item.price = updatedProduct.variations[vIdx].price;
+        }
+      } else {
+        item.name = updatedProduct.name;
+        item.price = updatedProduct.price;
+      }
+    }
+  });
+  updateCartUI();
+}
+
 // Verifica se a nova quantidade derruba ou limita o que o usuário já tem no carrinho
 function verificarLimitesCarrinhoRealTime(itemId, newStock, itemName) {
   const cartItem = cart.find(item => item.id === itemId);
   if (!cartItem) return;
 
-  // Atualiza o maxStock guardado no objeto do carrinho
   cartItem.maxStock = newStock;
 
-  // Se o estoque virou 0 ou menor do que ele tinha adicionado, ajustamos e avisamos
   if (newStock <= 0) {
-    alert(`O produto "${itemName}" esgotou na unidade ativa e foi removido do seu carrinho.`);
+    mostrarAvisoCarrinho(`O produto "${itemName}" esgotou na unidade ativa e foi removido do seu carrinho.`);
     cart = cart.filter(item => item.id !== itemId);
   } else if (cartItem.quantity > newStock) {
-    alert(`A quantidade do produto "${itemName}" no seu carrinho foi ajustada para ${newStock} devido à disponibilidade do estoque.`);
+    mostrarAvisoCarrinho(`A quantidade de "${itemName}" no seu carrinho foi ajustada para ${newStock} devido à disponibilidade do estoque.`);
     cartItem.quantity = newStock;
   }
 
   updateCartUI();
 }
 
-// Verifica se a nova quantidade derruba ou limita o que o usuário já tem no carrinho
-function verificarLimitesCarrinhoRealTime(itemId, newStock) {
-  const cartItem = cart.find(item => item.id === itemId);
-  if (!cartItem) return;
+/* ──────────────────────────────────────────
+   MODAL DE AVISO CUSTOMIZADO (SUBSTITUTO DO ALERT)
+────────────────────────────────────────── */
+function mostrarAvisoCarrinho(mensagem) {
+  // Evita duplicar modais se estourarem vários eventos juntos
+  const antigoModal = document.getElementById("socket-alert-modal");
+  if (antigoModal) antigoModal.remove();
 
-  // Atualiza o maxStock guardado no objeto do carrinho
-  cartItem.maxStock = newStock;
+  const modalHtml = `
+    <div id="socket-alert-modal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity duration-300">
+      <div class="bg-card border border-amber-500/30 rounded-xl p-6 max-w-sm w-full shadow-2xl transform scale-95 opacity-0 transition-all duration-300 id="socket-modal-content"">
+        <div class="flex items-center gap-3 text-accent mb-4">
+          <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <h3 class="text-base font-black text-white uppercase tracking-wider">Aviso de Estoque</h3>
+        </div>
+        <p class="text-slate-300 text-sm leading-relaxed mb-6">${mensagem}</p>
+        <button id="close-socket-modal" class="w-full bg-accent hover:bg-amber-500 text-dark font-black text-xs uppercase py-3 px-4 rounded-lg transition-colors duration-200 tracking-widest">
+          OK
+        </button>
+      </div>
+    </div>
+  `;
 
-  // Se o estoque virou 0 ou menor do que ele tinha adicionado, ajustamos e avisamos
-  if (newStock <= 0) {
-    alert(`O produto "${cartItem.name}" esgotou na unidade ativa e foi removido do seu carrinho.`);
-    cart = cart.filter(item => item.id !== itemId);
-  } else if (cartItem.quantity > newStock) {
-    alert(`A quantidade do produto "${cartItem.name}" no seu carrinho foi ajustada para ${newStock} devido à disponibilidade do estoque.`);
-    cartItem.quantity = newStock;
-  }
+  document.body.insertAdjacentHTML("beforeend", modalHtml);
 
-  updateCartUI();
+  const modalElement = document.getElementById("socket-alert-modal");
+  const contentElement = modalElement.querySelector("div");
+
+  // Animação de entrada
+  setTimeout(() => {
+    contentElement.classList.remove("scale-95", "opacity-0");
+    contentElement.classList.add("scale-100", "opacity-100");
+  }, 10);
+
+  // Evento de fechar no botão OK
+  document.getElementById("close-socket-modal").addEventListener("click", () => {
+    contentElement.classList.remove("scale-100", "opacity-100");
+    contentElement.classList.add("scale-95", "opacity-0");
+    setTimeout(() => modalElement.remove(), 250);
+  });
 }
 
 /* ──────────────────────────────────────────
