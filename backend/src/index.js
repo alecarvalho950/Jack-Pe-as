@@ -607,6 +607,10 @@ async function processStockWebhook(data) {
 
         console.log(`✅ Produto localizado no banco: "${produto.name}" (Possui Variações: ${produto.hasVariations})`);
 
+        let isVariation = false;
+        let variantId = null;
+        let updatedStockByStore = null;
+
         // Se o produto localizado trabalha com variações
         if (produto.hasVariations && produto.variations?.length > 0) {
             console.log(`🧬 Procurando variação com ID correspondente a: "${blingId}"`);
@@ -626,6 +630,12 @@ async function processStockWebhook(data) {
                 
                 // Atualiza o estoque isolado da variação na loja correspondente
                 produto.variations[varIdx].stock_by_store[storeKey] = saldo;
+                
+                // Guarda os dados para enviar no socket depois do .save()
+                isVariation = true;
+                variantId = produto.variations[varIdx]._id ? produto.variations[varIdx]._id.toString() : null;
+                updatedStockByStore = produto.variations[varIdx].stock_by_store;
+
                 console.log(`✅ Estoque da variação atualizado em ${storeKey} para: ${saldo}`);
             } else {
                 console.warn(`⚠️  [Webhook/Estoque] Variação com o ID/SKU informado não bate com nenhuma cadastrada.`);
@@ -642,19 +652,29 @@ async function processStockWebhook(data) {
             // Caso seja um produto simples (sem variações)
             console.log(`📦 Produto Simples. Atualizando estoque da loja ${storeKey} para: ${saldo}`);
             produto.stock_by_store[storeKey] = saldo;
+            
+            // Guarda os dados para enviar no socket depois do .save()
+            isVariation = false;
+            updatedStockByStore = produto.stock_by_store;
         }
 
         produto.updatedAt = new Date();
         await produto.save();
-        console.log(`🎉 [SUCESSO ESTOQUE] Banco atualizado com sucesso para o produto: "${produto.name}"!\n`);
-        io.emit('stock_updated', {
-            blingId: produto.blingId,
-            sku: produto.sku,
-            name: produto.name,
-            hasVariations: produto.hasVariations,
-            stock_by_store: produto.stock_by_store,
-            variations: produto.variations // Envia a array atualizada para o front tratar se for filho
-        });
+        console.log(`🎉 [SUCESSO ESTOQUE] Banco updated com sucesso para o produto: "${produto.name}"!\n`);
+        
+        // 🔥 EMISSÃO DO SOCKET CORRIGIDA: Usa a variável certa para cada tipo de produto
+        const ioInstance = typeof io !== 'undefined' ? io : (typeof global.io !== 'undefined' ? global.io : null);
+        if (ioInstance && updatedStockByStore) {
+            ioInstance.emit("product_stock_updated", {
+                productId: produto._id.toString(),
+                isVariation: isVariation,
+                variantId: variantId,
+                variantBlingId: blingId ? blingId.toString() : null,
+                stock_by_store: updatedStockByStore
+            });
+            console.log(`⚡ [SOCKET] Evento de real-time enviado! (Variação: ${isVariation})`);
+        }
+
     } catch (err) {
         console.error("🚨 [ERRO CRÍTICO ESTOQUE] Falha ao processar ou salvar no MongoDB:", err.stack);
     }
