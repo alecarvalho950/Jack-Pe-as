@@ -275,36 +275,34 @@ function handleSocketProductUpdate(updatedProduct) {
 // Remove o produto da tela imediatamente se ele for excluído no Bling
 function handleSocketProductDelete(blingId) {
   if (!blingId) return;
-  console.log(`🗑️ Removendo produto Bling ID ${blingId} da tela por exclusão.`);
+  console.log(`🗑️ [FRONT-SOCKET] Removendo produto Bling ID ${blingId} da tela por exclusão.`);
   
-  // 1. Remove do array mestre de produtos
-  allProducts = allProducts.filter(p => {
-    if (String(p.blingId) === String(blingId)) return false;
-    if (p.variations) {
-      p.variations = p.variations.filter(v => String(v.blingId) !== String(blingId));
-      if (p.variations.length === 0 && p.hasVariations) return false; 
-    }
-    return true;
-  });
-
-  // 2. 🔥 SOLUÇÃO PARA O SUMIÇO IMEDIATO:
-  if (typeof filteredProducts !== 'undefined') {
-    filteredProducts = filteredProducts.filter(p => {
+  // 1. Remove do array mestre (allProducts)
+  if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
+    allProducts = allProducts.filter(p => {
       if (String(p.blingId) === String(blingId)) return false;
       if (p.variations) {
         p.variations = p.variations.filter(v => String(v.blingId) !== String(blingId));
-        if (p.variations.length === 0 && p.hasVariations) return false;
+        if (p.variations.length === 0 && p.hasVariations) return false; 
       }
       return true;
     });
   }
 
-  // 3. Se a exclusão afetou algo no carrinho, limpa também por segurança
-  cart = cart.filter(item => !item.id.startsWith(blingId));
-  updateCartUI();
+  // 2. CORREÇÃO: Removidas as referências a filteredProducts e currentProducts,
+  // pois a filtragem ativa e a renderização utilizam a variável local 'filtered' dentro de render()
 
-  // Re-renderiza imediatamente a listagem limpa na tela
-  render();
+  // 3. Se o produto excluído estava no carrinho, remove ele para evitar erros de finalização
+  if (typeof cart !== 'undefined' && Array.isArray(cart)) {
+    cart = cart.filter(item => !String(item.id).startsWith(blingId));
+    if (typeof updateCartUI === 'function') updateCartUI();
+  }
+
+  // 4. Força o redesenho imediato do HTML (que lê o allProducts atualizado e gera o 'filtered' correto)
+  console.log("🎨 [FRONT-SOCKET] Atualizando o catálogo na tela após exclusão...");
+  if (typeof render === 'function') {
+    render();
+  }
 }
 
 function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
