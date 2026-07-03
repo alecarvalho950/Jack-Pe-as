@@ -186,34 +186,78 @@ async function init() {
 
 // Processa a atualização vinda do servidor e atualiza a UI de forma cirúrgica
 function handleSocketStockUpdate(data) {
-  // Encontra o produto no nosso array local global
-  const targetProduct = allProducts.find(p => (p._id || p.id) === data.productId);
-  
-  if (!targetProduct) return;
+  console.log("📥 [FRONT-SOCKET] Dados recebidos no cliente:", data);
 
-  // Se a atualização for de uma variação específica
-  if (data.isVariation && targetProduct.variations) {
-    const vIdx = targetProduct.variations.findIndex(v => v.id_variant_bling === data.variantBlingId || v._id === data.variantId);
-    if (vIdx !== -1) {
-      targetProduct.variations[vIdx].stock_by_store = data.stock_by_store;
-      
-      // Atualiza o limite máximo no carrinho se o item já estiver lá
-      const varCartId = `${data.productId}-${vIdx}`;
-      const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
-      const newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
-      verificarLimitesCarrinhoRealTime(varCartId, newStock);
-    }
-  } else {
-    // Se for produto simples, atualiza o stock_by_store dele
-    targetProduct.stock_by_store = data.stock_by_store;
-    
-    const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
-    const newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
-    verificarLimitesCarrinhoRealTime(data.productId, newStock);
+  // 1. Busca robusta: compara o ID limpando possíveis espaços ou formatos
+  const targetProduct = allProducts.find(p => {
+    const prodId = p._id || p.id;
+    return String(prodId) === String(data.productId);
+  });
+  
+  if (!targetProduct) {
+    console.warn(`⚠️ [FRONT-SOCKET] Produto com ID ${data.productId} não foi encontrado no array local allProducts.`);
+    return;
   }
 
-  // Remanda renderizar a tela com os novos dados de estoque refletidos
+  console.log(`🎯 [FRONT-SOCKET] Produto localizado no front: "${targetProduct.name}"`);
+
+  const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
+  let newStock = 0;
+
+  // 2. Se a atualização for de uma variação específica
+  if (data.isVariation && targetProduct.variations) {
+    console.log(`🧬 Tratando como variação. Procurando Bling ID: ${data.variantBlingId}`);
+    
+    // Procura na array de variações usando o ID do banco ou o ID do Bling
+    const vIdx = targetProduct.variations.findIndex(v => 
+      String(v.blingId) === String(data.variantBlingId) || 
+      String(v._id) === String(data.variantId)
+    );
+
+    if (vIdx !== -1) {
+      targetProduct.variations[vIdx].stock_by_store = data.stock_by_store;
+      newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
+      
+      console.log(`✅ [FRONT-SOCKET] Estoque da variação "${targetProduct.variations[vIdx].name}" atualizado para ${newStock}`);
+      
+      const varCartId = `${targetProduct._id || targetProduct.id}-${vIdx}`;
+      verificarLimitesCarrinhoRealTime(varCartId, newStock, targetProduct.variations[vIdx].name);
+    } else {
+      console.warn("⚠️ [FRONT-SOCKET] Variação não encontrada dentro do produto.");
+    }
+  } else {
+    // 3. Se for produto simples
+    targetProduct.stock_by_store = data.stock_by_store;
+    newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
+    
+    console.log(`✅ [FRONT-SOCKET] Estoque do produto simples atualizado para ${newStock}`);
+    
+    verificarLimitesCarrinhoRealTime(targetProduct._id || targetProduct.id, newStock, targetProduct.name);
+  }
+
+  // 4. Força a UI a se redesenhar inteira com o novo array modificado!
+  console.log("🎨 [FRONT-SOCKET] Forçando renderização da tela...");
   render();
+}
+
+// Verifica se a nova quantidade derruba ou limita o que o usuário já tem no carrinho
+function verificarLimitesCarrinhoRealTime(itemId, newStock, itemName) {
+  const cartItem = cart.find(item => item.id === itemId);
+  if (!cartItem) return;
+
+  // Atualiza o maxStock guardado no objeto do carrinho
+  cartItem.maxStock = newStock;
+
+  // Se o estoque virou 0 ou menor do que ele tinha adicionado, ajustamos e avisamos
+  if (newStock <= 0) {
+    alert(`O produto "${itemName}" esgotou na unidade ativa e foi removido do seu carrinho.`);
+    cart = cart.filter(item => item.id !== itemId);
+  } else if (cartItem.quantity > newStock) {
+    alert(`A quantidade do produto "${itemName}" no seu carrinho foi ajustada para ${newStock} devido à disponibilidade do estoque.`);
+    cartItem.quantity = newStock;
+  }
+
+  updateCartUI();
 }
 
 // Verifica se a nova quantidade derruba ou limita o que o usuário já tem no carrinho
