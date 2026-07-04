@@ -710,7 +710,6 @@ async function processProductWebhook(data) {
                 await Product.findOneAndDelete({ blingId: blingId });
                 console.log(`🗑️ [SUCESSO] Variação filha limpa do catálogo.`);
                 
-                // 🔥 NOVO: Avisa o frontend para atualizar o pai que agora perdeu uma variação
                 if (typeof io !== 'undefined') {
                     const paiCompleto = await Product.findOne({ blingId: idPaiBling });
                     if (paiCompleto) {
@@ -722,15 +721,13 @@ async function processProductWebhook(data) {
                 const deletado = await Product.findOneAndDelete({ blingId: blingId });
                 if (deletado) {
                     console.log(`🗑️ [SUCESSO] Produto principal/simples "${deletado.name}" removido do MongoDB.`);
-                    
-                    // 🔥 NOVO: Emite o evento correto para o front apagar o card na hora!
                     if (typeof io !== 'undefined') {
                         io.emit('product_deleted', { blingId: blingId });
                         console.log(`⚡ [SOCKET] Evento product_deleted enviado para o Bling ID: ${blingId}`);
                     }
                 }
             }
-            return; // Encerra o processamento aqui!
+            return; 
         }
 
         // ============================================================
@@ -739,7 +736,6 @@ async function processProductWebhook(data) {
         if (idPaiBling !== "0" && idPaiBling !== "null" && idPaiBling !== undefined) {
             console.log(`🧬 [FILHO DETECTADO] ID ${blingId} ("${nomeProduto}") é filho do Pai Bling ID: ${idPaiBling}`);
 
-            // Tenta descobrir o "Valor" da variação pelo nome (Ex: "Cor:Preto" -> "Preto")
             let tipoVariacao = "Cor";
             let valorVariacao = "Padrão";
             if (nomeProduto.toUpperCase().includes("COR:")) {
@@ -757,12 +753,9 @@ async function processProductWebhook(data) {
                 value: valorVariacao
             };
 
-            // 🎯 CORREÇÃO DO VERSION ERROR: Atualiza usando findOneAndUpdate atômico em vez de carregar em memória e dar .save()
             const paiAtualizado = await Product.findOneAndUpdate(
                 { blingId: idPaiBling },
-                { 
-                    $set: { hasVariations: true, updatedAt: new Date() }
-                },
+                { $set: { hasVariations: true, updatedAt: new Date() } },
                 { new: true }
             );
 
@@ -771,10 +764,8 @@ async function processProductWebhook(data) {
                 return;
             }
 
-            // Garante o preço correto herdado se o preço do filho veio zerado
             if (objetoVariacao.price === 0) objetoVariacao.price = paiAtualizado.price;
 
-            // Gerencia a array de variações de forma segura
             let variationsArray = paiAtualizado.variations || [];
             const idxFilho = variationsArray.findIndex(v => v.blingId === blingId);
 
@@ -785,14 +776,11 @@ async function processProductWebhook(data) {
                 variationsArray.push(objetoVariacao);
             }
 
-            // Salva de forma isolada
             await Product.updateOne({ blingId: idPaiBling }, { $set: { variations: variationsArray } });
-
             console.log(`🎉 [SUCESSO VARIAÇÃO] Filho "${nomeProduto}" sincronizado com segurança dentro do Pai!\n`);
             await Product.findOneAndDelete({ blingId: blingId, hasVariations: false });
 
             if (typeof io !== 'undefined') {
-                // Buscamos o pai atualizado completo com as variações para mandar à rede
                 const paiCompleto = await Product.findOne({ blingId: idPaiBling });
                 if (paiCompleto) {
                     io.emit('product_updated', { product: paiCompleto });
@@ -845,9 +833,20 @@ async function processProductWebhook(data) {
         await produto.save();
         
         console.log(`🎉 [SUCESSO] Produto principal "${produto.name}" sincronizado com sucesso!\n`);
+        
         if (typeof io !== 'undefined') {
-            io.emit('product_updated', { product: produto });
-            console.log("⚡ [SOCKET] Evento product_updated (raiz) enviado com o objeto completo!");
+            const produtoCompleto = await Product.findById(produto._id || produto.id).lean();
+
+            if (produtoCompleto) {
+                // 🔥 CORREÇÃO DA CONDIÇÃO: Se ele está marcado com variação, avisa como estruturado estruturado independente da array estar preenchendo via delay
+                if (produtoCompleto.hasVariations) {
+                    console.log(`🧬 Enviando estrutura de variações ativa para o catálogo: "${produtoCompleto.name}"`);
+                } else {
+                    console.log(`📦 Enviando produto simples com estoque consolidado: "${produtoCompleto.name}"`);
+                }
+                io.emit('product_updated', { product: produtoCompleto });
+                console.log("⚡ [SOCKET] Evento product_updated enviado com dados consolidados e protegidos!");
+            }
         }
 
     } catch (err) {
@@ -862,16 +861,17 @@ async function processProductDeleteWebhook(blingId) {
 
         console.log(`🔍 [AUDITORIA EXCLUSÃO] Tentando remover identificador do Bling: ${idString}`);
 
-        // 1. Tenta deletar se for um produto comum ou Pai
         const produtoPaiDeletado = await Product.findOneAndDelete({ blingId: idString });
 
         if (produtoPaiDeletado) {
             console.log(`🗑️ [SUCESSO EXCLUSÃO] O produto principal "${produtoPaiDeletado.name}" foi removido do MongoDB.`);
+            // 🔥 CORREÇÃO: Emite a deleção física para o front-end limpar o catálogo imediatamente
+            if (typeof io !== 'undefined') {
+                io.emit('product_deleted', { blingId: idString });
+            }
             return;
         }
 
-        // 2. Se não era o pai, pode ser que tenham excluído uma variação isolada no Bling.
-        // Vamos procurar o produto que contém essa variação e removê-la da array.
         const paiDaVariacao = await Product.findOne({ "variations.blingId": idString });
 
         if (paiDaVariacao) {
@@ -883,7 +883,11 @@ async function processProductDeleteWebhook(blingId) {
             
             await paiDaVariacao.save();
             console.log(`🗑️ [SUCESSO EXCLUSÃO] Variação filha removida com sucesso.`);
-            io.emit('product_deleted', { blingId: idString });
+            
+            if (typeof io !== 'undefined') {
+                // Notifica que uma variação sumiu atualizando o card mestre pai
+                io.emit('product_updated', { product: paiDaVariacao });
+            }
             return;
         }
 
