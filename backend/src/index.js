@@ -582,26 +582,25 @@ async function processStockWebhook(data) {
         // 🎯 NOVA QUERY INTELIGENTE: Busca na raiz ou dentro da array de variações
         let query = {};
         if (blingId) {
-            query = {
-                $or: [
-                    { blingId: blingId },
-                    { "variations.blingId": blingId }
-                ]
-            };
+            query = { $or: [ { blingId: blingId }, { "variations.blingId": blingId } ] };
         } else if (sku) {
-            query = {
-                $or: [
-                    { sku: sku },
-                    { "variations.sku": sku }
-                ]
-            };
+            query = { $or: [ { sku: sku }, { "variations.sku": sku } ] };
         }
 
         console.log("🗄️  Buscando produto no MongoDB com a query adaptada:", JSON.stringify(query));
-        const produto = await Product.findOne(query);
+        let produto = await Product.findOne(query);
         
+        // ⏳ ESTRATÉGIA DE RETENTATIVA (RETRY LOGIC PARA CONDIÇÃO DE CORRIDA)
         if (!produto) {
-            console.error(`❌ [Webhook/Estoque] Produto/Variação com Identificador ${blingId || sku} NÃO foi encontrado no MongoDB!`);
+            console.log(`⏳ [ESTOQUE CORRIDA] Identificador ${blingId || sku} não achado de primeira. Aguardando 2 segundos para o produto ser cadastrado...`);
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Espera 2 segundos
+            
+            console.log("🗄️  [RETRY] Buscando produto novamente no MongoDB...");
+            produto = await Product.findOne(query);
+        }
+
+        if (!produto) {
+            console.error(`❌ [Webhook/Estoque] Produto/Variação com Identificador ${blingId || sku} NÃO foi encontrado no MongoDB após retentativa!`);
             return;
         }
 
