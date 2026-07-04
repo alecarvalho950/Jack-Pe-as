@@ -701,20 +701,33 @@ async function processProductWebhook(data) {
             console.log(`⚠️  [SITUAÇÃO DE EXCLUSÃO DETECTADA] Produto ID ${blingId} está com situação "${situacao}".`);
             
             if (idPaiBling !== "0" && idPaiBling !== "null" && idPaiBling !== undefined) {
-                // Se o inativado for um filho, remove ele atomicamente da array do Pai usando $pull (evita VersionError)
+                // Se o inativado for um filho, remove ele da array do Pai
                 console.log(`🧬 Removendo variação filha ID ${blingId} do produto Pai ID ${idPaiBling}...`);
                 await Product.updateOne(
                     { blingId: idPaiBling },
                     { $pull: { variations: { blingId: blingId } }, $set: { updatedAt: new Date() } }
                 );
-                // Limpa também qualquer lixo solto na raiz se houver
                 await Product.findOneAndDelete({ blingId: blingId });
                 console.log(`🗑️ [SUCESSO] Variação filha limpa do catálogo.`);
+                
+                // 🔥 NOVO: Avisa o frontend para atualizar o pai que agora perdeu uma variação
+                if (typeof io !== 'undefined') {
+                    const paiCompleto = await Product.findOne({ blingId: idPaiBling });
+                    if (paiCompleto) {
+                        io.emit('product_updated', { product: paiCompleto });
+                    }
+                }
             } else {
                 // Se for o produto principal/simples, deleta o documento inteiro
                 const deletado = await Product.findOneAndDelete({ blingId: blingId });
                 if (deletado) {
                     console.log(`🗑️ [SUCESSO] Produto principal/simples "${deletado.name}" removido do MongoDB.`);
+                    
+                    // 🔥 NOVO: Emite o evento correto para o front apagar o card na hora!
+                    if (typeof io !== 'undefined') {
+                        io.emit('product_deleted', { blingId: blingId });
+                        console.log(`⚡ [SOCKET] Evento product_deleted enviado para o Bling ID: ${blingId}`);
+                    }
                 }
             }
             return; // Encerra o processamento aqui!

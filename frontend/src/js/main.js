@@ -299,12 +299,15 @@ function handleSocketProductUpdate(updatedProduct) {
 // Remove o produto da tela imediatamente se ele for excluído no Bling
 function handleSocketProductDelete(blingId) {
   if (!blingId) return;
-  console.log(`🗑️ [FRONT-SOCKET] Removendo produto Bling ID ${blingId} da tela por exclusão.`);
+  console.log(`🗑️ [FRONT-SOCKET] Removendo produto Bling ID ${blingId} da lista ativa.`);
   
-  // 1. Remove do array mestre (allProducts)
+  // Filtra o array mestre removendo o produto deletado
   if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
     allProducts = allProducts.filter(p => {
+      // Se for o produto principal deletado
       if (String(p.blingId) === String(blingId)) return false;
+      
+      // Se for uma variação deletada isoladamente
       if (p.variations) {
         p.variations = p.variations.filter(v => String(v.blingId) !== String(blingId));
         if (p.variations.length === 0 && p.hasVariations) return false; 
@@ -313,20 +316,15 @@ function handleSocketProductDelete(blingId) {
     });
   }
 
-  // 2. CORREÇÃO: Removidas as referências a filteredProducts e currentProducts,
-  // pois a filtragem ativa e a renderização utilizam a variável local 'filtered' dentro de render()
-
-  // 3. Se o produto excluído estava no carrinho, remove ele para evitar erros de finalização
+  // Remove do carrinho se o cliente tinha adicionado ele antes de ser deletado
   if (typeof cart !== 'undefined' && Array.isArray(cart)) {
     cart = cart.filter(item => !String(item.id).startsWith(blingId));
     if (typeof updateCartUI === 'function') updateCartUI();
   }
 
-  // 4. Força o redesenho imediato do HTML (que lê o allProducts atualizado e gera o 'filtered' correto)
-  console.log("🎨 [FRONT-SOCKET] Atualizando o catálogo na tela após exclusão...");
-  if (typeof render === 'function') {
-    render();
-  }
+  // Redesenha a tela imediatamente sem o produto
+  console.log("🎨 [FRONT-SOCKET] Redesenhando catálogo limpo...");
+  render();
 }
 
 function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
