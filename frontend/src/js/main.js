@@ -252,14 +252,38 @@ function handleSocketProductUpdate(updatedProduct) {
   const productId = updatedProduct._id || updatedProduct.id;
   console.log(`📥 [FRONT-SOCKET] Atualização de produto recebida para: "${updatedProduct.name}"`);
 
-  // Tenta encontrar se esse produto já existe na nossa listagem da tela
+  // 🔥 SACADA DO BLING: Se o produto foi inativado/excluído no Bling, removemos ele da tela na hora!
+  // (Verifique se o seu backend salva como 'Inativo', 'inativo', 'I' ou se a propriedade 'situacao' existe)
+  const status = updatedProduct.situacao || updatedProduct.status || "";
+  const isInactive = String(status).toLowerCase().startsWith("i") || updatedProduct.action === "delete";
+
+  if (isInactive) {
+    console.log(`🗑️ [FRONT-SOCKET] O produto "${updatedProduct.name}" está INATIVO no Bling. Removendo do catálogo.`);
+    
+    // Remove do array mestre para sumir da tela imediatamente
+    if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
+      allProducts = allProducts.filter(p => String(p._id || p.id) === String(productId));
+    }
+    
+    // Se ele estava no carrinho, remove por segurança
+    if (typeof cart !== 'undefined' && Array.isArray(cart)) {
+      cart = cart.filter(item => !String(item.id).startsWith(productId));
+      if (typeof updateCartUI === 'function') updateCartUI();
+    }
+    
+    // Força o redesenho imediato do catálogo limpo
+    render();
+    return; // Encerra o fluxo aqui
+  }
+
+  // ── SE O PRODUTO ESTIVER ATIVO, SEGUE O FLUXO NORMAL DE ATUALIZAÇÃO ──
   const idx = allProducts.findIndex(p => String(p._id || p.id) === String(productId));
 
   if (idx !== -1) {
     console.log(`📝 Atualizando dados de precificação/nome de "${updatedProduct.name}" na tela.`);
     allProducts[idx] = updatedProduct;
   } else {
-    // Se o produto acabou de ser criado no Bling, injeta no início do catálogo!
+    // Se o produto acabou de ser criado no Bling e está ativo, injeta no início!
     console.log(`✨ Inserindo novo produto criado "${updatedProduct.name}" no início do catálogo.`);
     allProducts.unshift(updatedProduct);
   }
