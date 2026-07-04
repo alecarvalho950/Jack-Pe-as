@@ -753,15 +753,29 @@ async function processProductWebhook(data) {
                 value: valorVariacao
             };
 
-            const paiAtualizado = await Product.findOneAndUpdate(
+            // 🎯 SACADA MATADORA: Tenta atualizar o pai. Se não existir, CRIA o pai preventivamente!
+            let paiAtualizado = await Product.findOneAndUpdate(
                 { blingId: idPaiBling },
                 { $set: { hasVariations: true, updatedAt: new Date() } },
                 { new: true }
             );
 
             if (!paiAtualizado) {
-                console.warn(`⚠️  [Webhook/Produto] O produto Pai ID ${idPaiBling} ainda não existe no banco.`);
-                return;
+                console.log(`⚠️  [CONDIÇÃO DE CORRIDA] Pai ID ${idPaiBling} ainda não existe. Criando estrutura temporária para o Pai.`);
+                // Extrai um nome base aproximado para o Pai limpando a variação do nome do filho
+                const nomePaiAproximado = nomeProduto.split(/cor:/i)[0].trim();
+                
+                paiAtualizado = new Product({
+                    blingId: idPaiBling,
+                    name: nomePaiAproximado,
+                    category: mapCategory(nomeProduto)?.cat || "Geral",
+                    subcategory: mapCategory(nomeProduto)?.sub || "",
+                    stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
+                    variations: [],
+                    hasVariations: true,
+                    price: objetoVariacao.price
+                });
+                await paiAtualizado.save();
             }
 
             if (objetoVariacao.price === 0) objetoVariacao.price = paiAtualizado.price;
@@ -776,15 +790,18 @@ async function processProductWebhook(data) {
                 variationsArray.push(objetoVariacao);
             }
 
+            // Atualiza a array de variações no banco
             await Product.updateOne({ blingId: idPaiBling }, { $set: { variations: variationsArray } });
-            console.log(`🎉 [SUCESSO VARIAÇÃO] Filho "${nomeProduto}" sincronizado com segurança dentro do Pai!\n`);
+            console.log(`🎉 [SUCESSO VARIAÇÃO] Filho "${nomeProduto}" inserido e consolidado com sucesso!`);
+            
+            // Remove lixo duplicado se houver
             await Product.findOneAndDelete({ blingId: blingId, hasVariations: false });
 
             if (typeof io !== 'undefined') {
                 const paiCompleto = await Product.findOne({ blingId: idPaiBling });
                 if (paiCompleto) {
                     io.emit('product_updated', { product: paiCompleto });
-                    console.log("⚡ [SOCKET] Evento product_updated (variação) enviado com o objeto completo!");
+                    console.log("⚡ [SOCKET] Evento product_updated (variação corrida) enviado com sucesso!");
                 }
             }
             return;
