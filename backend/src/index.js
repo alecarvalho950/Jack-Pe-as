@@ -737,13 +737,15 @@ async function processProductWebhook(data) {
 
             let tipoVariacao = "Cor";
             let valorVariacao = "Padrão";
+            
+            // Extrai o nome da variação (Ex: "Azul", "Preto")
             if (nomeProduto.toUpperCase().includes("COR:")) {
                 const partes = nomeProduto.split(/cor:/i);
                 if (partes[1]) valorVariacao = partes[1].trim();
             }
 
             const objetoVariacao = {
-                blingId: blingId,
+                blingId: String(blingId),
                 sku: data.codigo ? String(data.codigo).trim() : "",
                 name: nomeProduto,
                 price: !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : 0,
@@ -752,20 +754,20 @@ async function processProductWebhook(data) {
                 value: valorVariacao
             };
 
-            // 🎯 SACADA MATADORA: Tenta atualizar o pai. Se não existir, CRIA o pai preventivamente!
+            // 🎯 Garante que o Pai existe com a flag hasVariations ligada
             let paiAtualizado = await Product.findOneAndUpdate(
-                { blingId: idPaiBling },
+                { blingId: String(idPaiBling) },
                 { $set: { hasVariations: true, updatedAt: new Date() } },
                 { new: true }
             );
 
+            // Se o Pai não existia (condição de corrida onde o filho veio primeiro)
             if (!paiAtualizado) {
-                console.log(`⚠️  [CONDIÇÃO DE CORRIDA] Pai ID ${idPaiBling} ainda não existe. Criando estrutura temporária para o Pai.`);
-                // Extrai um nome base aproximado para o Pai limpando a variação do nome do filho
+                console.log(`⚠️  [CONDIÇÃO DE CORRIDA] Pai ID ${idPaiBling} ainda não existe. Criando estrutura inicial do Pai.`);
                 const nomePaiAproximado = nomeProduto.split(/cor:/i)[0].trim();
                 
                 paiAtualizado = new Product({
-                    blingId: idPaiBling,
+                    blingId: String(idPaiBling),
                     name: nomePaiAproximado,
                     category: mapCategory(nomeProduto)?.cat || "Geral",
                     subcategory: mapCategory(nomeProduto)?.sub || "",
@@ -777,30 +779,38 @@ async function processProductWebhook(data) {
                 await paiAtualizado.save();
             }
 
+            // Preserva preços zerados herdando do pai
             if (objetoVariacao.price === 0) objetoVariacao.price = paiAtualizado.price;
 
+            // 🔥 SEGURANÇA MÁXIMA DA ARRAY: Puxa a lista atual do banco para não apagar variações antigas
             let variationsArray = paiAtualizado.variations || [];
-            const idxFilho = variationsArray.findIndex(v => v.blingId === blingId);
+            const idxFilho = variationsArray.findIndex(v => String(v.blingId) === String(blingId));
 
             if (idxFilho !== -1) {
+                // Se o filho já existia, atualiza os dados preservando o estoque dele
                 objetoVariacao.stock_by_store = variationsArray[idxFilho].stock_by_store || objetoVariacao.stock_by_store;
                 variationsArray[idxFilho] = objetoVariacao;
+                console.log(`📝 Atualizando variação existente index [${idxFilho}] no Pai.`);
             } else {
+                // Se é uma variação NOVA (Ex: a segunda cor), dá um .push() para acumular!
                 variationsArray.push(objetoVariacao);
+                console.log(`➕ Adicionando NOVA variação à lista do Pai (Total atual: ${variationsArray.length}).`);
             }
 
-            // Atualiza a array de variações no banco
-            await Product.updateOne({ blingId: idPaiBling }, { $set: { variations: variationsArray } });
-            console.log(`🎉 [SUCESSO VARIAÇÃO] Filho "${nomeProduto}" inserido e consolidado com sucesso!`);
+            // Atualiza o Pai no MongoDB salvando a lista acumulada de variações
+            await Product.updateOne(
+                { blingId: String(idPaiBling) }, 
+                { $set: { variations: variationsArray } }
+            );
             
-            // Remove lixo duplicado se houver
-            await Product.findOneAndDelete({ blingId: blingId, hasVariations: false });
+            console.log(`🎉 [SUCESSO VARIAÇÃO] Filho "${nomeProduto}" consolidado na árvore do Pai!`);
 
+            // Emite o evento Socket contendo o Pai atualizado com TODAS as suas variações juntas
             if (typeof io !== 'undefined') {
-                const paiCompleto = await Product.findOne({ blingId: idPaiBling });
+                const paiCompleto = await Product.findOne({ blingId: String(idPaiBling) });
                 if (paiCompleto) {
                     io.emit('product_updated', { product: paiCompleto });
-                    console.log("⚡ [SOCKET] Evento product_updated (variação corrida) enviado com sucesso!");
+                    console.log(`⚡ [SOCKET] Enviado catálogo com ${paiCompleto.variations?.length} variações ativas.`);
                 }
             }
             return;
@@ -813,7 +823,7 @@ async function processProductWebhook(data) {
 
         if (!categoriaMapeada || !categoriaMapeada.cat) {
             console.warn(`🚫 [PRODUTO IGNORADO] "${nomeProduto}" não corresponde a nenhuma categoria válida.`);
-            await Product.findOneAndDelete({ blingId });
+            // Apenas ignore em vez de deletar, para não destruir a árvore caso o Pai falte mapear
             return;
         }
 
@@ -827,7 +837,7 @@ async function processProductWebhook(data) {
             produto = new Product({
                 blingId: blingId,
                 stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
-                variations: [],
+                variations: [], // Cria a array vazia apenas porque o produto é 100% novo no banco
                 hasVariations: data.formato === "V"
             });
         }
@@ -840,8 +850,12 @@ async function processProductWebhook(data) {
         
         if (data.formato === "V") produto.hasVariations = true;
 
+        // Atualiza os preços das variações se o Pai sofrer alteração de valor, sem matar outras propriedades
         if (!ehNovoProduto && produto.hasVariations && produto.variations?.length > 0) {
-            produto.variations = produto.variations.map(v => ({ ...v, price: produto.price }));
+            produto.variations = produto.variations.map(v => ({ 
+                ...v, 
+                price: produto.price // Preserva stock_by_store, sku, etc.
+            }));
             produto.markModified('variations');
         }
 
@@ -851,12 +865,12 @@ async function processProductWebhook(data) {
         console.log(`🎉 [SUCESSO] Produto principal "${produto.name}" sincronizado com sucesso!\n`);
         
         if (typeof io !== 'undefined') {
+            // Rebusca usando lean() para obter o estado mais fresco e completo do banco
             const produtoCompleto = await Product.findById(produto._id || produto.id).lean();
 
             if (produtoCompleto) {
-                // 🔥 CORREÇÃO DA CONDIÇÃO: Se ele está marcado com variação, avisa como estruturado estruturado independente da array estar preenchendo via delay
                 if (produtoCompleto.hasVariations) {
-                    console.log(`🧬 Enviando estrutura de variações ativa para o catálogo: "${produtoCompleto.name}"`);
+                    console.log(`🧬 Enviando estrutura de variações ativa para o catálogo: "${produtoCompleto.name}" (Variações atuais: ${produtoCompleto.variations?.length})`);
                 } else {
                     console.log(`📦 Enviando produto simples com estoque consolidado: "${produtoCompleto.name}"`);
                 }
