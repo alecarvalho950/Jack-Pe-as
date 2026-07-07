@@ -242,7 +242,8 @@ function handleSocketProductUpdate(updatedProduct) {
     
     if (removedVars.length > 0) {
         removedVars.forEach(rv => {
-            cart = cart.filter(c => !String(c.id).includes(String(rv.blingId)));
+            const varIdTarget = `${productId}-${rv.blingId}`;
+            cart = cart.filter(c => String(c.id) !== String(varIdTarget));
         });
         updateCartUI();
     }
@@ -367,11 +368,13 @@ function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
       // Se o produto atualizado trabalha com variações, varre para achar o índice correto mapeado no carrinho
       if (updatedProduct.hasVariations && updatedProduct.variations) {
         const parts = String(item.id).split('-');
-        const vIdx = parts[1] ? parseInt(parts[1]) : -1;
+        const varBlingId = parts[1]; // Agora pegamos o Bling ID exato
         
-        if (vIdx !== -1 && updatedProduct.variations[vIdx]) {
-          item.name = updatedProduct.variations[vIdx].name;
-          item.price = updatedProduct.variations[vIdx].price;
+        const matchedVar = updatedProduct.variations.find(v => String(v.blingId) === String(varBlingId));
+        
+        if (matchedVar) {
+          item.name = matchedVar.name;
+          item.price = matchedVar.price;
         }
       } else {
         // Produto simples
@@ -876,7 +879,7 @@ function renderCard(p) {
     .map((v, index) => {
       const vStock = getVariationStock(v);
       const isVOOS = vStock <= 0;
-      const varId = `${productId}-${index}`;
+      const varId = `${productId}-${v.blingId}`;
       const alreadyInCart = isInCart(varId);
       const varFullName = `${p.name} (${v.type}: ${v.value})`;
       const vStyleClasses = isVOOS

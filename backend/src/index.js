@@ -803,72 +803,57 @@ async function processProductWebhook(data) {
 
         if (!categoriaMapeada || !categoriaMapeada.cat) {
             console.warn(`🚫 [PRODUTO IGNORADO] "${nomeProduto}" não corresponde a nenhuma categoria válida.`);
-            // Apenas ignore em vez de deletar, para não destruir a árvore caso o Pai falte mapear
             return;
         }
 
-        let produto = await Product.findOne({ blingId });
-        let ehNovoProduto = false;
+        const updateFields = {
+            name: nomeProduto,
+            category: categoriaMapeada.cat,
+            subcategory: categoriaMapeada.sub || "",
+            updatedAt: new Date()
+        };
 
-        if (!produto) {
-            console.log(`✨ [NOVO PRODUTO VÁLIDO DETECTADO] "${nomeProduto}". Criando registro...`);
-            ehNovoProduto = true;
+        if (data.codigo) updateFields.sku = String(data.codigo).trim();
+        if (!isNaN(parseFloat(data.preco))) updateFields.price = parseFloat(data.preco);
+        if (data.formato === "V") updateFields.hasVariations = true;
+
+        // 🎯 1. ATUALIZAÇÃO ATÔMICA DO PAI (Evita o problema do .save() sobrescrever variações)
+        let produtoAtualizado = await Product.findOneAndUpdate(
+            { blingId },
+            { 
+                $set: updateFields,
+                $setOnInsert: {
+                    stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
+                    variations: []
+                }
+            },
+            { new: true, upsert: true }
+        );
+
+        // 🎯 2. PROPAGAÇÃO DE PREÇO ATÔMICA
+        if (produtoAtualizado.hasVariations && updateFields.price !== undefined) {
+            await Product.updateOne(
+                { blingId },
+                { $set: { "variations.$[].price": updateFields.price } }
+            );
+        }
+
+        // 🎯 3. SINCRONIA E LIMPEZA DE ÓRFÃOS ATÔMICA
+        if (produtoAtualizado.hasVariations && data.variacoes && Array.isArray(data.variacoes)) {
+            const idsVariacoesNoBling = data.variacoes.map(v => String(v.id));
             
-            produto = new Product({
-                blingId: blingId,
-                stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
-                variations: [], // Cria a array vazia apenas porque o produto é 100% novo no banco
-                hasVariations: data.formato === "V"
-            });
+            // Remove qualquer variação cuja blingId não esteja na lista oficial enviada AGORA pelo Bling
+            await Product.updateOne(
+                { blingId },
+                { $pull: { variations: { blingId: { $nin: idsVariacoesNoBling } } } }
+            );
         }
-
-        produto.name = nomeProduto;
-        produto.category = categoriaMapeada.cat;
-        produto.subcategory = categoriaMapeada.sub || "";
-        produto.sku = data.codigo ? String(data.codigo).trim() : (produto.sku || "");
-        produto.price = !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : (produto.price || 0);
         
-        if (data.formato === "V") produto.hasVariations = true;
-
-        // 🎯 CORREÇÃO: Sincronia Ativa de Variações
-if (produto.hasVariations && data.variacoes && Array.isArray(data.variacoes)) {
-    // 1. Pega os IDs atuais que o Bling diz que existem
-    const idsVariacoesNoBling = data.variacoes.map(v => String(v.id));
-    
-    // 2. Filtra o array do banco mantendo apenas as que ainda existem no Bling
-    const variacoesQueSobreviveram = produto.variations.filter(v => 
-        idsVariacoesNoBling.includes(String(v.blingId))
-    );
-
-    // 3. Se o tamanho mudou, significa que algo foi deletado lá no Bling
-    if (variacoesQueSobreviveram.length !== produto.variations.length) {
-        console.log(`🧹 [LIMPEZA] Variações órfãs detectadas. Sincronizando com o Bling...`);
-        produto.variations = variacoesQueSobreviveram;
-        produto.markModified('variations');
-        
-        // Se após remover as variações, a array ficar vazia, podemos resetar o hasVariations
-        if (produto.variations.length === 0) produto.hasVariations = false;
-    }
-}
-
-        // Atualiza os preços das variações se o Pai sofrer alteração de valor, sem matar outras propriedades
-        if (!ehNovoProduto && produto.hasVariations && produto.variations?.length > 0) {
-            produto.variations = produto.variations.map(v => ({ 
-                ...v, 
-                price: produto.price // Preserva stock_by_store, sku, etc.
-            }));
-            produto.markModified('variations');
-        }
-
-        produto.updatedAt = new Date();
-        await produto.save();
-        
-        console.log(`🎉 [SUCESSO] Produto principal "${produto.name}" sincronizado com sucesso!\n`);
+        console.log(`🎉 [SUCESSO] Produto principal "${produtoAtualizado.name}" sincronizado com sucesso!\n`);
         
         if (typeof io !== 'undefined') {
-            // Rebusca usando lean() para obter o estado mais fresco e completo do banco
-            const produtoCompleto = await Product.findById(produto._id || produto.id).lean();
-
+            // Busca o estado perfeitamente consolidado para enviar ao Front
+            const produtoCompleto = await Product.findOne({ blingId }).lean();
             if (produtoCompleto) {
                 if (produtoCompleto.hasVariations) {
                     console.log(`🧬 Enviando estrutura de variações ativa para o catálogo: "${produtoCompleto.name}" (Variações atuais: ${produtoCompleto.variations?.length})`);
