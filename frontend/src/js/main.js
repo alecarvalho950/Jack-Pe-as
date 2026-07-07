@@ -246,25 +246,38 @@ function handleSocketProductUpdate(updatedProduct) {
 function handleSocketProductDelete(blingId) {
   if (!blingId) return;
   console.log(`🗑️ [FRONT-SOCKET] Removendo produto Bling ID ${blingId} da lista ativa.`);
-  
-  // Filtra o array mestre removendo o produto deletado
+
+  // Array para armazenar o(s) ID(s) do MongoDB do(s) produto(s) excluído(s)
+  let mongoIdsToRemove = [];
+
+  // Filtra o array mestre removendo o produto deletado e coleta os IDs originais
   if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
     allProducts = allProducts.filter(p => {
       // Se for o produto principal deletado
-      if (String(p.blingId) === String(blingId)) return false;
+      if (String(p.blingId) === String(blingId)) {
+        mongoIdsToRemove.push(String(p._id || p.id));
+        return false;
+      }
       
       // Se for uma variação deletada isoladamente
       if (p.variations) {
         p.variations = p.variations.filter(v => String(v.blingId) !== String(blingId));
-        if (p.variations.length === 0 && p.hasVariations) return false; 
+        if (p.variations.length === 0 && p.hasVariations) {
+          mongoIdsToRemove.push(String(p._id || p.id));
+          return false; 
+        }
       }
       return true;
     });
   }
 
-  // Remove do carrinho se o cliente tinha adicionado ele antes de ser deletado
-  if (typeof cart !== 'undefined' && Array.isArray(cart)) {
-    cart = cart.filter(item => !String(item.id).startsWith(blingId));
+  // Remove do carrinho SILENCIOSAMENTE usando o ID extraído do banco
+  if (typeof cart !== 'undefined' && Array.isArray(cart) && mongoIdsToRemove.length > 0) {
+    cart = cart.filter(item => {
+      // Divide o ID do carrinho (Ex: "MongoID-0") para pegar só a base e comparar
+      const itemBaseMongoId = String(item.id).split('-')[0];
+      return !mongoIdsToRemove.includes(itemBaseMongoId);
+    });
     if (typeof updateCartUI === 'function') updateCartUI();
   }
 
