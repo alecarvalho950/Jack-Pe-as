@@ -197,28 +197,26 @@ async function init() {
    FUNÇÃO AUXILIAR PARA REAL-TIME
 ────────────────────────────────────────── */
 
-// Processa a atualização vinda do servidor e atualiza a UI de forma cirúrgica
-function handleSocketProductUpdate(data) {
-  // Captura o objeto interno 'product' enviado pelo backend
-  const updatedProduct = data?.product;
+function handleSocketProductUpdate(updatedProduct) {
+  // Como o init() passa `data.product`, já recebemos o objeto do produto direto aqui
   if (!updatedProduct) return;
 
   const productId = updatedProduct._id || updatedProduct.id;
-  console.log(`📥 [FRONT-SOCKET] Atualização de produto recebida para: "${updatedProduct.name}"`);
+  console.log(`📥 [FRONT-SOCKET] Atualização recebida para: "${updatedProduct.name}"`);
 
-  // Verifica se a situação indica inatividade ou exclusão
+  // Verifica se o produto foi excluído/inativado
   const status = updatedProduct.situacao || updatedProduct.status || "";
   const isInactive = String(status).toLowerCase().startsWith("i") || String(status).toLowerCase().startsWith("e") || updatedProduct.action === "delete";
 
   if (isInactive) {
-    console.log(`🗑️ [FRONT-SOCKET] O produto "${updatedProduct.name}" está INATIVO/EXCLUÍDO. Removendo do catálogo.`);
+    console.log(`🗑️ [FRONT-SOCKET] O produto "${updatedProduct.name}" está INATIVO/EXCLUÍDO. Removendo da tela.`);
     
-    // 🔥 CORREÇÃO CRÍTICA: Alterado de '===' para '!==' para manter os outros produtos na tela
+    // 🛡️ CORREÇÃO MANTIDA: Usamos !== para apagar o produto excluído e MANTER os outros
     if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
       allProducts = allProducts.filter(p => String(p._id || p.id) !== String(productId));
     }
     
-    // Remove do carrinho se ele estiver lá
+    // Remove do carrinho ativo
     if (typeof cart !== 'undefined' && Array.isArray(cart)) {
       cart = cart.filter(item => !String(item.id).startsWith(productId));
       if (typeof updateCartUI === 'function') updateCartUI();
@@ -228,73 +226,19 @@ function handleSocketProductUpdate(data) {
     return; 
   }
 
-  // ── SE O PRODUTO ESTIVER ATIVO, SEGUE O FLUXO NORMAL DE ATUALIZAÇÃO/RECUPERAÇÃO ──
+  // ── FLUXO NORMAL (CADASTRO / ATUALIZAÇÃO DE PRODUTO ATIVO) ──
   const idx = allProducts.findIndex(p => String(p._id || p.id) === String(productId));
 
   if (idx !== -1) {
-    console.log(`📝 Atualizando dados cadastrais/estruturais de "${updatedProduct.name}" na tela.`);
+    console.log(`📝 Atualizando dados de "${updatedProduct.name}" no catálogo.`);
     allProducts[idx] = updatedProduct;
   } else {
-    // Se o produto foi recuperado ou criado, inserimos no início da listagem ativa
-    console.log(`✨ Inserindo/Recuperando produto ativo "${updatedProduct.name}" no catálogo.`);
+    console.log(`✨ Inserindo novo produto "${updatedProduct.name}" na tela.`);
     allProducts.unshift(updatedProduct);
   }
 
-  // Atualiza as informações do item caso ele esteja dentro do carrinho do cliente
   atualizarDadosCarrinhoRealTime(productId, updatedProduct);
-
-  // Redesenha a tela instantaneamente
-  console.log("🎨 [FRONT-SOCKET] Redesenhando catálogo para aplicar novos dados cadastrais...");
-  render();
-}
-
-function handleSocketProductUpdate(updatedProduct) {
-  if (!updatedProduct) return;
-
-  const productId = updatedProduct._id || updatedProduct.id;
-  console.log(`📥 [FRONT-SOCKET] Atualização de produto recebida para: "${updatedProduct.name}"`);
-
-  // 🔥 SACADA DO BLING: Se o produto foi inativado/excluído no Bling, removemos ele da tela na hora!
-  // (Verifique se o seu backend salva como 'Inativo', 'inativo', 'I' ou se a propriedade 'situacao' existe)
-  const status = updatedProduct.situacao || updatedProduct.status || "";
-  const isInactive = String(status).toLowerCase().startsWith("i") || updatedProduct.action === "delete";
-
-  if (isInactive) {
-    console.log(`🗑️ [FRONT-SOCKET] O produto "${updatedProduct.name}" está INATIVO no Bling. Removendo do catálogo.`);
-    
-    // Remove do array mestre para sumir da tela imediatamente
-    if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
-      allProducts = allProducts.filter(p => String(p._id || p.id) === String(productId));
-    }
-    
-    // Se ele estava no carrinho, remove por segurança
-    if (typeof cart !== 'undefined' && Array.isArray(cart)) {
-      cart = cart.filter(item => !String(item.id).startsWith(productId));
-      if (typeof updateCartUI === 'function') updateCartUI();
-    }
-    
-    // Força o redesenho imediato do catálogo limpo
-    render();
-    return; // Encerra o fluxo aqui
-  }
-
-  // ── SE O PRODUTO ESTIVER ATIVO, SEGUE O FLUXO NORMAL DE ATUALIZAÇÃO ──
-  const idx = allProducts.findIndex(p => String(p._id || p.id) === String(productId));
-
-  if (idx !== -1) {
-    console.log(`📝 Atualizando dados de precificação/nome de "${updatedProduct.name}" na tela.`);
-    allProducts[idx] = updatedProduct;
-  } else {
-    // Se o produto acabou de ser criado no Bling e está ativo, injeta no início!
-    console.log(`✨ Inserindo novo produto criado "${updatedProduct.name}" no início do catálogo.`);
-    allProducts.unshift(updatedProduct);
-  }
-
-  // Atualiza as informações do item caso ele esteja dentro do carrinho do cliente
-  atualizarDadosCarrinhoRealTime(productId, updatedProduct);
-
-  // Força a tela a redesenhar os cards
-  console.log("🎨 [FRONT-SOCKET] Redesenhando catálogo para aplicar novos dados cadastrais...");
+  console.log("🎨 [FRONT-SOCKET] Redesenhando o catálogo para exibir a novidade...");
   render();
 }
 
