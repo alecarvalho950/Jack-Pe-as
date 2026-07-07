@@ -230,10 +230,25 @@ function handleSocketProductUpdate(updatedProduct) {
   const idx = allProducts.findIndex(p => String(p._id || p.id) === String(productId));
 
   if (idx !== -1) {
-    console.log(`📝 Atualizando dados de "${updatedProduct.name}" no catálogo.`);
+    // Se o produto já existe, atualizamos
+    allProducts[idx] = updatedProduct;
+    
+    // 🛡️ LIMPEZA DE CARRINHO: Se o produto atualizado tem menos variações que o anterior,
+    // precisamos remover as variações que sumiram do objeto do carrinho!
+    const oldVariations = allProducts[idx].variations || [];
+    const newVariations = updatedProduct.variations || [];
+    
+    const removedVars = oldVariations.filter(ov => !newVariations.find(nv => String(nv.blingId) === String(ov.blingId)));
+    
+    if (removedVars.length > 0) {
+        removedVars.forEach(rv => {
+            cart = cart.filter(c => !String(c.id).includes(String(rv.blingId)));
+        });
+        updateCartUI();
+    }
+    
     allProducts[idx] = updatedProduct;
   } else {
-    console.log(`✨ Inserindo novo produto "${updatedProduct.name}" na tela.`);
     allProducts.unshift(updatedProduct);
   }
 

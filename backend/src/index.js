@@ -830,6 +830,27 @@ async function processProductWebhook(data) {
         
         if (data.formato === "V") produto.hasVariations = true;
 
+        // 🎯 CORREÇÃO: Sincronia Ativa de Variações
+if (produto.hasVariations && data.variacoes && Array.isArray(data.variacoes)) {
+    // 1. Pega os IDs atuais que o Bling diz que existem
+    const idsVariacoesNoBling = data.variacoes.map(v => String(v.id));
+    
+    // 2. Filtra o array do banco mantendo apenas as que ainda existem no Bling
+    const variacoesQueSobreviveram = produto.variations.filter(v => 
+        idsVariacoesNoBling.includes(String(v.blingId))
+    );
+
+    // 3. Se o tamanho mudou, significa que algo foi deletado lá no Bling
+    if (variacoesQueSobreviveram.length !== produto.variations.length) {
+        console.log(`🧹 [LIMPEZA] Variações órfãs detectadas. Sincronizando com o Bling...`);
+        produto.variations = variacoesQueSobreviveram;
+        produto.markModified('variations');
+        
+        // Se após remover as variações, a array ficar vazia, podemos resetar o hasVariations
+        if (produto.variations.length === 0) produto.hasVariations = false;
+    }
+}
+
         // Atualiza os preços das variações se o Pai sofrer alteração de valor, sem matar outras propriedades
         if (!ehNovoProduto && produto.hasVariations && produto.variations?.length > 0) {
             produto.variations = produto.variations.map(v => ({ 
