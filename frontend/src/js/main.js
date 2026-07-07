@@ -198,62 +198,46 @@ async function init() {
 ────────────────────────────────────────── */
 
 function handleSocketProductUpdate(updatedProduct) {
-  // Como o init() passa `data.product`, já recebemos o objeto do produto direto aqui
   if (!updatedProduct) return;
 
   const productId = updatedProduct._id || updatedProduct.id;
   console.log(`📥 [FRONT-SOCKET] Atualização recebida para: "${updatedProduct.name}"`);
 
-  // Verifica se o produto foi excluído/inativado
   const status = updatedProduct.situacao || updatedProduct.status || "";
   const isInactive = String(status).toLowerCase().startsWith("i") || String(status).toLowerCase().startsWith("e") || updatedProduct.action === "delete";
 
   if (isInactive) {
     console.log(`🗑️ [FRONT-SOCKET] O produto "${updatedProduct.name}" está INATIVO/EXCLUÍDO. Removendo da tela.`);
     
-    // 🛡️ CORREÇÃO MANTIDA: Usamos !== para apagar o produto excluído e MANTER os outros
     if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
       allProducts = allProducts.filter(p => String(p._id || p.id) !== String(productId));
     }
     
-    // Remove do carrinho ativo
+    // Remove TUDO atrelado a este produto do carrinho silenciosamente
     if (typeof cart !== 'undefined' && Array.isArray(cart)) {
-      cart = cart.filter(item => !String(item.id).startsWith(productId));
-      if (typeof updateCartUI === 'function') updateCartUI();
+      const itensAntes = cart.length;
+      cart = cart.filter(item => !String(item.id).startsWith(String(productId)));
+      if (cart.length < itensAntes) {
+          mostrarAvisoCarrinho(`Um produto que estava no seu carrinho foi inativado e removido.`);
+          if (typeof updateCartUI === 'function') updateCartUI();
+      }
     }
     
     render();
     return; 
   }
 
-  // ── FLUXO NORMAL (CADASTRO / ATUALIZAÇÃO DE PRODUTO ATIVO) ──
   const idx = allProducts.findIndex(p => String(p._id || p.id) === String(productId));
 
   if (idx !== -1) {
-    // Se o produto já existe, atualizamos
-    allProducts[idx] = updatedProduct;
-    
-    // 🛡️ LIMPEZA DE CARRINHO: Se o produto atualizado tem menos variações que o anterior,
-    // precisamos remover as variações que sumiram do objeto do carrinho!
-    const oldVariations = allProducts[idx].variations || [];
-    const newVariations = updatedProduct.variations || [];
-    
-    const removedVars = oldVariations.filter(ov => !newVariations.find(nv => String(nv.blingId) === String(ov.blingId)));
-    
-    if (removedVars.length > 0) {
-        removedVars.forEach(rv => {
-            const varIdTarget = `${productId}-${rv.blingId}`;
-            cart = cart.filter(c => String(c.id) !== String(varIdTarget));
-        });
-        updateCartUI();
-    }
-    
     allProducts[idx] = updatedProduct;
   } else {
     allProducts.unshift(updatedProduct);
   }
 
+  // A Mágica do Carrinho acontece toda aqui agora:
   atualizarDadosCarrinhoRealTime(productId, updatedProduct);
+  
   console.log("🎨 [FRONT-SOCKET] Redesenhando o catálogo para exibir a novidade...");
   render();
 }
@@ -362,28 +346,59 @@ function handleSocketStockUpdate(data) {
 
 function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
   if (!cart || !Array.isArray(cart)) return;
+  const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
+  let cartChanged = false;
 
-  cart.forEach(item => {
+  // Usa filter para poder remover do carrinho as variações que sumirem ou zerarem
+  cart = cart.filter(item => {
     if (String(item.id).startsWith(String(productId))) {
-      // Se o produto atualizado trabalha com variações, varre para achar o índice correto mapeado no carrinho
+      let newStock = item.maxStock;
+      let itemName = item.name;
+      let varAindaExiste = true;
+
       if (updatedProduct.hasVariations && updatedProduct.variations) {
         const parts = String(item.id).split('-');
-        const varBlingId = parts[1]; // Agora pegamos o Bling ID exato
+        const varBlingId = parts[1]; 
         
         const matchedVar = updatedProduct.variations.find(v => String(v.blingId) === String(varBlingId));
         
         if (matchedVar) {
           item.name = matchedVar.name;
           item.price = matchedVar.price;
+          newStock = matchedVar.stock_by_store ? (matchedVar.stock_by_store[storeKey] || 0) : 0;
+          itemName = item.name;
+        } else {
+          varAindaExiste = false; // A variação foi excluída do Bling!
         }
       } else {
-        // Produto simples
         item.name = updatedProduct.name;
         item.price = updatedProduct.price;
+        newStock = updatedProduct.stock_by_store ? (updatedProduct.stock_by_store[storeKey] || 0) : 0;
+        itemName = item.name;
+      }
+
+      if (!varAindaExiste) {
+        mostrarAvisoCarrinho(`A opção "${itemName}" foi removida do catálogo e do seu carrinho.`);
+        cartChanged = true;
+        return false; // Elimina do array do carrinho
+      }
+
+      item.maxStock = newStock;
+
+      if (newStock <= 0) {
+        mostrarAvisoCarrinho(`A opção "${itemName}" esgotou na loja ativa e foi removida do carrinho.`);
+        cartChanged = true;
+        return false; // Elimina do array do carrinho
+      } else if (item.quantity > newStock) {
+        mostrarAvisoCarrinho(`A quantidade de "${itemName}" foi ajustada para ${newStock} devido à disponibilidade do estoque.`);
+        item.quantity = newStock;
+        cartChanged = true;
       }
     }
+    return true; // Mantém no carrinho
   });
-  updateCartUI();
+
+  if (cartChanged) updateCartUI();
 }
 
 // Verifica se a nova quantidade derruba ou limita o que o usuário já tem no carrinho

@@ -743,18 +743,9 @@ async function processProductWebhook(data) {
                 if (partes[1]) valorVariacao = partes[1].trim();
             }
 
-            const objetoVariacao = {
-                blingId: String(blingId),
-                sku: data.codigo ? String(data.codigo).trim() : "",
-                name: nomeProduto,
-                price: !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : 0,
-                stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
-                type: tipoVariacao,
-                value: valorVariacao
-            };
-
+            // 🎯 1. GARANTE QUE O PAI EXISTE (Condição de Corrida)
             const nomePaiAproximado = nomeProduto.split(/cor:/i)[0].trim();
-            const paiAtualizado = await Product.findOneAndUpdate(
+            await Product.findOneAndUpdate(
                 { blingId: String(idPaiBling) },
                 { 
                     $set: { hasVariations: true, updatedAt: new Date() },
@@ -764,30 +755,48 @@ async function processProductWebhook(data) {
                         subcategory: mapCategory(nomeProduto)?.sub || "",
                         stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
                         variations: [],
-                        price: objetoVariacao.price > 0 ? objetoVariacao.price : 0
+                        price: !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : 0
                     }
                 },
                 { new: true, upsert: true }
             );
 
-            if (objetoVariacao.price === 0) objetoVariacao.price = paiAtualizado.price;
-
-            // 🎯 OPERAÇÃO ATÔMICA 1: Tira a variação velha (se existir) para evitar duplicatas em retries
-            await Product.updateOne(
-                { blingId: String(idPaiBling) },
-                { $pull: { variations: { blingId: String(blingId) } } }
+            // 🎯 2. BLINDAGEM ATÔMICA DO ESTOQUE
+            // Tenta ATUALIZAR a variação se ela já existir, SEM TOCAR no stock_by_store!
+            const updateVarResult = await Product.updateOne(
+                { blingId: String(idPaiBling), "variations.blingId": String(blingId) },
+                { $set: { 
+                    "variations.$.name": nomeProduto,
+                    "variations.$.sku": data.codigo ? String(data.codigo).trim() : "",
+                    "variations.$.price": !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : 0,
+                    "variations.$.type": tipoVariacao,
+                    "variations.$.value": valorVariacao
+                } }
             );
 
-            // 🎯 OPERAÇÃO ATÔMICA 2: Empurra a variação fresca pra dentro da array com segurança máxima
-            await Product.updateOne(
-                { blingId: String(idPaiBling) },
-                { $push: { variations: objetoVariacao } }
-            );
-            
-            console.log(`🎉 [SUCESSO VARIAÇÃO] Filho "${nomeProduto}" inserido atomicamente na árvore do Pai!`);
+            // 🎯 3. Se a variação não existia (matchedCount === 0), inserimos como NOVA com estoque 0
+            if (updateVarResult.matchedCount === 0) {
+                const objetoVariacaoNova = {
+                    blingId: String(blingId),
+                    sku: data.codigo ? String(data.codigo).trim() : "",
+                    name: nomeProduto,
+                    price: !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : 0,
+                    stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
+                    type: tipoVariacao,
+                    value: valorVariacao
+                };
+
+                await Product.updateOne(
+                    { blingId: String(idPaiBling) },
+                    { $push: { variations: objetoVariacaoNova } }
+                );
+                console.log(`➕ NOVA Variação "${nomeProduto}" adicionada à árvore.`);
+            } else {
+                console.log(`📝 Variação "${nomeProduto}" atualizada (Estoque preservado!).`);
+            }
 
             if (typeof io !== 'undefined') {
-                const paiCompleto = await Product.findOne({ blingId: String(idPaiBling) });
+                const paiCompleto = await Product.findOne({ blingId: String(idPaiBling) }).lean();
                 if (paiCompleto) {
                     io.emit('product_updated', { product: paiCompleto });
                     console.log(`⚡ [SOCKET] Enviado catálogo com ${paiCompleto.variations?.length} variações ativas.`);
