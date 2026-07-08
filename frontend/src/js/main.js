@@ -292,47 +292,50 @@ function handleSocketStockUpdate(data) {
   console.log("📥 [FRONT-SOCKET] Atualização de estoque recebida:", data);
   if (!data || !data.productId) return;
 
+  // 1. Encontra o produto pai
   const targetProduct = allProducts.find(p => 
     String(p._id || p.id) === String(data.productId) || String(p.blingId) === String(data.productId)
   );
   
   if (!targetProduct) {
-    console.warn("⚠️ Produto não encontrado no catálogo para atualizar estoque.");
+    console.warn("⚠️ Produto não encontrado no catálogo.");
     return;
   }
 
   const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
   
-  // ── ATUALIZAÇÃO DO OBJETO MESTRE (Para o render() exibir na tela) ──
+  // 2. Lógica para Variações
   if (data.isVariation && targetProduct.variations) {
+    // Procura o índice da variação usando o BlingID
     const vIdx = targetProduct.variations.findIndex(v => 
       String(v.blingId) === String(data.variantBlingId)
     );
 
     if (vIdx !== -1) {
-      // 1. Atualiza o objeto no array allProducts (Essencial para o render)
+      // ATUALIZAÇÃO SEGURA: Agora vIdx existe e está dentro do escopo
       targetProduct.variations[vIdx].stock_by_store = data.stock_by_store;
       
       const newStock = data.stock_by_store[storeKey] || 0;
+      const varName = targetProduct.variations[vIdx].name;
       
-      // 2. Atualiza o carrinho
+      // Atualiza o carrinho
       const cartId = `${targetProduct._id || targetProduct.id}-${targetProduct.variations[vIdx].blingId}`;
-      verificarLimitesCarrinhoRealTime(cartId, newStock, targetProduct.variations[vIdx].name);
+      verificarLimitesCarrinhoRealTime(cartId, newStock, varName);
+      
+      console.log(`✅ [FRONT-SOCKET] Estoque da variação "${varName}" atualizado para ${newStock}`);
+    } else {
+      console.warn("⚠️ Variação filha não encontrada no produto:", data.variantBlingId);
     }
-  } else {
-    // Produto simples
+  } 
+  // 3. Lógica para Produto Simples
+  else {
     targetProduct.stock_by_store = data.stock_by_store;
     const newStock = data.stock_by_store[storeKey] || 0;
     
     verificarLimitesCarrinhoRealTime(targetProduct._id || targetProduct.id, newStock, targetProduct.name);
   }
 
-  // LOG DE DEBBUG:
-  console.log("Estoque antes da atualização:", targetProduct.variations[vIdx].stock_by_store);
-
-  targetProduct.variations[vIdx].stock_by_store = data.stock_by_store; // Essa linha altera a memória
-
-  console.log("Estoque depois da atualização:", targetProduct.variations[vIdx].stock_by_store);
+  // 4. Força a atualização visual de toda a vitrine
   render(); 
 }
 
