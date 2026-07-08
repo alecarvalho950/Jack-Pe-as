@@ -147,10 +147,10 @@ async function init() {
       socket = io(API_BASE_URL);
 
       // Ouvir atualizações de estoque
-      socket.on("product_stock_updated", (data) => {
-        console.log("⚡ Estoque atualizado via Socket:", data);
-        handleSocketStockUpdate(data);
-      });
+      socket.on("product_stock_updated", (data) => { // Tem que ser exatamente o mesmo nome
+    console.log("📥 [FRONT-SOCKET] Recebendo atualização de estoque:", data);
+    handleSocketStockUpdate(data);
+});;
 
       // Ouvir atualizações ou novos cadastros de produtos (Preço, Nome, Categoria...)
       socket.on("product_updated", (data) => {
@@ -289,38 +289,51 @@ function handleSocketProductDelete(blingId) {
 // Inserir logo após a função handleSocketProductDelete...
 
 function handleSocketStockUpdate(data) {
-  console.log("📥 [FRONT-SOCKET] Atualização de estoque:", data);
+  console.log("📥 [FRONT-SOCKET] Atualização de estoque recebida:", data);
   if (!data || !data.productId) return;
 
   const targetProduct = allProducts.find(p => 
     String(p._id || p.id) === String(data.productId) || String(p.blingId) === String(data.productId)
   );
   
-  if (!targetProduct) return;
+  if (!targetProduct) {
+    console.warn("⚠️ Produto não encontrado no catálogo para atualizar estoque.");
+    return;
+  }
 
   const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
   
-  // Se for variação, precisamos encontrar o ID da variação (BlingID)
+  // ── ATUALIZAÇÃO DO OBJETO MESTRE (Para o render() exibir na tela) ──
   if (data.isVariation && targetProduct.variations) {
-    const variation = targetProduct.variations.find(v => 
+    const vIdx = targetProduct.variations.findIndex(v => 
       String(v.blingId) === String(data.variantBlingId)
     );
 
-    if (variation) {
-      // O ID no carrinho para variações é: "ID_PAI-BLINGID"
-      const cartId = `${targetProduct._id || targetProduct.id}-${variation.blingId}`;
-      const newStock = data.stock_by_store ? (data.stock_by_store[storeKey] || 0) : 0;
+    if (vIdx !== -1) {
+      // 1. Atualiza o objeto no array allProducts (Essencial para o render)
+      targetProduct.variations[vIdx].stock_by_store = data.stock_by_store;
       
-      // Chama a função de verificação que já existe e é robusta
-      verificarLimitesCarrinhoRealTime(cartId, newStock, variation.name);
+      const newStock = data.stock_by_store[storeKey] || 0;
+      
+      // 2. Atualiza o carrinho
+      const cartId = `${targetProduct._id || targetProduct.id}-${targetProduct.variations[vIdx].blingId}`;
+      verificarLimitesCarrinhoRealTime(cartId, newStock, targetProduct.variations[vIdx].name);
     }
   } else {
     // Produto simples
-    const newStock = data.stock_by_store ? (data.stock_by_store[storeKey] || 0) : 0;
+    targetProduct.stock_by_store = data.stock_by_store;
+    const newStock = data.stock_by_store[storeKey] || 0;
+    
     verificarLimitesCarrinhoRealTime(targetProduct._id || targetProduct.id, newStock, targetProduct.name);
   }
 
-  render();
+  // LOG DE DEBBUG:
+  console.log("Estoque antes da atualização:", targetProduct.variations[vIdx].stock_by_store);
+
+  targetProduct.variations[vIdx].stock_by_store = data.stock_by_store; // Essa linha altera a memória
+
+  console.log("Estoque depois da atualização:", targetProduct.variations[vIdx].stock_by_store);
+  render(); 
 }
 
 function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
