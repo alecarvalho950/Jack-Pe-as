@@ -289,59 +289,38 @@ function handleSocketProductDelete(blingId) {
 // Inserir logo após a função handleSocketProductDelete...
 
 function handleSocketStockUpdate(data) {
-  console.log("📥 [FRONT-SOCKET] Dados de estoque recebidos:", data);
-
+  console.log("📥 [FRONT-SOCKET] Atualização de estoque:", data);
   if (!data || !data.productId) return;
 
-  // 🎯 BUSCA MULTICAMADAS: Procura pelo ID do Mongo OU pelo Bling ID para garantir a localização do produto principal
-  const targetProduct = allProducts.find(p => {
-    const prodId = p._id || p.id;
-    return String(prodId) === String(data.productId) || String(p.blingId) === String(data.productId);
-  });
+  const targetProduct = allProducts.find(p => 
+    String(p._id || p.id) === String(data.productId) || String(p.blingId) === String(data.productId)
+  );
   
-  if (!targetProduct) {
-    console.warn(`⚠️ [FRONT-SOCKET] Produto ${data.productId} não encontrado localmente no catálogo.`);
-    return;
-  }
+  if (!targetProduct) return;
 
   const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
-  let newStock = 0;
-
-  // ── SE FOR PRODUTO COM VARIAÇÃO ──
+  
+  // Se for variação, precisamos encontrar o ID da variação (BlingID)
   if (data.isVariation && targetProduct.variations) {
-    console.log(`🧬 Tratando variação real-time para o Pai: "${targetProduct.name}". Procurando Variant Bling ID: ${data.variantBlingId}`);
-    
-    // Varre as variações filhas comparando pelo Bling ID ou pelo ID gerado do banco
-    const vIdx = targetProduct.variations.findIndex(v => 
-      (data.variantBlingId && String(v.blingId) === String(data.variantBlingId)) || 
-      (data.variantId && String(v._id || v.id) === String(data.variantId))
+    const variation = targetProduct.variations.find(v => 
+      String(v.blingId) === String(data.variantBlingId)
     );
 
-    if (vIdx !== -1) {
-      // Atualiza o objeto de estoque da variação específica no front-end
-      targetProduct.variations[vIdx].stock_by_store = data.stock_by_store;
-      newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
+    if (variation) {
+      // O ID no carrinho para variações é: "ID_PAI-BLINGID"
+      const cartId = `${targetProduct._id || targetProduct.id}-${variation.blingId}`;
+      const newStock = data.stock_by_store ? (data.stock_by_store[storeKey] || 0) : 0;
       
-      console.log(`✅ [FRONT-SOCKET] Estoque da variação "${targetProduct.variations[vIdx].name}" atualizado para ${newStock}`);
-      
-      // O ID das variações no carrinho utiliza o padrão "ID_PAI-INDICE"
-      const varCartId = `${targetProduct._id || targetProduct.id}-${vIdx}`;
-      verificarLimitesCarrinhoRealTime(varCartId, newStock, targetProduct.variations[vIdx].name);
-    } else {
-      console.warn(`⚠️ [FRONT-SOCKET] Variação filha não localizada dentro do produto mestre.`);
+      // Chama a função de verificação que já existe e é robusta
+      verificarLimitesCarrinhoRealTime(cartId, newStock, variation.name);
     }
   } else {
-    // ── SE FOR PRODUTO SIMPLES ──
-    targetProduct.stock_by_store = data.stock_by_store;
-    newStock = data.stock_by_store[storeKey] !== undefined ? data.stock_by_store[storeKey] : 0;
-    
-    console.log(`✅ [FRONT-SOCKET] Estoque do produto simples atualizado para ${newStock}`);
+    // Produto simples
+    const newStock = data.stock_by_store ? (data.stock_by_store[storeKey] || 0) : 0;
     verificarLimitesCarrinhoRealTime(targetProduct._id || targetProduct.id, newStock, targetProduct.name);
   }
 
-  // Força a interface a se redesenhar com os valores numéricos novos
-  console.log("🎨 [FRONT-SOCKET] Forçando renderização da interface...");
-  render(); 
+  render();
 }
 
 function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
@@ -403,17 +382,18 @@ function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
 
 // Verifica se a nova quantidade derruba ou limita o que o usuário já tem no carrinho
 function verificarLimitesCarrinhoRealTime(itemId, newStock, itemName) {
-  // Encontra o item exato no carrinho (seja variação ou simples)
   const cartItem = cart.find(item => String(item.id) === String(itemId));
+  
   if (!cartItem) return;
 
+  // Atualiza o estoque máximo disponível para aquele item
   cartItem.maxStock = newStock;
 
   if (newStock <= 0) {
-    mostrarAvisoCarrinho(`O produto "${itemName}" esgotou na unidade ativa e foi removido do seu carrinho.`);
+    mostrarAvisoCarrinho(`O produto "${itemName}" esgotou na unidade ativa e foi removido do carrinho.`);
     cart = cart.filter(item => String(item.id) !== String(itemId));
   } else if (cartItem.quantity > newStock) {
-    mostrarAvisoCarrinho(`A quantidade de "${itemName}" no seu carrinho foi ajustada para ${newStock} devido à disponibilidade do estoque.`);
+    mostrarAvisoCarrinho(`A quantidade de "${itemName}" foi ajustada para ${newStock} devido ao estoque.`);
     cartItem.quantity = newStock;
   }
 
