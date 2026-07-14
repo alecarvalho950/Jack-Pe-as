@@ -6,6 +6,7 @@ let activeCat = null;
 let activeSub = null;
 let activeFilters = {};
 let currentPage = 1;
+let currentSort = 'default';
 const ITEMS_PER_PAGE = 20;
 let socket;
 
@@ -564,6 +565,48 @@ function updateStoreBadgesUI() {
 }
 
 /* ──────────────────────────────────────────
+   LÓGICA DE ORDENAÇÃO DE PRODUTOS
+────────────────────────────────────────── */
+function updateSort(value) {
+  currentSort = value;
+  render();
+}
+
+function applySort(list) {
+  const getProductTotalStock = (p) => {
+    if (p.hasVariations && p.variations) {
+      return p.variations.reduce((acc, v) => acc + getVariationStock(v), 0);
+    }
+    return getProductStock(p);
+  };
+
+  // Divide estritamente entre Ativos (com estoque) e Indisponíveis (sem estoque)
+  let inStock = list.filter(p => getProductTotalStock(p) > 0);
+  let outOfStock = list.filter(p => getProductTotalStock(p) <= 0);
+
+  const sortByCriteria = (a, b) => {
+    const getMinPrice = (prod) => {
+      if (prod.hasVariations && prod.variations?.length > 0) {
+        return Math.min(...prod.variations.map(v => v.price || prod.price || 0));
+      }
+      return prod.price || 0;
+    };
+    
+    if (currentSort === 'price-asc') return getMinPrice(a) - getMinPrice(b);
+    if (currentSort === 'price-desc') return getMinPrice(b) - getMinPrice(a);
+    return 0;
+  };
+
+  // Ordena ambas as sublistas de forma independente se não for o "Padrão"
+  if (currentSort !== 'default') {
+    inStock.sort(sortByCriteria);
+    outOfStock.sort(sortByCriteria);
+  }
+
+  return [...inStock, ...outOfStock];
+}
+
+/* ──────────────────────────────────────────
    NAVEGAÇÃO E FILTROS
 ────────────────────────────────────────── */
 
@@ -635,6 +678,7 @@ function handleSearch() {
       render();
     }, 100);
   }, 400);
+  render();
 }
 
 function handleSubFilter(sub) {
@@ -665,6 +709,22 @@ function showLocalLoading() {
             <p class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mt-6 animate-pulse">Sincronizando Unidade...</p>
         </div>`;
 }
+function getSortDropdownHTML() {
+  return `
+    <div class="inline-flex items-center relative">
+      <select onchange="updateSort(this.value)" class="bg-white text-[#0a0f1a] py-1.5 pl-3 pr-8 rounded-xl text-[10px] uppercase font-black cursor-pointer border border-gray-300 hover:border-gray-800 outline-none appearance-none transition-all shadow-sm">
+        <option value="default" ${currentSort === 'default' ? 'selected' : ''}>Ordenar por</option>
+        <option value="price-asc" ${currentSort === 'price-asc' ? 'selected' : ''}>Preço: Menor p/ Maior</option>
+        <option value="price-desc" ${currentSort === 'price-desc' ? 'selected' : ''}>Preço: Maior p/ Menor</option>
+      </select>
+      <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#0a0f1a]">
+        <svg class="fill-current h-3 w-3 opacity-70" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+        </svg>
+      </div>
+    </div>
+  `;
+}
 
 /* ──────────────────────────────────────────
    RENDER PRINCIPAL
@@ -677,6 +737,7 @@ function render() {
   const attrBox = document.getElementById("attribute-filters");
   const brandBox = document.getElementById("brand-filter-container");
   const searchInput = document.getElementById("public-search");
+  const headerSortContainer = document.getElementById("header-sort-container");
 
   if (!container || !activeStore) return;
 
@@ -686,6 +747,7 @@ function render() {
   let htmlOutput = "";
   footer.innerHTML = "";
   attrBox.innerHTML = "";
+  if (headerSortContainer) headerSortContainer.innerHTML = "";
 
   let filtered = allProducts.filter((p) => {
     let matchesSearch = true;
@@ -709,19 +771,7 @@ function render() {
     );
   });
 
-  filtered.sort((a, b) => {
-    const stockA =
-      a.hasVariations && a.variations
-        ? a.variations.reduce((acc, v) => acc + getVariationStock(v), 0)
-        : getProductStock(a);
-    const stockB =
-      b.hasVariations && b.variations
-        ? b.variations.reduce((acc, v) => acc + getVariationStock(v), 0)
-        : getProductStock(b);
-    if (stockA > 0 && stockB <= 0) return -1;
-    if (stockA <= 0 && stockB > 0) return 1;
-    return 0;
-  });
+  filtered = applySort(filtered);
 
   if (activeCat && currentView !== "HOME")
     renderAttributeSelectors(filtered, attrBox);
@@ -732,11 +782,12 @@ function render() {
     setupBrandSelect();
   } else brandBox.classList.add("hidden");
 
-  const isFiltering =
-    Object.keys(activeFilters).length > 0 || searchRaw.length > 0;
+  const isFiltering = Object.keys(activeFilters).length > 0 || searchRaw.length > 0;
 
   if (currentView === "HOME" && !isFiltering) {
     header.classList.add("hidden");
+    
+    let isFirstCategory = true; // Controla para exibir o botão apenas na primeira seção ativa
     categories.forEach((cat) => {
       const catProducts = filtered.filter((p) => p.category === cat.name);
       if (catProducts.length > 0) {
@@ -745,13 +796,22 @@ function render() {
           catProducts.slice(0, isMobile ? 6 : 8),
           "CATEGORY",
           cat.name,
+          null,
+          isFirstCategory 
         );
+        isFirstCategory = false; // Desativa para as próximas seções
       }
     });
   } else if (currentView === "CATEGORY" && !isFiltering) {
     header.classList.remove("hidden");
     document.getElementById("active-title").innerText = activeCat;
+    
+    // Remove o botão da linha do título desta view como solicitado
+    if (headerSortContainer) headerSortContainer.innerHTML = "";
+    
     const catData = categories.find((c) => c.name === activeCat);
+    let isFirstSubcategory = true; // Controla para exibir apenas na primeira subcategoria ativa
+    
     catData?.subcategories.forEach((sub) => {
       const products = filtered.filter(
         (p) =>
@@ -765,7 +825,9 @@ function render() {
           "SUBCATEGORY",
           activeCat,
           sub,
+          isFirstSubcategory
         );
+        isFirstSubcategory = false; // Desativa para as próximas subcategorias
       }
     });
   } else {
@@ -773,6 +835,9 @@ function render() {
     document.getElementById("active-title").innerText = activeSub
       ? `${activeCat} > ${activeSub}`
       : activeCat || "Busca";
+
+    // Mantém o botão fixo no topo ao lado do título para Subcategoria e Busca
+    if (headerSortContainer) headerSortContainer.innerHTML = getSortDropdownHTML();
 
     if (filtered.length === 0) {
       htmlOutput = `<div class="py-20 text-center w-full"><p class="text-gray-500 font-black uppercase text-xs">Sem resultados para esta unidade.</p></div>`;
@@ -990,12 +1055,15 @@ function toggleDropdown(productId) {
   }
 }
 
-function createSectionHTML(title, products, targetView, cat, sub = null) {
+function createSectionHTML(title, products, targetView, cat, sub = null, showSort = false) {
   return `
         <div class="animate-in mb-10">
-            <div class="flex items-center justify-between mb-4 px-1">
+            <div class="flex items-center justify-between mb-4 px-1 gap-2">
                 <h3 class="text-xs font-black uppercase tracking-[0.3em] text-gray-500">${title}</h3>
-                <button onclick="changeView('${targetView}','${cat}','${sub || ""}')" class="text-[9px] bg-cor-azul-escuro hover:bg-[#FFC107] text-white hover:text-[#0a0f1a] font-black border border-accent/20 px-4 py-1.5 rounded-full uppercase transition-all">Ver Tudo</button>
+                <div class="flex items-center gap-2">
+                    ${showSort ? getSortDropdownHTML() : ""}
+                    <button onclick="changeView('${targetView}','${cat}','${sub || ""}')" class="text-[9px] bg-cor-azul-escuro hover:bg-[#FFC107] text-white hover:text-[#0a0f1a] font-black border border-accent/20 px-4 py-1.5 rounded-full uppercase transition-all whitespace-nowrap">Ver Tudo</button>
+                </div>
             </div>
             <div class="flex flex-col gap-3">${products.map((p) => renderCard(p)).join("")}</div>
         </div>`;

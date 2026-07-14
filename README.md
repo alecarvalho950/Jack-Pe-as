@@ -1,6 +1,6 @@
-# 🚀 Jack Peças - Sistema Integrado de Inventário e Catálogo Digital
+# 🚀 JACK PEÇAS - Sistema Integrado de Inventário e Catálogo Digital
 
-Este projeto nasceu de uma necessidade real de mercado: modernizar a gestão de estoque e a vitrine digital da **Jack Peças**. A solução substitui processos manuais e custos com plataformas de terceiros por um sistema personalizado, escalável e de alto desempenho.
+Este projeto nasceu de uma necessidade real de mercado: modernizar a gestão de estoque e a vitrine digital da **JACK PEÇAS**. A solução integra o catálogo de forma automatizada ao ERP **Bling**, substituindo atualizações manuais por sincronização contínua e comunicação em tempo real via WebSockets.
 
 ---
 
@@ -10,9 +10,8 @@ Este projeto nasceu de uma necessidade real de mercado: modernizar a gestão de 
 
 | Visualização Desktop | Visualização Mobile |
 | :---: | :---: |
-| <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1772578043/Pagina_inicial_-_Jack_Pe%C3%A7as_1_jac4xf.png" width="800px" /> | <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1772578264/Catalogo_de_produtos_1_cni2vw.jpg" width="200px" height="400px" /> |
-| <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1772578043/Pagina_inicial_-_Jack_Pe%C3%A7as_2_hddzxq.png" width="800px" /> | <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1772578264/Catalogo_de_produtos_3_tcaqsg.jpg" width="200px" height="400px" /> |
-
+| <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1783992631/Screenshot_79_ij2far.png" width="800px" /> | <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1783992725/iPhone-13-PRO-jack-pe-as.vercel.app_vyfqpt.webp" width="200px" height="400px" /> |
+| <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1783992682/Screenshot_80_rfp8of.png" width="800px" /> | <img src="https://res.cloudinary.com/drdu6ryip/image/upload/v1783992746/iPhone-13-PRO-jack-pe-as.vercel.app_1_d72bsr.webp" width="200px" height="400px" /> |
 
 ---
 
@@ -20,59 +19,60 @@ Este projeto nasceu de uma necessidade real de mercado: modernizar a gestão de 
 O sistema está publicado e pode ser visualizado nos links abaixo:
 
 * **🛒 Catálogo de Produtos (Frontend):** [https://jack-pe-as.vercel.app/](https://jack-pe-as.vercel.app/)
-* **⚙️ API/Backend (Railway):** Hospedado em infraestrutura de alta disponibilidade.
+* **⚙️ API/Backend (Render):** Hospedado em infraestrutura de alta disponibilidade na nuvem.
 
 ---
 
 ## 🔍 Visão Geral e Impacto no Negócio
 
-Antes deste sistema, a loja dependia de tabelas estáticas e gerenciadores de catálogo externos, o que dificultava a visualização dos produtos via mobile e gerava insatisfação do cliente. 
+Antes deste sistema, a loja dependia de planilhas estáticas e atualizações manuais de catálogo, gerando furos de estoque e lentidão no atendimento aos clientes. 
 
-O projeto foi desenvolvido para entregar:
-* **Independência Tecnológica:** Redução imediata de custos com plataformas de terceiros (*SaaS*).
-* **Experiência do Usuário (UX):** Um catálogo fluido, focado em dispositivos móveis, para que o cliente encontre a peça certa em segundos.
-* **Gestão Dinâmica:** Um painel administrativo que permite o controle total de atributos técnicos, categorias e subcategorias de forma personalizada.
+O projeto foi estruturado para resolver esses gargalos:
+* **Integração Centralizada:** O catálogo consome diretamente os dados cadastrados no ERP **Bling**, servindo como um espelho de alta velocidade.
+* **Sincronização Instantânea:** Alterações de saldo de estoque, preços ou novos produtos no Bling são refletidas imediatamente na tela do cliente final, eliminando a venda de itens indisponíveis.
+* **Foco em Mobile UX:** Um catálogo fluido, focado na experiência móvel, otimizado para que técnicos e compradores localizem peças em poucos segundos diretamente da bancada.
 
 ---
 
 ## 🛠 Tecnologias Utilizadas e Porquê?
 
-A escolha da *stack* tecnológica foi pensada para garantir um sistema leve, rápido e com custo de manutenção zero para o cliente.
+A escolha da *stack* tecnológica priorizou a máxima performance de carregamento e a comunicação em tempo real de forma leve.
 
 ### **Frontend (Interface)**
-* **JavaScript (ES6+):** Utilizado para criar uma experiência dinâmica, realizando comunicações assíncronas com a API sem recarregar a página.
-* **Tailwind CSS:** Escolhido pela agilidade no desenvolvimento e pela garantia de um design responsivo e moderno, essencial para o acesso via smartphones.
-* **HTML5 Semântico:** Para garantir acessibilidade e uma boa estrutura de dados.
+* **JavaScript (ES6+):** Renderização dinâmica e manipulação assíncrona do DOM para criar uma experiência de Single Page Application (SPA).
+* **Tailwind CSS:** Fornece um design moderno, limpo e responsivo com baixo consumo de banda, ideal para navegação em redes móveis de celular.
+* **Socket.io-client:** Canal ativo de comunicação que aguarda os sinais do servidor para atualizar preços e estoque na tela do usuário instantaneamente.
 
 ### **Backend (API)**
-* **Node.js & Express:** Frameworks de alta performance que permitem lidar com múltiplas requisições de forma rápida, ideal para um catálogo de consulta constante.
-* **MongoDB Atlas:** Banco de dados NoSQL escolhido pela flexibilidade. Como peças de smartphones possuem diferentes especificações, o NoSQL permite armazenar esses dados variados sem "travar" a estrutura do banco.
-* **Cloudinary (CDN de Mídia):** Utilizado para o armazenamento e otimização das imagens dos produtos, garantindo que as fotos carreguem instantaneamente em qualquer dispositivo.
-* **JWT (JSON Web Token):** Implementado para garantir que apenas administradores autorizados possam alterar o inventário.
+* **Node.js & Express:** Arquitetura assíncrona e rápida para gerenciar as rotas da API e as requisições de consulta do catálogo.
+* **Socket.io:** Protocolo WebSocket responsável por disparar atualizações em tempo real (push notifications) para todos os clientes conectados sempre que ocorrem alterações no banco.
+* **MongoDB Atlas:** Banco de dados NoSQL utilizado para persistir e otimizar as consultas dos produtos sincronizados do Bling, servindo como uma camada de cache de altíssima performance para não sobrecarregar o limite de requisições da API do ERP.
+* **JWT (JSON Web Token):** Garante a autenticação segura do painel administrativo privado que auxilia no controle do fluxo de sincronização.
 
 ### **Infraestrutura (Cloud)**
-* **Vercel:** Hospedagem do Frontend para garantir carregamento instantâneo.
-* **Railway:** Plataforma de nuvem utilizada para o deploy da API, garantindo que o servidor esteja sempre disponível com monitoramento em tempo real.
+* **Vercel:** Hospedagem de alta performance para o Frontend estático.
+* **Render:** Hospedagem da API e do servidor WebSocket (Node.js) com suporte a conexões persistentes.
 
 ---
 
-## 💡 Funcionalidades Principais
+## 💡 Funcionalidades Principais & Diferenciais Técnicos
 
-* **Gerenciador de Atributos Dinâmicos:** O sistema permite criar campos personalizados (ex: "Qualidade da Tela") que aparecem no cadastro apenas quando a categoria correspondente é selecionada.
-* **Busca Inteligente:** Filtros por categorias e subcategorias que facilitam a navegação do cliente final.
-* **Dashboard em Tempo Real:** Resumo estatístico da quantidade de produtos cadastrados em cada categoria.
-* **Gestão Inteligente de Mídia:** Lógica de backend que remove automaticamente fotos antigas do servidor quando um produto é editado ou excluído, evitando desperdício de armazenamento.
-
----
+* **Atualização em Tempo Real (Real-time Sync):** Implementação de WebSockets via **Socket.io**. Se o estoque de uma tela de iPhone for zerado no Bling, a informação é transmitida instantaneamente para todos os clientes com o catálogo aberto no celular, sem necessidade de atualizar a página (`F5`).
+* **Sincronização Inteligente Bling ERP:** Integração automatizada onde o MongoDB atua como uma réplica otimizada dos dados do Bling, garantindo velocidade extrema de carregamento de dados complexos.
+* **Sistema de Ordenação por Disponibilidade de Estoque:** Os produtos ativos são priorizados no topo. Produtos indisponíveis (sem estoque) são movidos de forma automática para o final da lista, mas mantêm internamente a ordenação pelo critério de preço selecionado pelo usuário.
+* **Busca Sem Perda de Estado:** O mecanismo de busca em tempo real funciona de forma integrada ao filtro de ordenação, permitindo que o usuário digite termos livremente sem que a ordenação de preço escolhida ("Ordenar por") seja redefinida.
+* **Controle de Layout Fluido e Responsivo:** O cabeçalho de categorias e subcategorias adapta-se dinamicamente ao tamanho da tela do dispositivo. Títulos longos contam com truncamento automático (`truncate`) para evitar quebras de layout, e os seletores de ordenação mantêm proporções perfeitas em smartphones de qualquer dimensão.
+* **Painel de Apoio à Gestão:** Interface administrativa simples e intuitiva para monitorar o status das sincronizações e configurar atributos específicos do catálogo que auxiliam a venda rápida.
 
 ## 📈 Futuro do Projeto
 
-O sistema foi arquitetado de forma modular, o que permite que ele evolua para um **ERP completo**, integrando futuramente módulos de vendas, controle financeiro e emissão de notas fiscais, tornando-se o coração tecnológico da Jack Peças.
+Com a integração de estoque ao Bling consolidada e o **sistema de carrinho com direcionamento regional para o WhatsApp das filiais** totalmente operacional, os próximos passos do roadmap focam em automação transacional e logística:
 
----
+* **Checkout Automatizado com Gateway de Pagamento:** Evoluir o atual fluxo de carrinho (que hoje envia o pedido pronto para o atendente da filial mais próxima via WhatsApp) para uma finalização de compra 100% autônoma. O objetivo é integrar um gateway de pagamento diretamente ao catálogo, permitindo que o cliente pague e conclua a compra de ponta a ponta, sem a necessidade de intervenção humana ou redirecionamentos externos.
+* **Automações de Pós-Venda e Logística:** Integração robusta com grandes marketplaces (como Mercado Livre, Shopee e Amazon) para centralizar a expedição, automatizar a impressão de etiquetas de envio e sincronizar o rastreio logístico de forma unificada.
 
 ### 🌟 Diferencial Acadêmico
-Este é um projeto de ciclo completo (**Full Stack**), cobrindo desde o levantamento de requisitos com o cliente local até o deploy final em ambientes de produção na nuvem. Representa a aplicação prática da tecnologia para resolver problemas reais de pequenos empreendedores.
+Este é um projeto **Full Stack** focado em um problema corporativo de integração real. Ele une engenharia de software à infraestrutura de nuvem, demonstrando o domínio de conceitos avançados como bancos de dados NoSQL aplicados para otimização de APIs, consumo de ERPs de mercado (Bling) e arquitetura orientada a eventos em tempo real (WebSockets).
 
 ---
-Desenvolvido por Alejandro Carvalho - 2026
+Desenvolvido por **Alejandro Carvalho** - 2026
