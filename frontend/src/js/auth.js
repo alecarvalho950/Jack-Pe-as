@@ -7,8 +7,7 @@ const toggleBtn = document.getElementById('toggle-password');
 const eyeIcon = document.getElementById('eye-icon');
 
 // URL DO SEU BACKEND NO RAILWAY
-const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
-//const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "https://api.jackpecas.com.br";
 
 // Alternar visibilidade da senha
 if (toggleBtn) {

@@ -13,7 +13,11 @@ const PORT = process.env.PORT || 3000;
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
     cors: {
-        origin: "*", // Ajuste para a URL do seu front (Vercel) em produção se quiser mais segurança
+        origin: [
+            "https://jackpecas.com.br", 
+            "https://www.jackpecas.com.br", 
+            "https://jack-pe-as.vercel.app" // Mantém o da Vercel antigo por segurança
+        ],
         methods: ["GET", "POST"]
     }
 });
@@ -921,7 +925,16 @@ async function processProductDeleteWebhook(blingId) {
 // MIDDLEWARES
 // ============================================================
 
-app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.use(cors({ 
+    origin: [
+        "https://jackpecas.com.br", 
+        "https://www.jackpecas.com.br", 
+        "https://jack-pe-as.vercel.app"
+    ], 
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+    allowedHeaders: ['Content-Type', 'Authorization'] 
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

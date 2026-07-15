@@ -116,7 +116,7 @@ function isInCart(id) {
 ────────────────────────────────────────── */
 
 async function init() {
-  const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
+  const API_BASE_URL = "https://api.jackpecas.com.br";
   const overlay = document.getElementById("loading-overlay");
 
   showLocalLoading();

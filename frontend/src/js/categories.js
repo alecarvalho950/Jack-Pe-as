@@ -3,8 +3,7 @@ let editingCatId = null;
 let deleteCatId = null; 
 let subToRemove = null; 
 let allProducts = [];
-const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
-//const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "https://api.jackpecas.com.br";
 
 document.addEventListener('DOMContentLoaded', () => {
     loadCategoriesList();

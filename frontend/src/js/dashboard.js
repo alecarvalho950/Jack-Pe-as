@@ -1,6 +1,5 @@
 // URL de Produção no Render
-const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
-// const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "https://api.jackpecas.com.br";
 
 async function loadStats() {
     const periodSelect = document.getElementById('period-filter');

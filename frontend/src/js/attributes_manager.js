@@ -1,8 +1,7 @@
 let currentOptions = [];
 let deleteId = null;
 let editingId = null; 
-const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
-//const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "https://api.jackpecas.com.br";
 
 // --- AO CARREGAR A PÁGINA ---
 document.addEventListener('DOMContentLoaded', () => {
