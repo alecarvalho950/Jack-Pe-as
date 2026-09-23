@@ -1,4 +1,4 @@
-let currentOptions = [];
+let currentOptions = []; // Cada item pode ser: "Texto", { name: "...", color: { bg, text, border } }
 let deleteId = null;
 let editingId = null; 
 const API_BASE_URL = "https://api.jackpecas.com.br";
@@ -7,16 +7,53 @@ const API_BASE_URL = "https://api.jackpecas.com.br";
 document.addEventListener('DOMContentLoaded', () => {
     loadTargetCategories();
     loadAttributesList();
+    updatePreviewTag();
 
-    // Vinculação segura do botão de confirmação
     const confirmBtn = document.getElementById('confirm-yes');
     if (confirmBtn) {
         confirmBtn.onclick = () => closeConfirm(true);
     }
 });
 
-// --- CONTROLE DE INTERFACE (ABRIR/FECHAR) ---
+// --- HELPER DE COMPATIBILIDADE PARA RENDERIZAÇÃO DE CORES ---
+function getOptionStyleAndClass(opt) {
+    // 1. Compatibilidade com registros antigos (apenas texto simples)
+    if (typeof opt === 'string') {
+        return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
+    }
 
+    if (!opt || !opt.color) {
+        return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
+    }
+
+    const c = opt.color;
+
+    // 2. Compatibilidade com formato anterior baseado em Tailwind (ex: "bg-[#7ed1cc]/10")
+    if (typeof c.bg === 'string' && c.bg.startsWith('bg-')) {
+        return { className: `${c.bg} ${c.text} ${c.border} border`, style: '' };
+    }
+
+    // 3. Novo formato com seletores hexadecimais livres (#HEX)
+    return {
+        className: 'border',
+        style: `background-color: ${c.bg}; color: ${c.text}; border-color: ${c.border};`
+    };
+}
+
+function updatePreviewTag() {
+    const textColor = document.getElementById('opt-text-color')?.value || '#38bdf8';
+    const bgColor = document.getElementById('opt-bg-color')?.value || '#0f172a';
+    const borderColor = document.getElementById('opt-border-color')?.value || '#38bdf8';
+    
+    const preview = document.getElementById('preview-tag');
+    if (preview) {
+        preview.style.backgroundColor = bgColor;
+        preview.style.color = textColor;
+        preview.style.borderColor = borderColor;
+    }
+}
+
+// --- CONTROLE DE INTERFACE ---
 function openAttrForm() {
     document.getElementById('attr-form-container').classList.remove('hidden');
     document.getElementById('btn-open-attr-form').classList.add('hidden');
@@ -29,7 +66,6 @@ function closeAttrForm() {
     document.getElementById('attr-form-container').classList.add('hidden');
     document.getElementById('btn-open-attr-form').classList.remove('hidden');
     
-    // Reset de estado e campos
     editingId = null;
     currentOptions = [];
     document.getElementById('attr-name').value = '';
@@ -37,7 +73,6 @@ function closeAttrForm() {
     document.getElementById('attr-type').value = 'select';
     document.getElementById('new-option-input').value = '';
     
-    // Reset visual do botão
     const saveBtn = document.getElementById('save-btn');
     saveBtn.innerText = "Salvar Atributo";
     saveBtn.classList.remove('bg-blue-600', 'text-white');
@@ -47,7 +82,6 @@ function closeAttrForm() {
     renderOptions();
 }
 
-// 1. Alterna a exibição das opções baseado no tipo
 function toggleOptionInput() {
     const type = document.getElementById('attr-type').value;
     const group = document.getElementById('options-group-container');
@@ -61,7 +95,6 @@ function toggleOptionInput() {
     }
 }
 
-// 2. Carrega as categorias no <select>
 async function loadTargetCategories() {
     try {
         const res = await fetch(`${API_BASE_URL}/api/categories`);
@@ -78,41 +111,57 @@ async function loadTargetCategories() {
     }
 }
 
-// 3. Gestão de Tags de Opções
+// --- GESTÃO DAS OPÇÕES ---
 function addOptionToList() {
     const input = document.getElementById('new-option-input');
     const val = input.value.trim();
     
-    if (val && !currentOptions.includes(val)) {
-        currentOptions.push(val);
+    const exists = currentOptions.some(o => (typeof o === 'string' ? o : o.name).toLowerCase() === val.toLowerCase());
+
+    if (val && !exists) {
+        const textColor = document.getElementById('opt-text-color').value;
+        const bgColor = document.getElementById('opt-bg-color').value;
+        const borderColor = document.getElementById('opt-border-color').value;
+
+        currentOptions.push({
+            name: val,
+            color: { text: textColor, bg: bgColor, border: borderColor }
+        });
+
         renderOptions();
         input.value = '';
         input.focus();
     }
 }
 
-function removeOption(option) {
-    currentOptions = currentOptions.filter(o => o !== option);
+function removeOption(optionName) {
+    currentOptions = currentOptions.filter(o => (typeof o === 'string' ? o : o.name) !== optionName);
     renderOptions();
 }
 
 function renderOptions() {
     const container = document.getElementById('options-tags');
-    container.innerHTML = currentOptions.map(opt => `
-        <span class="bg-accent/20 text-accent border border-accent/30 px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 font-bold">
-            ${opt}
-            <button onclick="removeOption('${opt}')" class="text-white hover:text-red-500 transition">×</button>
-        </span>
-    `).join('');
+    if (!container) return;
+
+    container.innerHTML = currentOptions.map(opt => {
+        const name = typeof opt === 'string' ? opt : opt.name;
+        const visual = getOptionStyleAndClass(opt);
+
+        return `
+            <span class="${visual.className} px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 font-bold" style="${visual.style}">
+                ${name}
+                <button type="button" onclick="removeOption('${name}')" class="hover:text-red-500 transition ml-1">×</button>
+            </span>
+        `;
+    }).join('');
 }
 
-// --- LÓGICA DE EDIÇÃO ---
-
+// --- EDIÇÃO DE ATRIBUTO EXISTENTE ---
 function editAttribute(attrJson) {
     const attr = JSON.parse(decodeURIComponent(attrJson));
     editingId = attr._id; 
 
-    openAttrForm(); // Abre o container primeiro
+    openAttrForm();
 
     document.getElementById('form-title').innerText = "Editar Atributo";
     const saveBtn = document.getElementById('save-btn');
@@ -123,7 +172,9 @@ function editAttribute(attrJson) {
     document.getElementById('attr-target-cat').value = attr.category;
     document.getElementById('attr-name').value = attr.name;
     document.getElementById('attr-type').value = attr.type;
-    currentOptions = [...(attr.options || [])];
+    
+    // Preserva o array de opções existendo formato novo ou antigo
+    currentOptions = attr.options || [];
 
     toggleOptionInput();
     renderOptions();
@@ -132,7 +183,6 @@ function editAttribute(attrJson) {
 }
 
 // --- SALVAR / LISTAR / EXCLUIR ---
-
 async function saveFullAttribute() {
     const category = document.getElementById('attr-target-cat').value;
     const name = document.getElementById('attr-name').value;
@@ -144,7 +194,6 @@ async function saveFullAttribute() {
     if (type === 'select' && currentOptions.length === 0) return alert("Adicione opções para a lista de seleção.");
 
     try {
-        // 2. Bloqueio e Carregamento no Botão
         saveBtn.disabled = true;
         saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
         saveBtn.innerHTML = `
@@ -234,7 +283,11 @@ async function loadAttributesList() {
                             <div class="flex flex-wrap gap-1.5 mt-3">
                                 ${attr.type === 'text' 
                                     ? '<span class="text-xs italic text-gray-600">Campo de digitação livre</span>'
-                                    : (attr.options || []).map(opt => `<span class="text-[10px] bg-gray-800/50 text-gray-400 px-2 py-1 rounded border border-gray-700/50">${opt}</span>`).join('')
+                                    : (attr.options || []).map(opt => {
+                                        const optName = typeof opt === 'string' ? opt : opt.name;
+                                        const visual = getOptionStyleAndClass(opt);
+                                        return `<span class="text-[10px] ${visual.className} px-2 py-1 rounded font-bold" style="${visual.style}">${optName}</span>`;
+                                    }).join('')
                                 }
                             </div>
                         </div>
@@ -277,60 +330,42 @@ function askDelete(id, name) {
 async function closeConfirm(confirmado) {
     const modal = document.getElementById('custom-confirm');
     const btnConfirm = document.getElementById('confirm-yes');
-    const originalBtnText = "Sim, excluir";
 
     if (confirmado && deleteId) {
         const token = localStorage.getItem('admin_token');
 
         try {
-            // 1. Feedback visual de carregamento no botão
             if (btnConfirm) {
                 btnConfirm.disabled = true;
-                btnConfirm.innerHTML = `
-                    <svg class="animate-spin h-4 w-4 mr-2 border-t-2 border-white rounded-full inline-block" viewBox="0 0 24 24"></svg>
-                    EXCLUINDO...
-                `;
-                btnConfirm.classList.add('opacity-70', 'cursor-not-allowed');
+                btnConfirm.innerHTML = `EXCLUINDO...`;
             }
 
             const res = await fetch(`${API_BASE_URL}/api/attributes/${deleteId}`, { 
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (res.ok) {
-                // Sucesso: Fecha o modal e recarrega a lista
                 modal.classList.replace('flex', 'hidden');
                 loadAttributesList();
-            } else if (res.status === 401 || res.status === 403) {
-                alert("Sessão expirada. Faça login novamente.");
-                window.location.href = 'login.html';
             } else {
-                const errorData = await res.json();
-                alert(errorData.error || "Erro ao excluir atributo");
+                alert("Erro ao excluir atributo.");
             }
         } catch (err) {
             console.error("Erro ao deletar:", err);
-            alert("Erro de conexão ao excluir.");
         } finally {
-            // 2. Restaura o botão ao estado original
             if (btnConfirm) {
                 btnConfirm.disabled = false;
-                btnConfirm.innerText = originalBtnText;
-                btnConfirm.classList.remove('opacity-70', 'cursor-not-allowed');
+                btnConfirm.innerText = "Sim, excluir";
             }
             deleteId = null;
         }
     } else {
-        // Se clicar em "Não" ou cancelar
         modal.classList.replace('flex', 'hidden');
         deleteId = null;
     }
 }
 
-// Escuta a tecla Enter no input de opções
 document.getElementById('new-option-input')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') { 
         e.preventDefault(); 

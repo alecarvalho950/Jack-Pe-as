@@ -13,6 +13,7 @@ let socket;
 // Estado Global do Carrinho e Loja Ativa
 let cart = [];
 let activeStore = null;
+let attributeColorMap = {};
 
 // Números do WhatsApp por filial
 const STORE_CONTACTS = {
@@ -131,10 +132,11 @@ async function init() {
     };
 
     // 1. Busca inicial dos dados
-    const [resCat, resProd] = await Promise.all([
-      fetch(`${API_BASE_URL}/api/categories`, fetchOptions),
-      fetch(`${API_BASE_URL}/api/products?limit=9999`, fetchOptions),
-    ]);
+  const [resCat, resProd, resAttr] = await Promise.all([
+  fetch(`${API_BASE_URL}/api/categories`, fetchOptions),
+  fetch(`${API_BASE_URL}/api/products?limit=9999`, fetchOptions),
+  fetch(`${API_BASE_URL}/api/attributes`, fetchOptions) // Adicione esta linha
+]);
 
     if (!resCat.ok || !resProd.ok)
       throw new Error("Erro na resposta do servidor");
@@ -142,6 +144,19 @@ async function init() {
     categories = await resCat.json();
     const prodData = await resProd.json();
     allProducts = prodData.products || [];
+
+    if (resAttr && resAttr.ok) {
+      const attributesData = await resAttr.json();
+      attributesData.forEach(attr => {
+        if (attr.options && Array.isArray(attr.options)) {
+          attr.options.forEach(opt => {
+            if (typeof opt === 'object' && opt.name) {
+              attributeColorMap[opt.name] = opt.color;
+            }
+          });
+        }
+      });
+    }
 
     // 2. CONEXÃO COM O SOCKET.IO
     if (typeof io !== 'undefined') {
@@ -912,13 +927,13 @@ function renderCard(p) {
                         ${
                           p.attributes
                             ? Object.entries(p.attributes)
-                                .map(([k, v]) =>
-                                  v
-                                    ? `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold border uppercase tracking-wide ${getTagStyle(v)}">${v}</span>`
-                                    : "",
-                                )
-                                .join("")
-                            : ""
+                            .map(([k, v]) => {
+                              if (!v) return "";
+                              const { className, style } = getTagProps(v);
+                              return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${v}</span>`;
+                            })
+                            .join("")
+                        : ""
                         }
                     </div>
                 </div>
@@ -1011,8 +1026,10 @@ function renderCard(p) {
                             ? Object.entries(p.attributes)
                                 .map(([k, v]) =>
                                   v
-                                    ? `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold border uppercase tracking-wide ${getTagStyle(v)}">${v}</span>`
-                                    : "",
+                                    ? (() => { 
+                                      const { className, style } = getTagProps(v); 
+                                      return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${v}</span>`;
+                                  })() : "",
                                 )
                                 .join("")
                             : ""
@@ -1171,6 +1188,26 @@ function goToPage(p) {
   currentPage = p;
   render();
   window.scrollTo({ top: 400, behavior: "smooth" });
+}
+
+function getTagProps(value) {
+  const color = attributeColorMap[value];
+
+  if (!color) {
+    // Opção antiga sem cor cadastrada
+    return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
+  }
+
+  // Se veio do formato Tailwind anterior
+  if (typeof color.bg === 'string' && color.bg.startsWith('bg-')) {
+    return { className: `${color.bg} ${color.text} ${color.border} border`, style: '' };
+  }
+
+  // Se veio dos novos seletores Hexadecimais (#HEX)
+  return {
+    className: 'border',
+    style: `background-color: ${color.bg}; color: ${color.text}; border-color: ${color.border};`
+  };
 }
 
 /* ──────────────────────────────────────────

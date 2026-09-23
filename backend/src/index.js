@@ -110,7 +110,14 @@ const Attribute = mongoose.model('Attribute', new mongoose.Schema({
     category: String,
     name:     String,
     type:     String,
-    options:  [String]
+    options: [{
+        name: String,
+        color: {
+            text: String,
+            bg: String,
+            border: String
+        }
+    }]
 }));
 
 // ── CORREÇÃO 1: campo blingId adicionado ao variationItemSchema ──────────────
