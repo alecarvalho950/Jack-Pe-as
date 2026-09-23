@@ -683,6 +683,66 @@ async function processStockWebhook(data) {
     }
 }
 
+// ============================================================
+// HELPER: Extração Robusta de Atributos do Bling / Nome
+// ============================================================
+function extractVariationDetails(data, nomeProduto) {
+    let tipoVariacao = "Variação";
+    let valorVariacao = "Padrão";
+    let nomePaiAproximado = nomeProduto;
+
+    // 1. Extração via estrutura nativa da API v3 do Bling (ex: data.variacao.nome = "Modelo:Tipo-C / Tipo-C")
+    if (data?.variacao?.nome && data.variacao.nome.includes(":")) {
+        const atributos = data.variacao.nome.split(";");
+        const tipos = [];
+        const valores = [];
+
+        atributos.forEach(attr => {
+            const partes = attr.split(":");
+            if (partes.length >= 2) {
+                tipos.push(partes[0].trim());
+                valores.push(partes.slice(1).join(":").trim());
+            }
+        });
+
+        if (tipos.length > 0) tipoVariacao = tipos.join(" / ");
+        if (valores.length > 0) valorVariacao = valores.join(" / ");
+    }
+
+    // 2. Extração e limpeza via Nomenclatura do Produto (ex: "Cabo Turbo Modelo:Tipo-C / Tipo-C")
+    if (nomeProduto && nomeProduto.includes(":")) {
+        const partes = nomeProduto.split(":");
+        const antesDoisPontos = partes[0].trim(); // "Cabo Turbo Modelo"
+        const depoisDoisPontos = partes.slice(1).join(":").replace(/\)$/, "").trim(); // "Tipo-C / Tipo-C"
+
+        // Separa a última palavra antes do ":" para ser o Tipo (ex: "Modelo")
+        const palavrasAntes = antesDoisPontos.split(/\s+/);
+        const tipoExtraido = palavrasAntes.pop(); // Remove "Modelo"
+        const paiExtraido = palavrasAntes.join(" ").trim(); // Sobra "Cabo Turbo"
+
+        if (paiExtraido) {
+            nomePaiAproximado = paiExtraido;
+        } else {
+            nomePaiAproximado = antesDoisPontos;
+        }
+
+        // Se o Bling não enviou data.variacao.nome, usa os dados do texto
+        if (tipoVariacao === "Variação" && tipoExtraido) {
+            tipoVariacao = tipoExtraido;
+        }
+        if (valorVariacao === "Padrão" && depoisDoisPontos) {
+            valorVariacao = depoisDoisPontos;
+        }
+    }
+
+    // Formatação: Primeira letra maiúscula
+    if (tipoVariacao && tipoVariacao.length > 0) {
+        tipoVariacao = tipoVariacao.charAt(0).toUpperCase() + tipoVariacao.slice(1);
+    }
+
+    return { tipoVariacao, valorVariacao, nomePaiAproximado };
+}
+
 async function processProductWebhook(data) {
     try {
         console.log("🔍 [AUDITORIA PRODUTO] Iniciando processamento do Payload de cadastro/alteração...");
@@ -704,11 +764,10 @@ async function processProductWebhook(data) {
             console.log(`⚠️  [SITUAÇÃO DE EXCLUSÃO DETECTADA] Produto ID ${blingId} está com situação "${situacao}".`);
             
             if (idPaiBling !== "0" && idPaiBling !== "null" && idPaiBling !== undefined) {
-                // Se o inativado for um filho, remove ele da array do Pai
                 console.log(`🧬 Removendo variação filha ID ${blingId} do produto Pai ID ${idPaiBling}...`);
                 await Product.updateOne(
                     { blingId: idPaiBling },
-                    { $pull: { variations: { blingId: blingId } }, $set: { updatedAt: new Date() } }
+                    { $pull: { variations: { blingId: blingId } },$set: { updatedAt: new Date() } }
                 );
                 await Product.findOneAndDelete({ blingId: blingId });
                 console.log(`🗑️ [SUCESSO] Variação filha limpa do catálogo.`);
@@ -720,7 +779,6 @@ async function processProductWebhook(data) {
                     }
                 }
             } else {
-                // Se for o produto principal/simples, deleta o documento inteiro
                 const deletado = await Product.findOneAndDelete({ blingId: blingId });
                 if (deletado) {
                     console.log(`🗑️ [SUCESSO] Produto principal/simples "${deletado.name}" removido do MongoDB.`);
@@ -739,21 +797,16 @@ async function processProductWebhook(data) {
         if (idPaiBling !== "0" && idPaiBling !== "null" && idPaiBling !== undefined) {
             console.log(`🧬 [FILHO DETECTADO] ID ${blingId} ("${nomeProduto}") é filho do Pai Bling ID: ${idPaiBling}`);
 
-            let tipoVariacao = "Cor";
-            let valorVariacao = "Padrão";
-            
-            if (nomeProduto.toUpperCase().includes("COR:")) {
-                const partes = nomeProduto.split(/cor:/i);
-                if (partes[1]) valorVariacao = partes[1].trim();
-            }
+            // Extração dinâmica do Tipo ("Modelo", "Cor", "Tamanho"...), Valor e Nome Limpo do Pai
+            const { tipoVariacao, valorVariacao, nomePaiAproximado } = extractVariationDetails(data, nomeProduto);
 
-            // 🎯 1. GARANTE QUE O PAI EXISTE (Condição de Corrida)
-            const nomePaiAproximado = nomeProduto.split(/cor:/i)[0].trim();
+            console.log(`📌 Variação processada: Tipo: "${tipoVariacao}" | Valor: "${valorVariacao}" | Pai: "${nomePaiAproximado}"`);
+
+            // 🎯 1. GARANTE QUE O PAI EXISTE (Garante estrutura básica em condições de corrida)
             await Product.findOneAndUpdate(
                 { blingId: String(idPaiBling) },
                 { 
-                    $set: { hasVariations: true, updatedAt: new Date() },
-                    $setOnInsert: {
+                    $set: { hasVariations: true, updatedAt: new Date() },$setOnInsert: {
                         name: nomePaiAproximado,
                         category: mapCategory(nomeProduto)?.cat || "Geral",
                         subcategory: mapCategory(nomeProduto)?.sub || "",
@@ -766,7 +819,7 @@ async function processProductWebhook(data) {
             );
 
             // 🎯 2. BLINDAGEM ATÔMICA DO ESTOQUE
-            // Tenta ATUALIZAR a variação se ela já existir, SEM TOCAR no stock_by_store!
+            // Atualiza os metadados da variação mantendo os saldos de estoque intactos
             const updateVarResult = await Product.updateOne(
                 { blingId: String(idPaiBling), "variations.blingId": String(blingId) },
                 { $set: { 
@@ -778,7 +831,7 @@ async function processProductWebhook(data) {
                 } }
             );
 
-            // 🎯 3. Se a variação não existia (matchedCount === 0), inserimos como NOVA com estoque 0
+            // 🎯 3. Se a variação ainda não existia no array, adiciona como nova
             if (updateVarResult.matchedCount === 0) {
                 const objetoVariacaoNova = {
                     blingId: String(blingId),
@@ -794,9 +847,9 @@ async function processProductWebhook(data) {
                     { blingId: String(idPaiBling) },
                     { $push: { variations: objetoVariacaoNova } }
                 );
-                console.log(`➕ NOVA Variação "${nomeProduto}" adicionada à árvore.`);
+                console.log(`➕ NOVA Variação "${nomeProduto}" [${tipoVariacao}: ${valorVariacao}] adicionada.`);
             } else {
-                console.log(`📝 Variação "${nomeProduto}" atualizada (Estoque preservado!).`);
+                console.log(`📝 Variação "${nomeProduto}" [${tipoVariacao}: ${valorVariacao}] atualizada.`);
             }
 
             if (typeof io !== 'undefined') {
@@ -830,12 +883,11 @@ async function processProductWebhook(data) {
         if (!isNaN(parseFloat(data.preco))) updateFields.price = parseFloat(data.preco);
         if (data.formato === "V") updateFields.hasVariations = true;
 
-        // 🎯 1. ATUALIZAÇÃO ATÔMICA DO PAI (Evita o problema do .save() sobrescrever variações)
+        // 🎯 1. ATUALIZAÇÃO ATÔMICA DO PAI
         let produtoAtualizado = await Product.findOneAndUpdate(
             { blingId },
             { 
-                $set: updateFields,
-                $setOnInsert: {
+                $set: updateFields,$setOnInsert: {
                     stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
                     variations: []
                 }
@@ -855,17 +907,15 @@ async function processProductWebhook(data) {
         if (produtoAtualizado.hasVariations && data.variacoes && Array.isArray(data.variacoes)) {
             const idsVariacoesNoBling = data.variacoes.map(v => String(v.id));
             
-            // Remove qualquer variação cuja blingId não esteja na lista oficial enviada AGORA pelo Bling
             await Product.updateOne(
                 { blingId },
-                { $pull: { variations: { blingId: { $nin: idsVariacoesNoBling } } } }
+                { $pull: { variations: { blingId: {$nin: idsVariacoesNoBling } } } }
             );
         }
         
         console.log(`🎉 [SUCESSO] Produto principal "${produtoAtualizado.name}" sincronizado com sucesso!\n`);
         
         if (typeof io !== 'undefined') {
-            // Busca o estado perfeitamente consolidado para enviar ao Front
             const produtoCompleto = await Product.findOne({ blingId }).lean();
             if (produtoCompleto) {
                 if (produtoCompleto.hasVariations) {
@@ -874,7 +924,7 @@ async function processProductWebhook(data) {
                     console.log(`📦 Enviando produto simples com estoque consolidado: "${produtoCompleto.name}"`);
                 }
                 io.emit('product_updated', { product: produtoCompleto });
-                console.log("⚡ [SOCKET] Evento product_updated enviado com dados consolidados e protegidos!");
+                console.log("⚡ [SOCKET] Evento product_updated enviado com dados consolidados!");
             }
         }
 
