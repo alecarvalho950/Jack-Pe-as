@@ -1,6 +1,7 @@
 let currentOptions = []; // Cada item pode ser: "Texto", { name: "...", color: { bg, text, border } }
 let deleteId = null;
 let editingId = null; 
+let editingOptionIndex = null;
 const API_BASE_URL = "https://api.jackpecas.com.br";
 
 // --- AO CARREGAR A PÁGINA ---
@@ -17,27 +18,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- HELPER DE COMPATIBILIDADE PARA RENDERIZAÇÃO DE CORES ---
 function getOptionStyleAndClass(opt) {
-    // 1. Compatibilidade com registros antigos (apenas texto simples)
-    if (typeof opt === 'string') {
-        return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
-    }
-
-    if (!opt || !opt.color) {
-        return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
-    }
+    if (!opt) return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
+    if (typeof opt === 'string') return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
 
     const c = opt.color;
+    if (!c) return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
 
-    // 2. Compatibilidade com formato anterior baseado em Tailwind (ex: "bg-[#7ed1cc]/10")
     if (typeof c.bg === 'string' && c.bg.startsWith('bg-')) {
-        return { className: `${c.bg} ${c.text} ${c.border} border`, style: '' };
+        return { className: `${c.bg} ${c.text || ''} ${c.border || ''} border`, style: '' };
     }
 
-    // 3. Novo formato com seletores hexadecimais livres (#HEX)
     return {
         className: 'border',
         style: `background-color: ${c.bg}; color: ${c.text}; border-color: ${c.border};`
     };
+}
+
+function editOption(idx) {
+    const opt = currentOptions[idx];
+    if (!opt) return;
+
+    const name = typeof opt === 'string' ? opt : (opt.name || '');
+    const color = (typeof opt === 'object' && opt.color) ? opt.color : { text: '#ffffff', bg: '#000000', border: '#ffffff' };
+
+    document.getElementById('new-option-input').value = name;
+    document.getElementById('opt-text-color').value = color.text || '#ffffff';
+    document.getElementById('opt-bg-color').value = color.bg || '#000000';
+    document.getElementById('opt-border-color').value = color.border || '#ffffff';
+
+    updatePreviewTag();
+    editingOptionIndex = idx;
 }
 
 function updatePreviewTag() {
@@ -65,6 +75,7 @@ function openAttrForm() {
 function closeAttrForm() {
     document.getElementById('attr-form-container').classList.add('hidden');
     document.getElementById('btn-open-attr-form').classList.remove('hidden');
+    editingOptionIndex = null;
     
     editingId = null;
     currentOptions = [];
@@ -116,26 +127,53 @@ function addOptionToList() {
     const input = document.getElementById('new-option-input');
     const val = input.value.trim();
     
-    const exists = currentOptions.some(o => (typeof o === 'string' ? o : o.name).toLowerCase() === val.toLowerCase());
+    if (!val) return;
 
-    if (val && !exists) {
-        const textColor = document.getElementById('opt-text-color').value;
-        const bgColor = document.getElementById('opt-bg-color').value;
-        const borderColor = document.getElementById('opt-border-color').value;
+    const textColor = document.getElementById('opt-text-color')?.value || '#ffffff';
+    const bgColor = document.getElementById('opt-bg-color')?.value || '#000000';
+    const borderColor = document.getElementById('opt-border-color')?.value || '#ffffff';
+
+    if (editingOptionIndex !== null) {
+        // Atualiza a opção existente
+        currentOptions[editingOptionIndex] = {
+            name: val,
+            color: { text: textColor, bg: bgColor, border: borderColor }
+        };
+        editingOptionIndex = null;
+    } else {
+        // Previne duplicatas ao adicionar
+        const exists = currentOptions.some(o => {
+            const oName = typeof o === 'string' ? o : (o ? o.name : '');
+            return oName.toLowerCase() === val.toLowerCase();
+        });
+
+        if (exists) {
+            alert("Esta opção já existe!");
+            return;
+        }
 
         currentOptions.push({
             name: val,
             color: { text: textColor, bg: bgColor, border: borderColor }
         });
-
-        renderOptions();
-        input.value = '';
-        input.focus();
     }
+
+    renderOptions();
+    input.value = '';
+    input.focus();
 }
 
-function removeOption(optionName) {
-    currentOptions = currentOptions.filter(o => (typeof o === 'string' ? o : o.name) !== optionName);
+function removeOption(idx) {
+    currentOptions.splice(idx, 1);
+    
+    // Reseta o form caso estivesse editando a opção excluída
+    if (editingOptionIndex === idx) {
+        editingOptionIndex = null;
+        document.getElementById('new-option-input').value = '';
+    } else if (editingOptionIndex !== null && editingOptionIndex > idx) {
+        editingOptionIndex--;
+    }
+    
     renderOptions();
 }
 
@@ -143,14 +181,16 @@ function renderOptions() {
     const container = document.getElementById('options-tags');
     if (!container) return;
 
-    container.innerHTML = currentOptions.map(opt => {
-        const name = typeof opt === 'string' ? opt : opt.name;
+    container.innerHTML = currentOptions.map((opt, idx) => {
+        if (!opt) return ''; // Proteção contra nulos
+        const name = typeof opt === 'string' ? opt : (opt.name || 'Sem Nome');
         const visual = getOptionStyleAndClass(opt);
 
+        // Adicionado o onclick para editar, cursor-pointer e event.stopPropagation no botão de excluir
         return `
-            <span class="${visual.className} px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 font-bold" style="${visual.style}">
+            <span class="${visual.className} px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 font-bold cursor-pointer hover:opacity-80 transition group title="Clique para editar"" style="${visual.style}" onclick="editOption(${idx})">
                 ${name}
-                <button type="button" onclick="removeOption('${name}')" class="hover:text-red-500 transition ml-1">×</button>
+                <button type="button" onclick="event.stopPropagation(); removeOption(${idx})" class="hover:text-red-500 transition ml-1 opacity-50 group-hover:opacity-100 font-black">×</button>
             </span>
         `;
     }).join('');
@@ -269,8 +309,23 @@ async function loadAttributesList() {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             `;
 
-            catAttrs.forEach(attr => {
+                catAttrs.forEach(attr => {
                 const data = encodeURIComponent(JSON.stringify(attr));
+                
+                let optionsHtml = '';
+                if (attr.type === 'text') {
+                    optionsHtml = '<span class="text-xs italic text-gray-600">Campo de digitação livre</span>';
+                } else {
+                    optionsHtml = (attr.options || []).map(opt => {
+                        if (!opt) return ''; 
+                        const optName = typeof opt === 'string' ? opt : (opt.name || 'Indefinido');
+                        const visual = getOptionStyleAndClass(opt);
+                        return `<span class="text-[10px] ${visual.className} px-2 py-1 rounded font-bold" style="${visual.style}">${optName}</span>`;
+                    }).join('');
+                    
+                    if (!optionsHtml) optionsHtml = '<span class="text-[10px] text-gray-500 italic">Nenhuma opção configurada</span>';
+                }
+
                 sectionHtml += `
                     <div class="bg-[#111827] p-5 rounded-xl border border-gray-800 flex justify-between items-start group hover:border-accent/50 transition shadow-lg">
                         <div>
@@ -281,14 +336,7 @@ async function loadAttributesList() {
                                 </span>
                             </div>
                             <div class="flex flex-wrap gap-1.5 mt-3">
-                                ${attr.type === 'text' 
-                                    ? '<span class="text-xs italic text-gray-600">Campo de digitação livre</span>'
-                                    : (attr.options || []).map(opt => {
-                                        const optName = typeof opt === 'string' ? opt : opt.name;
-                                        const visual = getOptionStyleAndClass(opt);
-                                        return `<span class="text-[10px] ${visual.className} px-2 py-1 rounded font-bold" style="${visual.style}">${optName}</span>`;
-                                    }).join('')
-                                }
+                                ${optionsHtml}
                             </div>
                         </div>
                         <div class="flex gap-2">

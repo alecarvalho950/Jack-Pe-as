@@ -149,7 +149,7 @@ const productSchema = new mongoose.Schema({
     subcategory:   { type: String },
     hasVariations: { type: Boolean, default: false },
     variations:    [variationItemSchema],
-    attributes:    { type: Map, of: String, default: {} },
+    attributes:    { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
     createdAt:     { type: Date, default: Date.now },
     updatedAt:     { type: Date, default: Date.now }
 });

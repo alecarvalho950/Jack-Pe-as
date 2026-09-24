@@ -926,15 +926,18 @@ function renderCard(p) {
                     <div class="flex flex-wrap gap-1.5 pt-0.5">
                         ${
                           p.attributes
-                            ? Object.entries(p.attributes)
-                            .map(([k, v]) => {
-                              if (!v) return "";
-                              const { className, style } = getTagProps(v);
-                              return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${v}</span>`;
-                            })
-                            .join("")
-                        : ""
-                        }
+                              ? Object.entries(p.attributes)
+                                  .map(([k, v]) => {
+                                      if (!v) return "";
+                                      // Garante a extração do nome, seja string ou objeto
+                                      const valName = (typeof v === 'object' && v !== null) ? (v.name || '') : v;
+                                      const { className, style } = getTagProps(v);
+                                      
+                                      return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${valName}</span>`;
+                                  })
+                                  .join("")
+                              : ""
+                      }
                     </div>
                 </div>
                 <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-gray-800/80 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
@@ -1023,17 +1026,18 @@ function renderCard(p) {
                     <div class="flex flex-wrap gap-1.5 pt-0.5">
                         ${
                           p.attributes
-                            ? Object.entries(p.attributes)
-                                .map(([k, v]) =>
-                                  v
-                                    ? (() => { 
-                                      const { className, style } = getTagProps(v); 
-                                      return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${v}</span>`;
-                                  })() : "",
-                                )
-                                .join("")
-                            : ""
-                        }
+                              ? Object.entries(p.attributes)
+                                  .map(([k, v]) => {
+                                      if (!v) return "";
+                                      // Garante a extração do nome, seja string ou objeto
+                                      const valName = (typeof v === 'object' && v !== null) ? (v.name || '') : v;
+                                      const { className, style } = getTagProps(v);
+                                      
+                                      return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${valName}</span>`;
+                                  })
+                                  .join("")
+                              : ""
+                      }
                     </div>
                 </div>
                 <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-gray-800/80 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
@@ -1191,23 +1195,36 @@ function goToPage(p) {
 }
 
 function getTagProps(value) {
-  const color = attributeColorMap[value];
+    // 1. Se o valor já vier como objeto do novo formato salvo no produto
+    if (value && typeof value === 'object') {
+        const c = value.color;
+        if (c) {
+            if (typeof c.bg === 'string' && c.bg.startsWith('bg-')) {
+                return { className: `${c.bg} ${c.text || ''} ${c.border || ''} border`, style: '' };
+            }
+            return {
+                className: 'border',
+                style: `background-color: ${c.bg || '#0f172a'}; color: ${c.text || '#ffffff'}; border-color: ${c.border || '#38bdf8'};`
+            };
+        }
+    }
 
-  if (!color) {
-    // Opção antiga sem cor cadastrada
-    return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
-  }
+    // 2. Fallback: se for string, busca a cor no attributeColorMap
+    const valName = (value && typeof value === 'object') ? value.name : value;
+    const color = attributeColorMap[valName];
 
-  // Se veio do formato Tailwind anterior
-  if (typeof color.bg === 'string' && color.bg.startsWith('bg-')) {
-    return { className: `${color.bg} ${color.text} ${color.border} border`, style: '' };
-  }
+    if (!color) {
+        return { className: 'bg-gray-800 text-gray-200 border-gray-700 border', style: '' };
+    }
 
-  // Se veio dos novos seletores Hexadecimais (#HEX)
-  return {
-    className: 'border',
-    style: `background-color: ${color.bg}; color: ${color.text}; border-color: ${color.border};`
-  };
+    if (typeof color.bg === 'string' && color.bg.startsWith('bg-')) {
+        return { className: `${color.bg} ${color.text || ''} ${color.border || ''} border`, style: '' };
+    }
+
+    return {
+        className: 'border',
+        style: `background-color: ${color.bg || '#0f172a'}; color: ${color.text || '#ffffff'}; border-color: ${color.border || '#38bdf8'};`
+    };
 }
 
 /* ──────────────────────────────────────────
