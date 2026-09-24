@@ -140,9 +140,12 @@ function updateSubcategories(selectedSub = "") {
                 <label class="text-[10px] text-gray-500 uppercase font-bold">${attr.name}</label>
                 ${attr.type === 'select'
                     ? `<select class="dynamic-attr bg-gray-800 border border-gray-700 p-2 rounded text-sm text-white outline-none focus:border-accent" data-name="${attr.name}">
-                           <option value="">Selecione...</option>
-                           ${attr.options.map(o => `<option value="${o}">${o}</option>`).join('')}
-                       </select>`
+                        <option value="">Selecione...</option>
+                        ${attr.options.map(o => {
+                            const optName = (typeof o === 'object' && o !== null) ? (o.name || '') : o;
+                            return `<option value="${optName}">${optName}</option>`;
+                        }).join('')}
+                    </select>`
                     : `<input type="text" class="dynamic-attr bg-gray-800 border border-gray-700 p-2 rounded text-sm text-white outline-none focus:border-accent" data-name="${attr.name}" placeholder="Valor...">`
                 }
             </div>`).join('');
@@ -191,7 +194,11 @@ function editProduct(id) {
         if (p.attributes) {
             Object.keys(p.attributes).forEach(key => {
                 const el = document.querySelector(`.dynamic-attr[data-name="${key}"]`);
-                if (el) el.value = p.attributes[key];
+                if (el) {
+                    const val = p.attributes[key];
+                    // Se o atributo salvo também for um objeto novo, extraímos o nome
+                    el.value = (typeof val === 'object' && val !== null) ? (val.name || '') : val;
+                }
             });
         }
     }, 150);
