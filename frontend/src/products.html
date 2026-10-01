@@ -93,11 +93,24 @@
     <main class="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-full">
         <div class="max-w-7xl mx-auto mt-4 md:mt-0">
 
-            <div class="mb-8">
-                <h1 class="text-3xl font-bold text-accent uppercase tracking-widest">Produtos</h1>
-                <p class="text-[10px] text-gray-500 uppercase font-bold mt-1 tracking-tighter">
-                    Gerencie os atributos dos produtos sincronizados pelo Bling
-                </p>
+            <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-accent uppercase tracking-widest">Produtos</h1>
+                    <p class="text-[10px] text-gray-500 uppercase font-bold mt-1 tracking-tighter">
+                        Gerencie os atributos dos produtos sincronizados pelo Bling
+                    </p>
+                </div>
+                
+                <!-- BOTÃO DE SINCRONIZAR PRODUTOS -->
+                <button id="btn-sync-bling" onclick="syncBlingProducts()" class="flex items-center justify-center gap-2 bg-accent text-primary font-black px-5 py-3 rounded-xl uppercase tracking-wider text-xs hover:bg-yellow-400 transition shadow-lg shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                        <path d="M16 16h5v5"/>
+                    </svg>
+                    <span id="btn-sync-text">Sincronizar Produtos</span>
+                </button>
             </div>
 
             <section id="product-form-container" class="hidden bg-[#111827] p-6 md:p-8 rounded-2xl border border-gray-700 mb-10 shadow-xl w-full">

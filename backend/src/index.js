@@ -1010,9 +1010,18 @@ app.get('/api/cron/sync', async (req, res) => {
     syncProductsFromBling();
 });
 
-app.post('/api/trigger-sync', async (req, res) => {
-    res.json({ message: "Sincronização disparada!", timestamp: new Date() });
-    syncProductsFromBling();
+app.post('/api/trigger-sync', verifyToken, async (req, res) => {
+    if (isSyncing) {
+        return res.status(400).json({ message: "A sincronização já está em andamento. Aguarde um instante." });
+    }
+    try {
+        console.log("⚡ [TRIGGER MANUAL] Iniciando sincronização em massa com o Bling...");
+        await syncProductsFromBling();
+        return res.status(200).json({ success: true, message: "Todos os produtos foram sincronizados e salvos no banco com sucesso!" });
+    } catch (error) {
+        console.error("❌ Erro ao disparar sincronização manual:", error);
+        return res.status(500).json({ message: "Falha ao sincronizar com o Bling.", error: error.message });
+    }
 });
 
 // ============================================================

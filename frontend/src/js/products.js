@@ -614,3 +614,89 @@ function showNotification(message, type = 'success') {
         toast.classList.remove('translate-y-0', 'opacity-100');
     }, 3000);
 }
+
+/* ──────────────────────────────────────────
+   SINCRONIZAÇÃO MANUALL COM O BLING
+────────────────────────────────────────── */
+
+async function syncBlingProducts() {
+    const btn = document.getElementById('btn-sync-bling');
+    if (!btn) return;
+
+    const token = localStorage.getItem('admin_token');
+    if (!token) {
+        showNotification("Sessão não encontrada. Faça login novamente.", "error");
+        return;
+    }
+
+    if (!confirm("Deseja sincronizar todos os produtos com o Bling agora? Esta ação atualizará os estoques e preços no banco de dados.")) {
+        return;
+    }
+
+    const originalHTML = btn.innerHTML;
+
+    try {
+        btn.disabled = true;
+        btn.classList.add('opacity-60', 'cursor-not-allowed');
+        btn.innerHTML = `
+            <span class="inline-block animate-spin border-2 border-primary border-t-transparent rounded-full w-4 h-4 mr-1"></span>
+            <span>Sincronizando...</span>
+        `;
+
+        const res = await fetch(`${API_BASE_URL}/api/trigger-sync`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            showNotification(data.message || "Sincronização concluída com sucesso!");
+            // Recarrega os dados do MongoDB e atualiza a interface
+            await loadInitialData(currentPage);
+        } else {
+            showNotification(data.message || data.error || "Erro ao sincronizar com o Bling.", "error");
+        }
+    } catch (err) {
+        console.error("Erro na sincronização:", err);
+        showNotification("Erro de conexão ao tentar sincronizar.", "error");
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-60', 'cursor-not-allowed');
+        btn.innerHTML = originalHTML;
+    }
+}
+
+/* ──────────────────────────────────────────
+   NOTIFICAÇÕES (TOAST)
+────────────────────────────────────────── */
+
+function showNotification(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const toastContent = document.getElementById('toast-content');
+    const toastIcon = document.getElementById('toast-icon');
+    const toastMessage = document.getElementById('toast-message');
+
+    if (!toast || !toastMessage) return;
+
+    toastMessage.textContent = message;
+
+    if (type === 'error') {
+        toastContent.className = 'px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 font-bold bg-red-950 border border-red-800 text-red-200';
+        toastIcon.textContent = '❌';
+    } else {
+        toastContent.className = 'px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 font-bold bg-emerald-950 border border-emerald-800 text-emerald-200';
+        toastIcon.textContent = '✅';
+    }
+
+    toast.classList.remove('translate-y-20', 'opacity-0');
+    toast.classList.add('translate-y-0', 'opacity-100');
+
+    setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+    }, 4000);
+}
