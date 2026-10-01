@@ -264,26 +264,44 @@ function mapCategory(productName) {
 
 async function getValidAccessToken() {
     const tokenData = await BlingToken.findOne();
-    if (!tokenData?.access_token) throw new Error("Sem credenciais Bling no banco.");
+    if (!tokenData?.access_token) {
+        throw new Error("Sem credenciais Bling no banco. É necessário refazer a autenticação.");
+    }
 
     if (!tokenData.expires_at || new Date(Date.now() + 60000) > tokenData.expires_at) {
-        console.log("🔄 Token Bling expirado. Renovando...");
-        const credentials = Buffer.from(
-            `${process.env.BLING_CLIENT_ID}:${process.env.BLING_CLIENT_SECRET}`
-        ).toString('base64');
-        const res = await blingRequest({
-            method: 'POST',
-            url: 'https://api.bling.com.br/v3/oauth/token',
-            data: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: tokenData.refresh_token }),
-            headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
-        const { access_token, refresh_token, expires_in } = res.data;
-        tokenData.access_token  = access_token;
-        tokenData.refresh_token = refresh_token;
-        tokenData.expires_at    = new Date(Date.now() + expires_in * 1000);
-        await tokenData.save();
-        console.log("✅ Token Bling renovado!");
-        return access_token;
+        console.log("🔄 Token Bling expirado. Tentando renovar...");
+        try {
+            const credentials = Buffer.from(
+                `${process.env.BLING_CLIENT_ID}:${process.env.BLING_CLIENT_SECRET}`
+            ).toString('base64');
+            
+            // Usando axios diretamente aqui para evitar o retry infinito de blingRequest em erros 400
+            const res = await axios({
+                method: 'POST',
+                url: 'https://api.bling.com.br/v3/oauth/token',
+                data: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: tokenData.refresh_token }),
+                headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
+            
+            const { access_token, refresh_token, expires_in } = res.data;
+            tokenData.access_token  = access_token;
+            tokenData.refresh_token = refresh_token;
+            tokenData.expires_at    = new Date(Date.now() + expires_in * 1000);
+            await tokenData.save();
+            console.log("✅ Token Bling renovado com sucesso!");
+            
+            return access_token;
+            
+        } catch (err) {
+            const errorType = err.response?.data?.error || err.response?.data?.error?.type;
+            if (errorType === 'invalid_grant') {
+                console.error("🚨 [ERRO CRÍTICO] O Refresh Token foi invalidado pelo Bling ('invalid_grant').");
+                console.error("👉 AÇÃO: Acesse a rota /auth/bling no navegador para autorizar a loja novamente.");
+                await BlingToken.deleteMany({}); // Limpa o token morto para forçar um novo login limpo
+                throw new Error("TOKEN_EXPIRADO"); // Lança erro específico para o frontend
+            }
+            throw err;
+        }
     }
     return tokenData.access_token;
 }
@@ -329,27 +347,37 @@ async function syncProductsFromBling() {
         return;
     }
     isSyncing = true;
-    console.log("🔄 [SYNC COMPLETA] Iniciando...");
+    console.log("\n==================================================");
+    console.log("🔄 [SYNC COMPLETA] Iniciando Sincronização em Lotes...");
+    console.log("==================================================\n");
 
     try {
-        const accessToken = await getValidAccessToken();
+        let accessToken = await getValidAccessToken();
 
         let pagina = 1;
         let productsFromBling = [];
+        
+        console.log("📡 [ETAPA 1/6] Buscando lista de produtos (Paginação)...");
         while (true) {
             try {
+                // Valida o token a cada página para syncs muito demoradas
+                accessToken = await getValidAccessToken(); 
+                
                 const res = await blingRequest({
                     method: 'GET',
                     url: `https://api.bling.com.br/v3/produtos?limite=100&pagina=${pagina}&criterio=1&tipo=P`,
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
+                
                 const page = res.data.data || [];
                 if (page.length === 0) break;
+                
                 productsFromBling = productsFromBling.concat(page);
-                console.log(`📑 Página ${pagina} → ${page.length} itens`);
+                console.log(`📑 Página ${pagina} baixada → ${page.length} itens. Acumulado: ${productsFromBling.length}`);
                 pagina++;
-            } catch {
-                console.error(`❌ Erro na página ${pagina}. Encerrando paginação.`);
+                await sleep(500); // Respiro obrigatório para a API
+            } catch (err) {
+                console.error(`❌ Erro ao baixar página ${pagina}. Interrompendo busca.`, err.message);
                 break;
             }
         }
@@ -358,33 +386,54 @@ async function syncProductsFromBling() {
             console.log("ℹ️ Nenhum produto retornado pelo Bling.");
             return;
         }
-        console.log(`✅ Total bruto: ${productsFromBling.length} itens`);
+        console.log(`✅ [ETAPA 1 CONCLUÍDA] Total bruto: ${productsFromBling.length} produtos.\n`);
 
+        console.log("📡 [ETAPA 2/6] Buscando Depósitos Ativos...");
+        accessToken = await getValidAccessToken();
         const resDepositos = await blingRequest({
             method: 'GET',
             url: 'https://api.bling.com.br/v3/depositos?situacao=1&limite=100',
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
         const depositosAtivos = resDepositos.data.data || [];
+        console.log(`🏠 ${depositosAtivos.length} depósitos encontrados.\n`);
 
+        console.log("📡 [ETAPA 3/6] Processando Estoque Simples em Lotes...");
         const produtosSimples = productsFromBling.filter(p => p.formato !== 'V');
         const estoqueMapSimples = {};
-        const CHUNK_SIZE = 50;
+        const CHUNK_SIZE = 50; 
+        
+        const totalChunks = Math.ceil(produtosSimples.length / CHUNK_SIZE);
         for (let i = 0; i < produtosSimples.length; i += CHUNK_SIZE) {
+            const chunkId = Math.floor(i / CHUNK_SIZE) + 1;
+            console.log(`   ⏳ Lote de estoque ${chunkId}/${totalChunks}...`);
+            
+            accessToken = await getValidAccessToken(); // Validação contínua
             const chunk = produtosSimples.slice(i, i + CHUNK_SIZE);
             Object.assign(estoqueMapSimples, await fetchStockForChunk(chunk.map(p => p.id), depositosAtivos, accessToken));
-            console.log(`  ↳ Chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(produtosSimples.length / CHUNK_SIZE)}`);
+            await sleep(800); 
         }
+        console.log("✅ [ETAPA 3 CONCLUÍDA]\n");
 
+        console.log("📡 [ETAPA 4/6] Processando Variações e Montando Payload (Mais demorado)...");
         const operations          = [];
         const ignoredProducts     = [];
         const idsBlingProcessados = [];
+        
+        let processadosCounter = 0;
 
         for (const p of productsFromBling) {
-            if (p.variacao?.produtoPai) continue;
+            if (p.variacao?.produtoPai) continue; 
 
+            processadosCounter++;
+            if (processadosCounter % 100 === 0) {
+                console.log(`   ⚙️ Analisando estrutura... ${processadosCounter}/${productsFromBling.length}`);
+            }
+
+            accessToken = await getValidAccessToken(); 
             const currentBlingId = String(p.id);
             const { cat: finalCat, sub: finalSub } = mapCategory(p.nome);
+            
             if (!finalCat || !finalSub) {
                 ignoredProducts.push({ nome: p.nome, motivo: "Categoria não mapeada" });
                 continue;
@@ -421,9 +470,8 @@ async function syncProductsFromBling() {
                                 valorVariacao = vRaw.trim().charAt(0).toUpperCase() + vRaw.trim().slice(1).toLowerCase();
                             }
 
-                            // ── CORREÇÃO 2: blingId do filho salvo no array de variações ──
                             variationsMapped.push({
-                                blingId: fId,                                               // ← NOVO
+                                blingId: fId,
                                 sku:     String(f.codigo || "").trim() || `FILHO-${fId}`,
                                 name:    f.nome,
                                 price:   parseFloat(f.preco) || 0,
@@ -433,9 +481,9 @@ async function syncProductsFromBling() {
                             });
                         });
                     }
-                } catch {
+                } catch (err) {
                     erroVariacao = true;
-                    console.warn(`⚠️ Erro nas variações de "${p.nome}". Mantendo dados anteriores.`);
+                    console.warn(`⚠️ Erro ao buscar filhos do produto: "${p.nome}".`);
                 }
 
                 const updateFields = {
@@ -450,8 +498,7 @@ async function syncProductsFromBling() {
                 operations.push({ updateOne: {
                     filter: { blingId: currentBlingId },
                     update: {
-                        $set: updateFields,
-                        $unset: { image: "", stock: "" },
+                        $set: updateFields,$unset: { image: "", stock: "" },
                         $setOnInsert: { name: p.nome, createdAt: new Date(), attributes: {} }
                     },
                     upsert: true
@@ -475,28 +522,31 @@ async function syncProductsFromBling() {
                 }});
             }
         }
+        console.log(`✅ [ETAPA 4 CONCLUÍDA]\n`);
 
+        console.log("📡 [ETAPA 5/6] Gravando Lote Final no MongoDB...");
         if (operations.length > 0) {
             const result = await Product.bulkWrite(operations);
-            console.log(`\n--- RELATÓRIO SYNC COMPLETA ---`);
-            console.log(`📦 Operações:   ${operations.length}`);
-            console.log(`✨ Inseridos:   ${result.upsertedCount}`);
-            console.log(`🔄 Atualizados: ${result.modifiedCount}`);
-            console.log(`⚠️  Ignorados:   ${ignoredProducts.length}`);
-            console.log(`-------------------------------\n`);
+            console.log(`\n--- 📊 RELATÓRIO FINAL ---`);
+            console.log(`📦 Operações processadas: ${operations.length}`);
+            console.log(`✨ Novos produtos:        ${result.upsertedCount}`);
+            console.log(`🔄 Atualizados:           ${result.modifiedCount}`);
+            console.log(`⚠️  Ignorados (sem cat):  ${ignoredProducts.length}`);
+            console.log(`--------------------------\n`);
         }
 
+        console.log("📡 [ETAPA 6/6] Limpeza de produtos órfãos...");
         if (idsBlingProcessados.length > 0) {
             const limpeza = await Product.deleteMany({ blingId: { $not: { $in: idsBlingProcessados } } });
-            if (limpeza.deletedCount > 0)
-                console.log(`♻️ Auto-Clean: ${limpeza.deletedCount} produtos removidos.`);
+            console.log(`♻️ Auto-Clean: ${limpeza.deletedCount} produtos antigos removidos.`);
         }
 
     } catch (error) {
-        console.error("❌ Erro na sync completa:", error.response?.data || error.message);
+        console.error("❌ ERRO FATAL NA SYNC:", error.message);
+        throw error; // Lança o erro para a rota capturar e enviar ao Frontend
     } finally {
         isSyncing = false;
-        console.log("🔓 Sync completa finalizada.");
+        console.log("\n🔓 Sync completa finalizada.\n");
     }
 }
 
@@ -1015,12 +1065,20 @@ app.post('/api/trigger-sync', verifyToken, async (req, res) => {
         return res.status(400).json({ message: "A sincronização já está em andamento. Aguarde um instante." });
     }
     try {
-        console.log("⚡ [TRIGGER MANUAL] Iniciando sincronização em massa com o Bling...");
+        console.log("⚡ [TRIGGER MANUAL] Iniciado via Painel...");
         await syncProductsFromBling();
-        return res.status(200).json({ success: true, message: "Todos os produtos foram sincronizados e salvos no banco com sucesso!" });
+        return res.status(200).json({ success: true, message: "Todos os produtos foram sincronizados com sucesso!" });
     } catch (error) {
-        console.error("❌ Erro ao disparar sincronização manual:", error);
-        return res.status(500).json({ message: "Falha ao sincronizar com o Bling.", error: error.message });
+        console.error("❌ [TRIGGER MANUAL] Sincronização falhou:", error.message);
+        
+        if (error.message === "TOKEN_EXPIRADO") {
+            return res.status(401).json({ 
+                success: false, 
+                message: "O vínculo com o Bling expirou. Você precisa acessar a URL /auth/bling para refazer o login." 
+            });
+        }
+        
+        return res.status(500).json({ success: false, message: "Falha ao sincronizar com o Bling. Tente novamente mais tarde." });
     }
 });
 
