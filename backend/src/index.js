@@ -18,7 +18,7 @@ const io = require('socket.io')(http, {
             "https://www.jackpecas.com.br", 
             "https://jack-pe-as.vercel.app" // Mantém o da Vercel antigo por segurança
         ],
-        methods: ["GET", "POST"]
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
     }
 });
 
@@ -1053,7 +1053,7 @@ app.use(cors({
         "https://www.jackpecas.com.br", 
         "https://jack-pe-as.vercel.app"
     ], 
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], 
     allowedHeaders: ['Content-Type', 'Authorization'] 
 }));
 
