@@ -159,6 +159,28 @@ const Analytics = mongoose.model('Analytics', (() => {
     return s;
 })());
 
+// SCHEMA DE PROMOÇÃO
+const promotionSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    type: { type: String, enum: ['standard', 'flash'], default: 'standard' },
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
+    status: { type: String, enum: ['agendada', 'ativa', 'finalizada', 'cancelada'], default: 'agendada' },
+    items: [{
+        productId: { type: String, required: true },
+        blingId: String,
+        variantBlingId: String,
+        name: String,
+        sku: String,
+        originalPrice: Number,
+        promoPrice: Number,
+        isVariation: Boolean
+    }],
+    createdAt: { type: Date, default: Date.now }
+});
+
+const Promotion = mongoose.model('Promotion', promotionSchema);
+
 // ============================================================
 // FUNÇÕES AUXILIARES
 // ============================================================
@@ -1079,6 +1101,44 @@ app.post('/api/trigger-sync', verifyToken, async (req, res) => {
         }
         
         return res.status(500).json({ success: false, message: "Falha ao sincronizar com o Bling. Tente novamente mais tarde." });
+    }
+});
+
+// ROTAS PROMOÇÕES
+app.get('/api/promotions', async (req, res) => {
+    try {
+        const promos = await Promotion.find().sort({ createdAt: -1 });
+        res.json(promos);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/promotions', verifyToken, async (req, res) => {
+    try {
+        const promo = new Promotion(req.body);
+        await promo.save();
+        res.status(201).json(promo);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.put('/api/promotions/:id', verifyToken, async (req, res) => {
+    try {
+        const updated = await Promotion.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.json(updated);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+app.patch('/api/promotions/:id/cancel', verifyToken, async (req, res) => {
+    try {
+        const promo = await Promotion.findByIdAndUpdate(req.params.id, { status: 'cancelada' }, { new: true });
+        res.json(promo);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
     }
 });
 

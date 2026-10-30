@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0A0F1E">
+    <title>Promoções | Jack Peças</title>
+    <link rel="icon" type="image/png" href="https://res.cloudinary.com/drdu6ryip/image/upload/v1771549494/icone-jackpecas_q6vq4a.png">
+    <script src="./js/guard.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#0A0F1E', accent: '#FACC15' }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-primary text-white min-h-screen flex flex-col md:flex-row font-sans w-full overflow-x-hidden">
+
+    <!-- HEADER MOBILE -->
+    <header class="md:hidden flex items-center justify-between p-4 bg-[#111827] border-b border-gray-800 w-full z-40 relative">
+        <h2 class="text-xl font-black text-accent tracking-wider uppercase">JACK PEÇAS</h2>
+        <button id="mobile-menu-btn" class="text-gray-400 hover:text-white p-2">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+    </header>
+
+    <div id="mobile-overlay" class="fixed inset-0 bg-black/80 z-40 hidden md:hidden transition-opacity"></div>
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="w-64 bg-[#111827] border-r border-gray-800 p-6 flex flex-col shrink-0 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-50">
+        <div class="flex items-center justify-between mb-10">
+            <h2 class="text-2xl font-black text-accent text-center tracking-wider uppercase md:block hidden">Jack Peças</h2>
+            <h2 class="text-xl font-black text-accent tracking-wider uppercase md:hidden">MENU</h2>
+            <button id="close-menu-btn" class="md:hidden text-gray-400 hover:text-white p-1">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <nav id="main-nav" class="flex-1 space-y-2">
+            <a href="dashboard.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="15" rx="1"/></svg>
+                </div>
+                <span class="text-sm font-medium">Dashboard</span>
+            </a>
+            <a href="products.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                </div>
+                <span class="text-sm font-medium">Produtos</span>
+            </a>
+            <a href="promocao.html" class="group flex items-center gap-3 p-3 rounded-xl bg-gray-800/60 text-white border border-gray-700/30 transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-accent text-primary transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m2 9 3-3 3 3"/><path d="M13 18H7a2 2 0 0 1-2-2V6"/><path d="M22 15l-3 3-3-3"/><path d="M11 6h6a2 2 0 0 1 2 2v10"/><polygon points="12 2 15 8 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 8 12 2"/></svg>
+                </div>
+                <span class="text-sm font-bold tracking-wide">Promoções</span>
+            </a>
+            <a href="categories.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/><path d="M12 4v2"/><path d="M16 4v2"/><path d="M8 4v4"/></svg>
+                </div>
+                <span class="text-sm font-medium">Categorias</span>
+            </a>
+            <a href="attributes.html" class="group flex items-center gap-3 p-3 rounded-xl text-gray-400 hover:bg-gray-800/50 hover:text-white transition-all duration-200">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800/40 group-hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 group-hover:text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+                </div>
+                <span class="text-sm font-medium">Atributos</span>
+            </a>
+        </nav>
+
+        <button onclick="logout()" class="group mt-4 flex items-center gap-3 p-3 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-xl transition-all duration-200 w-full text-left font-medium">
+            <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 group-hover:bg-red-900/40 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </div>
+            <span class="text-sm uppercase tracking-wider font-bold">Sair</span>
+        </button>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-full">
+        <div class="max-w-7xl mx-auto">
+
+            <!-- CABEÇALHO DA TELA -->
+            <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-accent uppercase tracking-widest">Promoções</h1>
+                    <p class="text-[10px] text-gray-500 uppercase font-bold mt-1 tracking-tighter">
+                        Crie ofertas e campanhas com descontos por produto ou variação
+                    </p>
+                </div>
+                
+                <button onclick="openTypeModal()" class="flex items-center justify-center gap-2 bg-accent text-primary font-black px-6 py-3.5 rounded-xl uppercase tracking-wider text-xs hover:bg-yellow-400 transition shadow-lg shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>Adicionar Promoção</span>
+                </button>
+            </div>
+
+            <!-- LISTA DE PROMOÇÕES CADASTRADAS -->
+            <div class="w-full">
+                <table class="w-full text-left border-collapse block md:table">
+                    <thead class="hidden md:table-header-group">
+                        <tr class="bg-[#111827] border border-gray-800 text-[10px] uppercase tracking-widest text-gray-400 shadow-sm">
+                            <th class="p-4 font-bold rounded-tl-xl border-l border-gray-800">Campanha / Título</th>
+                            <th class="p-4 text-center font-bold w-32">Tipo</th>
+                            <th class="p-4 text-center font-bold w-32">Status</th>
+                            <th class="p-4 text-center font-bold w-24">Itens</th>
+                            <th class="p-4 text-center font-bold w-48">Vigência</th>
+                            <th class="p-4 text-right font-bold w-36 rounded-tr-xl border-r border-gray-800">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="promo-list-body" class="block md:table-row-group md:bg-[#111827] md:border-x md:border-b border-gray-800 md:rounded-b-xl md:shadow-2xl divide-y-0 md:divide-y divide-gray-800/50">
+                        <!-- Conteúdo carregado via promocao.js -->
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- MODAL ETAPA 1: ESCOLHA DO TIPO DA PROMOÇÃO -->
+    <div id="modal-type" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#111827] border border-gray-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+            <h2 class="text-xl font-bold uppercase text-accent tracking-wider mb-2">Selecione o Tipo de Oferta</h2>
+            <p class="text-xs text-gray-400 mb-6">Escolha o formato que deseja criar para definir o comportamento de tempo da campanha.</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <!-- CARD PROMOÇÃO -->
+                <div onclick="selectPromoType('standard')" class="cursor-pointer border-2 border-gray-800 hover:border-accent bg-gray-900/50 hover:bg-gray-900 p-5 rounded-xl transition flex flex-col items-center text-center group">
+                    <div class="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center text-accent mb-3 group-hover:scale-110 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 9 3-3 3 3"/><path d="M13 18H7a2 2 0 0 1-2-2V6"/><path d="M22 15l-3 3-3-3"/><path d="M11 6h6a2 2 0 0 1 2 2v10"/></svg>
+                    </div>
+                    <h3 class="font-bold text-sm text-white uppercase mb-1">Promoção Padrão</h3>
+                    <p class="text-[11px] text-gray-400">Desconto contínuo durante o período e horário configurados.</p>
+                </div>
+
+                <!-- CARD OFERTA RELÂMPAGO -->
+                <div onclick="selectPromoType('flash')" class="cursor-pointer border-2 border-gray-800 hover:border-amber-400 bg-gray-900/50 hover:bg-gray-900 p-5 rounded-xl transition flex flex-col items-center text-center group">
+                    <div class="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </div>
+                    <h3 class="font-bold text-sm text-amber-400 uppercase mb-1">Oferta Relâmpago</h3>
+                    <p class="text-[11px] text-gray-400">Vigência expressa de 24 horas no dia selecionado com maior apelo visual.</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="closeTypeModal()" class="text-xs uppercase font-bold text-gray-400 hover:text-white px-4 py-2">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ETAPA 2: SELEÇÃO DE PRODUTOS E VARIAÇÕES -->
+    <div id="modal-select-products" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#111827] border border-gray-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+                <div>
+                    <h2 class="text-lg font-bold uppercase text-accent tracking-wider">Etapa 1: Selecionar Produtos</h2>
+                    <p class="text-xs text-gray-400">Marque os produtos ou variações específicas do Bling que entrarão na promoção</p>
+                </div>
+                <span id="badge-promo-type-label" class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-accent/10 text-accent border border-accent/20"></span>
+            </div>
+
+            <!-- FILTROS DE BUSCA DE PRODUTOS -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
+                <input type="text" id="modal-search-input" oninput="filterModalProducts()" placeholder="Buscar por nome ou SKU..." class="bg-gray-900 border border-gray-800 p-2.5 rounded-xl text-xs text-white outline-none focus:border-accent">
+                <select id="modal-filter-cat" onchange="filterModalProducts()" class="bg-gray-900 border border-gray-800 p-2.5 rounded-xl text-xs text-gray-300 outline-none focus:border-accent">
+                    <option value="">Todas as Categorias</option>
+                </select>
+                <select id="modal-filter-subcat" onchange="filterModalProducts()" class="bg-gray-900 border border-gray-800 p-2.5 rounded-xl text-xs text-gray-300 outline-none focus:border-accent">
+                    <option value="">Todas as Subcategorias</option>
+                </select>
+            </div>
+
+            <!-- LISTAGEM SELEÇÃO -->
+            <div id="modal-products-list" class="flex-1 overflow-y-auto space-y-2 pr-2 my-2 border-y border-gray-800/60 py-3">
+                <!-- Linhas dos produtos e variações -->
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t border-gray-800">
+                <span id="selected-counter-badge" class="text-xs font-bold text-accent uppercase tracking-wider">0 itens selecionados</span>
+                <div class="flex gap-3">
+                    <button onclick="closeSelectProductsModal()" class="text-xs uppercase font-bold text-gray-400 hover:text-white px-4 py-2">Cancelar</button>
+                    <button onclick="goToPricingStep()" class="bg-accent text-primary font-black px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition">Avançar para Preços →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ETAPA 3: PREÇOS PROMOCIONAIS E CONFIGURAÇÃO DA VIGÊNCIA -->
+    <div id="modal-pricing" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#111827] border border-gray-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+                <div>
+                    <h2 class="text-lg font-bold uppercase text-accent tracking-wider">Etapa 2: Preços e Período de Vigência</h2>
+                    <p class="text-xs text-gray-400">Defina o título da promoção, datas e os preços promocionais</p>
+                </div>
+                <button onclick="backToProductSelection()" class="text-xs text-accent font-bold uppercase hover:underline">← Voltar para seleção</button>
+            </div>
+
+            <div class="space-y-4 my-4 overflow-y-auto pr-2">
+                <!-- DADOS DA CAMPANHA -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-900/50 p-4 rounded-xl border border-gray-800">
+                    <div class="md:col-span-3">
+                        <label class="text-[10px] text-gray-400 font-bold uppercase">Título da Promoção / Oferta</label>
+                        <input type="text" id="promo-title-input" placeholder="Ex: Queima de Estoque - Telas Samsung" class="w-full mt-1 p-2.5 rounded-lg bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+                    </div>
+
+                    <div id="start-date-container">
+                        <label class="text-[10px] text-gray-400 font-bold uppercase">Data e Hora de Início</label>
+                        <input type="datetime-local" id="promo-start-input" class="w-full mt-1 p-2.5 rounded-lg bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+                    </div>
+
+                    <div id="end-date-container">
+                        <label class="text-[10px] text-gray-400 font-bold uppercase">Data e Hora de Fim</label>
+                        <input type="datetime-local" id="promo-end-input" class="w-full mt-1 p-2.5 rounded-lg bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+                    </div>
+
+                    <div id="flash-date-container" class="hidden">
+                        <label class="text-[10px] text-amber-400 font-bold uppercase">Dia da Oferta Relâmpago (24h)</label>
+                        <input type="date" id="promo-flash-date-input" onchange="applyFlashDate24h()" class="w-full mt-1 p-2.5 rounded-lg bg-gray-900 border border-amber-500/50 text-xs text-white outline-none focus:border-amber-400">
+                    </div>
+                </div>
+
+                <!-- TABELA DE ITENS SELECIONADOS PARA DEFINIR DESCONTO -->
+                <div>
+                    <h3 class="text-xs font-bold uppercase text-accent mb-2">Itens Selecionados e Preços Promocionais</h3>
+                    <div class="space-y-2" id="selected-pricing-list">
+                        <!-- Gerado via promocao.js -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t border-gray-800 mt-auto">
+                <button onclick="closePricingModal()" class="text-xs uppercase font-bold text-gray-400 hover:text-white px-4 py-2">Cancelar</button>
+                <button onclick="savePromotion()" id="btn-save-promo" class="bg-accent text-primary font-black px-8 py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg">Salvar e Agendar Promoção</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-10 right-10 transform translate-y-20 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+        <div id="toast-content" class="px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 font-bold border">
+            <span id="toast-icon"></span>
+            <span id="toast-message" class="text-sm"></span>
+        </div>
+    </div>
+
+    <script src="./js/promocao.js"></script>
+    <script src="./js/menu.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const btnMenu = document.getElementById("mobile-menu-btn");
+            const btnClose = document.getElementById("close-menu-btn");
+            const sidebar = document.getElementById("sidebar");
+            const overlay = document.getElementById("mobile-overlay");
+
+            function toggleMobileMenu() {
+                sidebar.classList.toggle("-translate-x-full");
+                overlay.classList.toggle("hidden");
+            }
+
+            if (btnMenu) btnMenu.addEventListener("click", toggleMobileMenu);
+            if (btnClose) btnClose.addEventListener("click", toggleMobileMenu);
+            if (overlay) overlay.addEventListener("click", toggleMobileMenu);
+        });
+    </script>
+</body>
+</html>
