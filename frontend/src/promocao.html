@@ -213,13 +213,13 @@
                 <!-- DADOS DA CAMPANHA -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-900/50 p-4 rounded-xl border border-gray-800">
                     <div class="md:col-span-3">
-                        <label class="text-[10px] text-gray-400 font-bold uppercase">Título da Promoção / Oferta</label>
-                        <input type="text" id="promo-title-input" placeholder="Ex: Queima de Estoque - Telas Samsung" class="w-full mt-1 p-2.5 rounded-lg bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+                        <label class="text-[10px] text-gray-400 font-bold uppercase">Título da Promoção / Oferta <span class="text-red-500">*</span></label>
+                        <input type="text" id="promo-title-input" required placeholder="Ex: Queima de Estoque - Telas Samsung" class="w-full mt-1 p-2.5 rounded-lg bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
                     </div>
 
                     <div id="start-date-container">
                         <label class="text-[10px] text-gray-400 font-bold uppercase">Data e Hora de Início</label>
-                        <input type="datetime-local" id="promo-start-input" class="w-full mt-1 p-2.5 rounded-lg bg-gray-900 border border-gray-700 text-xs text-white outline-none focus:border-accent">
+                        <input type="datetime-local" id="promo-start-input" class="w-full mt-1 p-3 rounded-lg bg-gray-900 border border-gray-700 text-sm text-white outline-none focus:border-accent [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert">
                     </div>
 
                     <div id="end-date-container">

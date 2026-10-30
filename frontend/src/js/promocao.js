@@ -20,7 +20,7 @@ async function loadInitialData() {
         const token = localStorage.getItem('admin_token');
         const [resPromos, resProds, resCats] = await Promise.all([
             fetch(`${API_BASE_URL}/api/promotions`, { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch(`${API_BASE_URL}/api/products?limit=1000`), // Busca ampla para seleção
+            fetch(`${API_BASE_URL}/api/products?limit=9999`),
             fetch(`${API_BASE_URL}/api/categories`)
         ]);
 
@@ -72,7 +72,6 @@ function renderPromotionsList() {
 
         let calculatedStatus = p.status || 'agendada';
         
-        // Atualiza status dinamicamente por data se estiver ativa/agendada
         if (p.status !== 'cancelada' && p.status !== 'finalizada') {
             if (now < startDate) {
                 calculatedStatus = 'agendada';
@@ -151,6 +150,18 @@ function selectPromoType(type) {
             : 'text-[10px] font-black uppercase px-3 py-1 rounded-lg bg-accent/10 text-accent border border-accent/20';
     }
 
+    // Reseta o campo de título para vazio e garante foco/estado inicial
+    const titleInput = document.getElementById('promo-title-input');
+    if (titleInput) titleInput.value = '';
+
+    // Libera os inputs de data para novas promoções
+    const startInput = document.getElementById('promo-start-input');
+    const endInput = document.getElementById('promo-end-input');
+    const flashInput = document.getElementById('promo-flash-date-input');
+    if (startInput) { startInput.value = ''; startInput.disabled = false; startInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
+    if (endInput) { endInput.value = ''; endInput.disabled = false; endInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
+    if (flashInput) { flashInput.value = ''; flashInput.disabled = false; flashInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
+
     openSelectProductsModal();
 }
 
@@ -164,7 +175,7 @@ function closeSelectProductsModal() {
 }
 
 /* ──────────────────────────────────────────
-   SELEÇÃO DE PRODUTOS E VARIAÇÕES
+   SELEÇÃO DE PRODUTOS E VARIAÇÕES (Com lógica de busca avançada do main.js)
 ────────────────────────────────────────── */
 
 function filterModalProducts() {
@@ -186,15 +197,25 @@ function renderModalProductsList() {
     const listContainer = document.getElementById('modal-products-list');
     if (!listContainer) return;
 
-    const term = document.getElementById('modal-search-input')?.value.toLowerCase().trim() || '';
+    const searchInput = document.getElementById('modal-search-input');
+    const searchRaw = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const cat = document.getElementById('modal-filter-cat')?.value || '';
     const sub = document.getElementById('modal-filter-subcat')?.value || '';
 
     const filtered = allProducts.filter(p => {
-        const matchesTerm = !term || p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
+        let matchesSearch = true;
+        if (searchRaw) {
+            const keywords = searchRaw.split(/\s+/);
+            matchesSearch = keywords.every(word => {
+                const s = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const nameMatch = new RegExp(`(^|\\s|[\\/\\-])(${s})($|\\s|[\\/\\-])`, 'i').test(p.name);
+                const skuMatch = p.sku && p.sku.toLowerCase().includes(word);
+                return nameMatch || skuMatch;
+            });
+        }
         const matchesCat = !cat || p.category === cat;
         const matchesSub = !sub || p.subcategory === sub;
-        return matchesTerm && matchesCat && matchesSub;
+        return matchesSearch && matchesCat && matchesSub;
     });
 
     if (filtered.length === 0) {
@@ -209,9 +230,12 @@ function renderModalProductsList() {
             const varRows = p.variations.map((v, idx) => {
                 const key = `${p._id}_var_${v.blingId || v.sku || idx}`;
                 const isChecked = selectedItems.has(key);
+                const sr = v.stock_by_store?.SaoRoque ?? 0;
+                const co = v.stock_by_store?.Cotia ?? 0;
+                const ib = v.stock_by_store?.Ibiuna ?? 0;
 
                 return `
-                <div class="flex items-center justify-between bg-black/30 p-2.5 rounded-lg border border-gray-800 ml-6 mt-1.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-black/30 p-2.5 rounded-lg border border-gray-800 ml-6 mt-1.5 gap-2">
                     <div class="flex items-center gap-3">
                         <input type="checkbox" onchange="toggleItemSelection('${key}', this.checked, ${JSON.stringify({
                             productId: p._id,
@@ -227,7 +251,14 @@ function renderModalProductsList() {
                             <span class="text-[10px] text-gray-500 ml-2 font-mono">SKU: ${v.sku || '---'}</span>
                         </div>
                     </div>
-                    <span class="text-xs font-bold text-white">R$ ${parseFloat(v.price || p.price || 0).toFixed(2)}</span>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 text-[10px] bg-gray-900 px-2 py-1 rounded border border-gray-800">
+                            <span class="text-orange-400 font-bold">SR: ${sr}</span>
+                            <span class="text-sky-400 font-bold">CO: ${co}</span>
+                            <span class="text-purple-400 font-bold">IB: ${ib}</span>
+                        </div>
+                        <span class="text-xs font-bold text-white">R$ ${parseFloat(v.price || p.price || 0).toFixed(2)}</span>
+                    </div>
                 </div>`;
             }).join('');
 
@@ -245,9 +276,12 @@ function renderModalProductsList() {
         } else {
             const key = `${p._id}_simple`;
             const isChecked = selectedItems.has(key);
+            const sr = p.stock_by_store?.SaoRoque ?? 0;
+            const co = p.stock_by_store?.Cotia ?? 0;
+            const ib = p.stock_by_store?.Ibiuna ?? 0;
 
             return `
-            <div class="flex items-center justify-between bg-gray-900/60 p-3 rounded-xl border border-gray-800">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-gray-900/60 p-3 rounded-xl border border-gray-800 gap-2">
                 <div class="flex items-center gap-3">
                     <input type="checkbox" onchange="toggleItemSelection('${key}', this.checked, ${JSON.stringify({
                         productId: p._id,
@@ -262,7 +296,14 @@ function renderModalProductsList() {
                         <div class="text-[10px] text-gray-500">${p.category || ''} • ${p.subcategory || 'Geral'} • SKU: ${p.sku || '---'}</div>
                     </div>
                 </div>
-                <span class="text-xs font-bold text-white">R$ ${parseFloat(p.price || 0).toFixed(2)}</span>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 text-[10px] bg-gray-900 px-2 py-1 rounded border border-gray-800">
+                        <span class="text-orange-400 font-bold">SR: ${sr}</span>
+                        <span class="text-sky-400 font-bold">CO: ${co}</span>
+                        <span class="text-purple-400 font-bold">IB: ${ib}</span>
+                    </div>
+                    <span class="text-xs font-bold text-white">R$ ${parseFloat(p.price || 0).toFixed(2)}</span>
+                </div>
             </div>`;
         }
     }).join('');
@@ -272,7 +313,7 @@ function renderModalProductsList() {
 
 function toggleItemSelection(key, isChecked, data) {
     if (isChecked) {
-        data.promoPrice = data.originalPrice; // Preço inicial padrão
+        data.promoPrice = data.originalPrice; 
         selectedItems.set(key, data);
     } else {
         selectedItems.delete(key);
@@ -298,7 +339,6 @@ function goToPricingStep() {
     closeSelectProductsModal();
     document.getElementById('modal-pricing').classList.remove('hidden');
 
-    // Ajusta visualização das datas conforme o tipo
     const startDateContainer = document.getElementById('start-date-container');
     const endDateContainer = document.getElementById('end-date-container');
     const flashDateContainer = document.getElementById('flash-date-container');
@@ -329,7 +369,6 @@ function applyFlashDate24h() {
     const flashDateVal = document.getElementById('promo-flash-date-input').value;
     if (!flashDateVal) return;
 
-    // Define 00:00 às 23:59 do dia selecionado
     document.getElementById('promo-start-input').value = `${flashDateVal}T00:00`;
     document.getElementById('promo-end-input').value = `${flashDateVal}T23:59`;
 }
@@ -341,35 +380,39 @@ function renderPricingList() {
     container.innerHTML = Array.from(selectedItems.entries()).map(([key, item]) => {
         const orig = parseFloat(item.originalPrice || 0);
         const promo = parseFloat(item.promoPrice || orig);
-        const discountPct = orig > 0 ? Math.round(((orig - promo) / orig) * 100) : 0;
+        const discountPct = orig > 0 ? Math.max(0, Math.round(((orig - promo) / orig) * 100)) : 0;
 
         return `
         <div class="flex flex-col sm:flex-row sm:items-center justify-between bg-gray-900/60 p-3 rounded-xl border border-gray-800 gap-3">
             <div class="flex-1">
                 <div class="text-xs font-bold text-white">${item.name}</div>
-                <div class="text-[10px] text-gray-500 font-mono">SKU: ${item.sku || '---'} • De: R$ ${orig.toFixed(2)}</div>
+                <div class="text-[10px] text-gray-400 font-mono flex items-center gap-2 mt-0.5">
+                    <span>SKU: ${item.sku || '---'}</span>
+                    <span class="text-gray-500">•</span>
+                    <span class="text-amber-400 font-bold">De: R$ ${orig.toFixed(2)}</span>
+                </div>
             </div>
 
             <div class="flex items-center gap-3">
                 <div>
                     <label class="text-[9px] text-gray-400 uppercase font-bold block">Preço Promo (R$)</label>
-                    <input type="number" step="0.01" value="${promo.toFixed(2)}" oninput="updateItemPromoPrice('${key}', this.value)" class="w-28 p-1.5 rounded bg-gray-800 border border-gray-700 text-xs font-bold text-accent outline-none focus:border-accent">
+                    <input type="number" step="0.01" id="price-input-${key}" value="${promo.toFixed(2)}" oninput="updateItemByPrice('${key}', this.value)" class="w-28 p-1.5 rounded bg-gray-800 border border-gray-700 text-xs font-bold text-accent outline-none focus:border-accent">
                 </div>
 
-                <div class="text-center min-w-[60px]">
-                    <span class="text-[9px] text-gray-500 uppercase font-bold block">Desconto</span>
-                    <span id="discount-tag-${key}" class="text-xs font-black text-emerald-400">${discountPct}% OFF</span>
+                <div>
+                    <label class="text-[9px] text-gray-400 uppercase font-bold block">Desconto (%)</label>
+                    <input type="number" min="0" max="100" id="discount-input-${key}" value="${discountPct}" oninput="updateItemByDiscount('${key}', this.value)" class="w-20 p-1.5 rounded bg-gray-800 border border-gray-700 text-xs font-bold text-emerald-400 outline-none focus:border-accent text-center">
                 </div>
 
-                <button onclick="removeItemFromPricing('${key}')" class="text-red-400 hover:text-red-300 p-1" title="Remover">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <button onclick="removeItemFromPricing('${key}')" class="text-red-400 hover:text-red-300 p-2 bg-red-950/40 rounded-lg border border-red-900/40 transition" title="Remover item">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                 </button>
             </div>
         </div>`;
     }).join('');
 }
 
-function updateItemPromoPrice(key, value) {
+function updateItemByPrice(key, value) {
     const item = selectedItems.get(key);
     if (!item) return;
 
@@ -377,10 +420,26 @@ function updateItemPromoPrice(key, value) {
     const promo = parseFloat(value || 0);
     item.promoPrice = promo;
 
-    const discountTag = document.getElementById(`discount-tag-${key}`);
-    if (discountTag && orig > 0) {
-        const pct = Math.max(0, Math.round(((orig - promo) / orig) * 100));
-        discountTag.innerText = `${pct}% OFF`;
+    const discountInput = document.getElementById(`discount-input-${key}`);
+    if (discountInput && orig > 0) {
+        const pct = Math.max(0, Math.min(100, Math.round(((orig - promo) / orig) * 100)));
+        discountInput.value = pct;
+    }
+}
+
+function updateItemByDiscount(key, value) {
+    const item = selectedItems.get(key);
+    if (!item) return;
+
+    const orig = parseFloat(item.originalPrice || 0);
+    const pct = parseFloat(value || 0);
+    
+    const promo = orig * (1 - (pct / 100));
+    item.promoPrice = Math.max(0, promo);
+
+    const priceInput = document.getElementById(`price-input-${key}`);
+    if (priceInput) {
+        priceInput.value = item.promoPrice.toFixed(2);
     }
 }
 
@@ -410,15 +469,28 @@ async function savePromotion() {
     }
 
     if (!title) {
-        showNotification("Digite um título para a promoção.", "error");
+        showNotification("O campo Título da Promoção é obrigatório.", "error");
         return;
     }
     if (!startDateVal || !endDateVal) {
-        showNotification("Preencha a data de início e fim da promoção.", "error");
+        showNotification("Preencha a data e horário de início e fim da promoção.", "error");
         return;
     }
     if (selectedItems.size === 0) {
-        showNotification("Adicione pelo menos um produto na promoção.", "error");
+        showNotification("Selecione ao menos um produto antes de avançar.", "error");
+        return;
+    }
+
+    // Validação de preços preenchidos
+    let precosValidos = true;
+    selectedItems.forEach((item) => {
+        if (item.promoPrice === undefined || item.promoPrice === null || isNaN(item.promoPrice) || item.promoPrice < 0) {
+            precosValidos = false;
+        }
+    });
+
+    if (!precosValidos) {
+        showNotification("Preencha corretamente os preços promocionais de todos os itens selecionados.", "error");
         return;
     }
 
@@ -452,7 +524,7 @@ async function savePromotion() {
         });
 
         if (res.ok) {
-            showNotification(editingPromoId ? "Promoção atualizada!" : "Promoção agendada com sucesso!");
+            showNotification(editingPromoId ? "Promoção atualizada com sucesso!" : "Promoção agendada com sucesso!");
             closePricingModal();
             loadInitialData();
         } else {
@@ -485,35 +557,68 @@ function editPromotion(id) {
     const startLocal = new Date(promo.startDate).toISOString().slice(0, 16);
     const endLocal = new Date(promo.endDate).toISOString().slice(0, 16);
 
-    document.getElementById('promo-start-input').value = startLocal;
-    document.getElementById('promo-end-input').value = endLocal;
+    const startInput = document.getElementById('promo-start-input');
+    const endInput = document.getElementById('promo-end-input');
+    const flashInput = document.getElementById('promo-flash-date-input');
+
+    startInput.value = startLocal;
+    endInput.value = endLocal;
+
+    // Trava os campos de vigência conforme solicitado na edição
+    startInput.disabled = true;
+    startInput.classList.add('opacity-50', 'cursor-not-allowed');
+    endInput.disabled = true;
+    endInput.classList.add('opacity-50', 'cursor-not-allowed');
 
     if (promo.type === 'flash') {
-        document.getElementById('promo-flash-date-input').value = promo.startDate.slice(0, 10);
+        const flashDateStr = promo.startDate.slice(0, 10);
+        flashInput.value = flashDateStr;
+        flashInput.disabled = true;
+        flashInput.classList.add('opacity-50', 'cursor-not-allowed');
     }
 
     goToPricingStep();
 }
 
 async function cancelPromotion(id) {
-    if (!confirm("Deseja realmente cancelar/encerrar esta promoção?")) return;
+    // Substituição de alert nativo por toast/confirmação estilizada
+    const confirmModalHtml = `
+        <div id="cancel-confirm-modal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div class="bg-[#111827] border border-red-500/30 rounded-xl p-6 max-w-sm w-full shadow-2xl">
+                <h3 class="text-base font-black text-white uppercase tracking-wider mb-2">Encerrar Promoção</h3>
+                <p class="text-slate-300 text-xs mb-6">Deseja realmente cancelar/encerrar esta promoção?</p>
+                <div class="flex gap-3 justify-end">
+                    <button id="btn-no-cancel" class="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-xs font-bold uppercase">Não</button>
+                    <button id="btn-yes-cancel" class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold uppercase">Sim, Encerrar</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', confirmModalHtml);
 
-    try {
-        const token = localStorage.getItem('admin_token');
-        const res = await fetch(`${API_BASE_URL}/api/promotions/${id}/cancel`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+    document.getElementById('btn-no-cancel').addEventListener('click', () => {
+        document.getElementById('cancel-confirm-modal').remove();
+    });
 
-        if (res.ok) {
-            showNotification("Promoção encerrada!");
-            loadInitialData();
-        } else {
-            showNotification("Erro ao cancelar promoção.", "error");
+    document.getElementById('btn-yes-cancel').addEventListener('click', async () => {
+        document.getElementById('cancel-confirm-modal').remove();
+        try {
+            const token = localStorage.getItem('admin_token');
+            const res = await fetch(`${API_BASE_URL}/api/promotions/${id}/cancel`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                showNotification("Promoção encerrada com sucesso!");
+                loadInitialData();
+            } else {
+                showNotification("Erro ao cancelar promoção.", "error");
+            }
+        } catch {
+            showNotification("Erro de conexão.", "error");
         }
-    } catch {
-        showNotification("Erro de conexão.", "error");
-    }
+    });
 }
 
 /* ──────────────────────────────────────────
