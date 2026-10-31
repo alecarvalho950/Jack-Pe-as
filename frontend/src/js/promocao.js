@@ -4,6 +4,7 @@ let categories = [];
 let currentType = 'standard'; // 'standard' ou 'flash'
 let selectedItems = new Map(); // Guarda { key: itemData }
 let editingPromoId = null;
+let isViewMode = false; // Indica se estamos apenas visualizando detalhes (promoção finalizada)
 
 const API_BASE_URL = "https://api.jackpecas.com.br";
 
@@ -95,7 +96,6 @@ function renderPromotionsList() {
 
         const formatDate = (d) => new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
-        // Regra: se estiver cancelada ou finalizada, NÃO mostra o botão de editar, apenas detalhes/visualização
         const canEdit = calculatedStatus !== 'cancelada' && calculatedStatus !== 'finalizada';
 
         return `
@@ -114,11 +114,11 @@ function renderPromotionsList() {
             <td class="block md:table-cell p-4 text-right">
                 <div class="flex items-center justify-end gap-2">
                     ${canEdit ? `
-                        <button onclick="editPromotion('${p._id || p.id}')" class="p-2 bg-gray-800 hover:bg-accent hover:text-black rounded-lg transition text-xs font-bold uppercase" title="Editar">
+                        <button onclick="editPromotion('${p._id || p.id}', false)" class="p-2 bg-gray-800 hover:bg-accent hover:text-black rounded-lg transition text-xs font-bold uppercase" title="Editar">
                             Editar
                         </button>
                     ` : `
-                        <button onclick="editPromotion('${p._id || p.id}')" class="p-2 bg-gray-800/50 text-gray-400 hover:text-white rounded-lg transition text-xs font-bold uppercase" title="Ver Detalhes">
+                        <button onclick="editPromotion('${p._id || p.id}', true)" class="p-2 bg-gray-800/50 text-gray-400 hover:text-white rounded-lg transition text-xs font-bold uppercase" title="Ver Detalhes">
                             Detalhes
                         </button>
                     `}
@@ -139,6 +139,7 @@ function renderPromotionsList() {
 
 function openTypeModal() {
     editingPromoId = null;
+    isViewMode = false;
     selectedItems.clear();
     document.getElementById('modal-type').classList.remove('hidden');
 }
@@ -169,7 +170,9 @@ function selectPromoType(type) {
     if (endInput) { endInput.value = ''; endInput.disabled = false; endInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
     if (flashInput) { flashInput.value = ''; flashInput.disabled = false; flashInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
 
-    openSelectProductsModal();
+    // FLUXO REORGANIZADO: Ao criar nova, vai direto para o painel de configuração/preços,
+    // onde o usuário gerencia os produtos e a vigência na mesma tela principal.
+    goToPricingStep();
 }
 
 function openSelectProductsModal() {
@@ -241,7 +244,6 @@ function renderModalProductsList() {
             const varRows = p.variations.map((v, idx) => {
                 const key = `${p._id}_var_${v.blingId || v.sku || idx}`;
                 const isChecked = selectedItems.has(key);
-                // Se for edição e o item já estava salvo na promoção, travamos o checkbox para não desmarcar diretamente aqui
                 const isLockedOriginal = editingPromoId && isChecked; 
 
                 const sr = v.stock_by_store?.SaoRoque ?? 0;
@@ -259,11 +261,11 @@ function renderModalProductsList() {
                             sku: v.sku || p.sku,
                             originalPrice: v.price || p.price,
                             isVariation: true
-                        }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} ${isLockedOriginal ? 'disabled title="Produto já pertencente à promoção. Remova pela lista de preços se necessário."' : ''} class="w-4 h-4 accent-accent cursor-pointer ${isLockedOriginal ? 'opacity-60 cursor-not-allowed' : ''}">
+                        }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} ${isLockedOriginal ? 'disabled title="Produto já pertencente à promoção."' : ''} class="w-4 h-4 accent-accent cursor-pointer ${isLockedOriginal ? 'opacity-60 cursor-not-allowed' : ''}">
                         <div>
                             <span class="text-xs font-bold text-accent uppercase">${v.type}: ${v.value}</span>
                             <span class="text-[10px] text-gray-500 ml-2 font-mono">SKU: ${v.sku || '---'}</span>
-                            ${isLockedOriginal ? '<span class="ml-2 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Já incluso</span>' : ''}
+                            ${isLockedOriginal ? '<span class="ml-2 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Selecionado</span>' : ''}
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
@@ -311,7 +313,7 @@ function renderModalProductsList() {
                     <div>
                         <div class="text-xs font-bold text-white">${p.name}</div>
                         <div class="text-[10px] text-gray-500">${p.category || ''} • ${p.subcategory || 'Geral'} • SKU: ${p.sku || '---'}</div>
-                        ${isLockedOriginal ? '<span class="inline-block mt-0.5 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Já incluso na promoção</span>' : ''}
+                        ${isLockedOriginal ? '<span class="inline-block mt-0.5 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Selecionado</span>' : ''}
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -331,7 +333,6 @@ function renderModalProductsList() {
 
 function toggleItemSelection(key, isChecked, data) {
     if (isChecked) {
-        // Se já existe nos selecionados, preserva o promoPrice caso já estivesse configurado
         if (!selectedItems.has(key)) {
             data.promoPrice = data.originalPrice; 
             selectedItems.set(key, data);
@@ -352,8 +353,9 @@ function updateSelectedBadge() {
 ────────────────────────────────────────── */
 
 function goToPricingStep() {
-    if (selectedItems.size === 0) {
-        showNotification("Selecione pelo menos um produto para continuar.", "error");
+    if (selectedItems.size === 0 && !editingPromoId) {
+        // Se for criação nova e nada selecionado, abre o modal de seleção primeiro
+        openSelectProductsModal();
         return;
     }
 
@@ -374,22 +376,31 @@ function goToPricingStep() {
         flashDateContainer.classList.add('hidden');
     }
 
-    // Gerencia a visibilidade do botão "Voltar para seleção" (Não aparece se for edição)
-    const btnBackStep = document.getElementById('btn-back-step');
-    if (btnBackStep) {
-        if (editingPromoId) {
-            btnBackStep.classList.add('hidden');
-        } else {
-            btnBackStep.classList.remove('hidden');
-        }
-    }
-
+    // Trava ou libera os campos caso seja visualização de promoção finalizada
+    applyViewModeState();
     renderPricingList();
 }
 
-function backToProductSelection() {
-    closePricingModal();
-    openSelectProductsModal();
+function applyViewModeState() {
+    const titleInput = document.getElementById('promo-title-input');
+    const startInput = document.getElementById('promo-start-input');
+    const endInput = document.getElementById('promo-end-input');
+    const flashInput = document.getElementById('promo-flash-date-input');
+    const btnSave = document.getElementById('btn-save-promo');
+    const btnAddProducts = document.getElementById('btn-add-more-products');
+
+    if (isViewMode) {
+        if (titleInput) titleInput.disabled = true;
+        if (startInput) startInput.disabled = true;
+        if (endInput) endInput.disabled = true;
+        if (flashInput) flashInput.disabled = true;
+        if (btnSave) btnSave.classList.add('hidden');
+        if (btnAddProducts) btnAddProducts.classList.add('hidden');
+    } else {
+        if (titleInput) titleInput.disabled = false;
+        if (btnSave) btnSave.classList.remove('hidden');
+        if (btnAddProducts) btnAddProducts.classList.remove('hidden');
+    }
 }
 
 function closePricingModal() {
@@ -408,7 +419,7 @@ function renderPricingList() {
     const container = document.getElementById('selected-pricing-list');
     if (!container) return;
 
-    let htmlContent = Array.from(selectedItems.entries()).map(([key, item]) => {
+    container.innerHTML = Array.from(selectedItems.entries()).map(([key, item]) => {
         const orig = parseFloat(item.originalPrice || 0);
         const promo = parseFloat(item.promoPrice || orig);
         const discountPct = orig > 0 ? Math.max(0, Math.round(((orig - promo) / orig) * 100)) : 0;
@@ -427,32 +438,22 @@ function renderPricingList() {
             <div class="flex items-center gap-3">
                 <div>
                     <label class="text-[9px] text-gray-400 uppercase font-bold block">Preço Promo (R$)</label>
-                    <input type="number" step="0.01" id="price-input-${key}" value="${promo.toFixed(2)}" oninput="updateItemByPrice('${key}', this.value)" class="w-28 p-1.5 rounded bg-gray-800 border border-gray-700 text-xs font-bold text-accent outline-none focus:border-accent">
+                    <input type="number" step="0.01" id="price-input-${key}" value="${promo.toFixed(2)}" oninput="updateItemByPrice('${key}', this.value)" ${isViewMode ? 'disabled' : ''} class="w-28 p-1.5 rounded bg-gray-800 border border-gray-700 text-xs font-bold text-accent outline-none focus:border-accent ${isViewMode ? 'opacity-60 cursor-not-allowed' : ''}">
                 </div>
 
                 <div>
                     <label class="text-[9px] text-gray-400 uppercase font-bold block">Desconto (%)</label>
-                    <input type="number" min="0" max="100" id="discount-input-${key}" value="${discountPct}" oninput="updateItemByDiscount('${key}', this.value)" class="w-20 p-1.5 rounded bg-gray-800 border border-gray-700 text-xs font-bold text-emerald-400 outline-none focus:border-accent text-center">
+                    <input type="number" min="0" max="100" id="discount-input-${key}" value="${discountPct}" oninput="updateItemByDiscount('${key}', this.value)" ${isViewMode ? 'disabled' : ''} class="w-20 p-1.5 rounded bg-gray-800 border border-gray-700 text-xs font-bold text-emerald-400 outline-none focus:border-accent text-center ${isViewMode ? 'opacity-60 cursor-not-allowed' : ''}">
                 </div>
 
-                <button onclick="removeItemFromPricing('${key}')" class="text-red-400 hover:text-red-300 p-2 bg-red-950/40 rounded-lg border border-red-900/40 transition" title="Remover item">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                </button>
+                ${!isViewMode ? `
+                    <button onclick="removeItemFromPricing('${key}')" class="text-red-400 hover:text-red-300 p-2 bg-red-950/40 rounded-lg border border-red-900/40 transition" title="Remover item">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                ` : ''}
             </div>
         </div>`;
     }).join('');
-
-    // Botão para adicionar mais produtos mesmo estando no modo de edição
-    htmlContent += `
-        <div class="pt-2">
-            <button onclick="openSelectProductsModal()" type="button" class="w-full py-2.5 border-2 border-dashed border-gray-700 hover:border-accent rounded-xl text-xs font-bold text-gray-300 hover:text-accent uppercase tracking-wider transition flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Adicionar mais produtos à lista
-            </button>
-        </div>
-    `;
-
-    container.innerHTML = htmlContent;
 }
 
 function updateItemByPrice(key, value) {
@@ -489,20 +490,18 @@ function updateItemByDiscount(key, value) {
 function removeItemFromPricing(key) {
     selectedItems.delete(key);
     renderPricingList();
-    if (selectedItems.size === 0) {
-        backToProductSelection();
-    }
 }
 
 /* ──────────────────────────────────────────
    SALVAMENTO / EDIÇÃO / CANCELAMENTO
 ────────────────────────────────────────── */
 
-function editPromotion(id) {
+function editPromotion(id, viewOnly = false) {
     const promo = promotions.find(p => (p._id || p.id) === id);
     if (!promo) return;
 
     editingPromoId = id;
+    isViewMode = viewOnly;
     currentType = promo.type || 'standard';
     selectedItems.clear();
 
@@ -550,6 +549,8 @@ function editPromotion(id) {
 }
 
 async function savePromotion() {
+    if (isViewMode) return;
+
     const title = document.getElementById('promo-title-input').value.trim();
     let startDateVal = document.getElementById('promo-start-input').value;
     let endDateVal = document.getElementById('promo-end-input').value;
@@ -661,6 +662,7 @@ async function cancelPromotion(id) {
     });
 
     document.getElementById('btn-yes-cancel').addEventListener('click', async () => {
+        document.getElementById('cancel-confirm-modal5']?.remove();
         document.getElementById('cancel-confirm-modal').remove();
         try {
             const token = localStorage.getItem('admin_token');

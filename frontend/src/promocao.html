@@ -131,11 +131,16 @@
 
     <!-- MODAL ETAPA 1: ESCOLHA DO TIPO DA PROMOÇÃO -->
     <div id="modal-type" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-[#111827] border border-gray-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+        <div class="bg-[#111827] border border-gray-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <!-- BOTÃO X PROFISSIONAL -->
+            <button onclick="closeTypeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white p-1.5 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
             <h2 class="text-xl font-bold uppercase text-accent tracking-wider mb-2">Selecione o Tipo de Oferta</h2>
             <p class="text-xs text-gray-400 mb-6">Escolha o formato que deseja criar para definir o comportamento de tempo da campanha.</p>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
                 <!-- CARD PROMOÇÃO -->
                 <div onclick="selectPromoType('standard')" class="cursor-pointer border-2 border-gray-800 hover:border-accent bg-gray-900/50 hover:bg-gray-900 p-5 rounded-xl transition flex flex-col items-center text-center group">
                     <div class="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center text-accent mb-3 group-hover:scale-110 transition">
@@ -154,20 +159,21 @@
                     <p class="text-[11px] text-gray-400">Vigência expressa de 24 horas no dia selecionado com maior apelo visual.</p>
                 </div>
             </div>
-
-            <div class="flex justify-end">
-                <button onclick="closeTypeModal()" class="text-xs uppercase font-bold text-gray-400 hover:text-white px-4 py-2">Cancelar</button>
-            </div>
         </div>
     </div>
 
-    <!-- MODAL ETAPA 2: SELEÇÃO DE PRODUTOS E VARIAÇÕES -->
-    <div id="modal-select-products" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-[#111827] border border-gray-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
-            <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+    <!-- MODAL SELEÇÃO DE PRODUTOS E VARIAÇÕES (Z-Index superior para aparecer acima) -->
+    <div id="modal-select-products" class="fixed inset-0 bg-black/80 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-[#111827] border border-gray-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh] relative">
+            <!-- BOTÃO X PROFISSIONAL -->
+            <button onclick="closeSelectProductsModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white p-1.5 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="flex items-center justify-between pb-4 border-b border-gray-800 pr-8">
                 <div>
-                    <h2 class="text-lg font-bold uppercase text-accent tracking-wider">Etapa 1: Selecionar Produtos</h2>
-                    <p class="text-xs text-gray-400">Marque os produtos ou variações específicas do Bling que entrarão na promoção</p>
+                    <h2 class="text-lg font-bold uppercase text-accent tracking-wider">Selecionar Produtos</h2>
+                    <p class="text-xs text-gray-400">Marque os produtos ou variações específicas do Bling para adicionar à campanha</p>
                 </div>
                 <span id="badge-promo-type-label" class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-accent/10 text-accent border border-accent/20"></span>
             </div>
@@ -191,23 +197,25 @@
             <div class="flex items-center justify-between pt-4 border-t border-gray-800">
                 <span id="selected-counter-badge" class="text-xs font-bold text-accent uppercase tracking-wider">0 itens selecionados</span>
                 <div class="flex gap-3">
-                    <button onclick="closeSelectProductsModal()" class="text-xs uppercase font-bold text-gray-400 hover:text-white px-4 py-2">Cancelar</button>
-                    <button onclick="goToPricingStep()" class="bg-accent text-primary font-black px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition">Avançar para Preços →</button>
+                    <button onclick="closeSelectProductsModal()" class="bg-accent text-primary font-black px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition">Concluir Seleção</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL ETAPA 3: PREÇOS PROMOCIONAIS E CONFIGURAÇÃO DA VIGÊNCIA -->
+    <!-- MODAL PRINCIPAL DE CONFIGURAÇÃO E PREÇOS -->
     <div id="modal-pricing" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-[#111827] border border-gray-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
-            <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+        <div class="bg-[#111827] border border-gray-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh] relative">
+            <!-- BOTÃO X PROFISSIONAL -->
+            <button onclick="closePricingModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white p-1.5 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="flex items-center justify-between pb-4 border-b border-gray-800 pr-8">
                 <div>
-                    <h2 class="text-lg font-bold uppercase text-accent tracking-wider">Etapa 2: Preços e Período de Vigência</h2>
-                    <p class="text-xs text-gray-400">Defina o título da promoção, datas e os preços promocionais</p>
+                    <h2 class="text-lg font-bold uppercase text-accent tracking-wider">Configuração da Promoção</h2>
+                    <p class="text-xs text-gray-400">Defina o título, vigência e os preços promocionais dos itens</p>
                 </div>
-                <!-- ID adicionado para controle dinâmico -->
-                <button id="btn-back-step" onclick="backToProductSelection()" class="text-xs text-accent font-bold uppercase hover:underline">← Voltar para seleção</button>
             </div>
 
             <div class="space-y-4 my-4 overflow-y-auto pr-2">
@@ -234,9 +242,15 @@
                     </div>
                 </div>
 
-                <!-- TABELA DE ITENS SELECIONADOS PARA DEFINIR DESCONTO -->
+                <!-- CABEÇALHO COM BOTÃO DE ADICIONAR PRODUTOS AO LADO DO TÍTULO -->
                 <div>
-                    <h3 class="text-xs font-bold uppercase text-accent mb-2">Itens Selecionados e Preços Promocionais</h3>
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-xs font-bold uppercase text-accent">Itens Selecionados e Preços Promocionais</h3>
+                        <button id="btn-add-more-products" onclick="openSelectProductsModal()" type="button" class="bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                            + Adicionar mais produtos à lista
+                        </button>
+                    </div>
                     <div class="space-y-2" id="selected-pricing-list">
                         <!-- Gerado via promocao.js -->
                     </div>
@@ -244,7 +258,7 @@
             </div>
 
             <div class="flex items-center justify-between pt-4 border-t border-gray-800 mt-auto">
-                <button onclick="closePricingModal()" class="text-xs uppercase font-bold text-gray-400 hover:text-white px-4 py-2">Cancelar</button>
+                <button onclick="closePricingModal()" class="text-xs uppercase font-bold text-gray-400 hover:text-white px-4 py-2">Fechar</button>
                 <button onclick="savePromotion()" id="btn-save-promo" class="bg-accent text-primary font-black px-8 py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg">Salvar e Agendar Promoção</button>
             </div>
         </div>
