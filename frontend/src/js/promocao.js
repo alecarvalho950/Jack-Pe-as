@@ -170,8 +170,6 @@ function selectPromoType(type) {
     if (endInput) { endInput.value = ''; endInput.disabled = false; endInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
     if (flashInput) { flashInput.value = ''; flashInput.disabled = false; flashInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
 
-    // FLUXO REORGANIZADO: Ao criar nova, vai direto para o painel de configuração/preços,
-    // onde o usuário gerencia os produtos e a vigência na mesma tela principal.
     goToPricingStep();
 }
 
@@ -354,7 +352,6 @@ function updateSelectedBadge() {
 
 function goToPricingStep() {
     if (selectedItems.size === 0 && !editingPromoId) {
-        // Se for criação nova e nada selecionado, abre o modal de seleção primeiro
         openSelectProductsModal();
         return;
     }
@@ -376,7 +373,6 @@ function goToPricingStep() {
         flashDateContainer.classList.add('hidden');
     }
 
-    // Trava ou libera os campos caso seja visualização de promoção finalizada
     applyViewModeState();
     renderPricingList();
 }
@@ -662,8 +658,7 @@ async function cancelPromotion(id) {
     });
 
     document.getElementById('btn-yes-cancel').addEventListener('click', async () => {
-        document.getElementById('cancel-confirm-modal5']?.remove();
-        document.getElementById('cancel-confirm-modal').remove();
+        document.getElementById('cancel-confirm-modal')?.remove();
         try {
             const token = localStorage.getItem('admin_token');
             const res = await fetch(`${API_BASE_URL}/api/promotions/${id}/cancel`, {
