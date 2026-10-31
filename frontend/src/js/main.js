@@ -1,9 +1,13 @@
 let allProducts = [];
 let categories = [];
+let activePromotions = [];
+let flashCountdownInterval = null;
+
 let searchTimer;
-let currentView = "HOME";
+let currentView = "HOME"; // "HOME", "CATEGORY", "SUBCATEGORY", "PROMOTION"
 let activeCat = null;
 let activeSub = null;
+let activePromoId = null;
 let activeFilters = {};
 let currentPage = 1;
 let currentSort = 'default';
@@ -32,60 +36,28 @@ const STORE_SCHEMA_KEYS = {
 const TAG_PALETTE = [
   { bg: "bg-[#7ed1cc]/10", text: "text-[#007267]", border: "border-[#007267]" },
   { bg: "bg-[#0ea5e9]/10", text: "text-[#0ea5e9]", border: "border-[#0ea5e9]" },
-  {
-    bg: "bg-amber-500/10",
-    text: "text-amber-400",
-    border: "border-amber-500/20",
-  },
+  { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20" },
   { bg: "bg-rose-500/10", text: "text-rose-400", border: "border-rose-500/20" },
-  {
-    bg: "bg-indigo-500/10",
-    text: "text-indigo-400",
-    border: "border-indigo-500/20",
-  },
-  {
-    bg: "bg-orange-500/10",
-    text: "text-[#f97800]",
-    border: "border-[#f97800]",
-  },
-  {
-    bg: "bg-purple-500/10",
-    text: "text-purple-400",
-    border: "border-purple-500/20",
-  },
+  { bg: "bg-indigo-500/10", text: "text-indigo-400", border: "border-indigo-500/20" },
+  { bg: "bg-orange-500/10", text: "text-[#f97800]", border: "border-[#f97800]" },
+  { bg: "bg-purple-500/10", text: "text-purple-400", border: "border-purple-500/20" },
   { bg: "bg-cyan-500/10", text: "text-[#0094fd]", border: "border-[#0094fd]" },
   { bg: "bg-lime-500/10", text: "text-[#09af00]", border: "border-[#09af00]" },
-  {
-    bg: "bg-fuchsia-500/10",
-    text: "text-fuchsia-400",
-    border: "border-fuchsia-500/20",
-  },
+  { bg: "bg-fuchsia-500/10", text: "text-fuchsia-400", border: "border-fuchsia-500/20" },
   { bg: "bg-pink-500/10", text: "text-pink-400", border: "border-pink-500/20" },
-  {
-    bg: "bg-violet-500/10",
-    text: "text-violet-400",
-    border: "border-violet-500/20",
-  },
+  { bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/20" },
   { bg: "bg-teal-500/10", text: "text-teal-400", border: "border-teal-500/20" },
   { bg: "bg-red-500/10", text: "text-[#D32F2F]", border: "border-[#D32F2F]" },
   { bg: "bg-blue-600/10", text: "text-blue-400", border: "border-blue-600/20" },
-  {
-    bg: "bg-yellow-500/10",
-    text: "text-yellow-300",
-    border: "border-yellow-500/20",
-  },
-  {
-    bg: "bg-slate-400/10",
-    text: "text-slate-300",
-    border: "border-slate-400/20",
-  },
+  { bg: "bg-yellow-500/10", text: "text-yellow-300", border: "border-yellow-500/20" },
+  { bg: "bg-slate-400/10", text: "text-slate-300", border: "border-slate-400/20" },
   { bg: "bg-green-600/10", text: "text-[#008b00]", border: "border-[#008b00]" },
   { bg: "bg-zinc-400/10", text: "text-zinc-300", border: "border-zinc-400/20" },
   { bg: "bg-[#002cf1]/10", text: "text-[#002cf1]", border: "border-[#002cf1]" },
 ];
 
 /* ──────────────────────────────────────────
-   HELPERS DE ESTOQUE
+   HELPERS DE ESTOQUE E PREÇO PROMOCIONAL
 ────────────────────────────────────────── */
 
 function getProductStock(p) {
@@ -104,16 +76,49 @@ function getVariationStock(v) {
   return v.stock !== undefined ? v.stock : v.estoque || 0;
 }
 
-/* ──────────────────────────────────────────
-   HELPER: verifica se um produto/variação
-   já está no carrinho (para o botão "Adicionado")
-────────────────────────────────────────── */
 function isInCart(id) {
   return cart.some((item) => item.id === id);
 }
 
+/**
+ * Busca se existe preço promocional ativo para um produto simples ou variação
+ */
+function getPromotionalInfo(productId, variantBlingId = null, defaultPrice = 0) {
+  if (!activePromotions || activePromotions.length === 0) return null;
+
+  for (const promo of activePromotions) {
+    if (!promo.items || promo.items.length === 0) continue;
+
+    const matchedItem = promo.items.find(item => {
+      const matchProd = String(item.productId) === String(productId);
+      if (!matchProd) return false;
+
+      if (variantBlingId) {
+        return item.isVariation && String(item.variantBlingId) === String(variantBlingId);
+      }
+      return !item.isVariation;
+    });
+
+    if (matchedItem && matchedItem.promoPrice !== undefined && matchedItem.promoPrice < defaultPrice) {
+      const orig = parseFloat(matchedItem.originalPrice || defaultPrice);
+      const promoP = parseFloat(matchedItem.promoPrice);
+      const discountPct = orig > 0 ? Math.round(((orig - promoP) / orig) * 100) : 0;
+
+      return {
+        originalPrice: orig,
+        promoPrice: promoP,
+        discountPct: Math.max(0, discountPct),
+        promoTitle: promo.title,
+        promoType: promo.type
+      };
+    }
+  }
+
+  return null;
+}
+
 /* ──────────────────────────────────────────
-   INIT
+   INIT & FETCH
 ────────────────────────────────────────── */
 
 async function init() {
@@ -131,12 +136,12 @@ async function init() {
       headers: { "Content-Type": "application/json" },
     };
 
-    // 1. Busca inicial dos dados
-  const [resCat, resProd, resAttr] = await Promise.all([
-  fetch(`${API_BASE_URL}/api/categories`, fetchOptions),
-  fetch(`${API_BASE_URL}/api/products?limit=9999`, fetchOptions),
-  fetch(`${API_BASE_URL}/api/attributes`, fetchOptions) // Adicione esta linha
-]);
+    const [resCat, resProd, resAttr, resPromo] = await Promise.all([
+      fetch(`${API_BASE_URL}/api/categories`, fetchOptions),
+      fetch(`${API_BASE_URL}/api/products?limit=9999`, fetchOptions),
+      fetch(`${API_BASE_URL}/api/attributes`, fetchOptions),
+      fetch(`${API_BASE_URL}/api/promotions`, fetchOptions).catch(() => null)
+    ]);
 
     if (!resCat.ok || !resProd.ok)
       throw new Error("Erro na resposta do servidor");
@@ -144,6 +149,20 @@ async function init() {
     categories = await resCat.json();
     const prodData = await resProd.json();
     allProducts = prodData.products || [];
+
+    if (resPromo && resPromo.ok) {
+      const allPromos = await resPromo.json();
+      const now = new Date();
+      activePromotions = allPromos.filter(p => {
+        if (p.status === 'cancelada' || p.status === 'finalizada') return false;
+        const start = new Date(p.startDate);
+        const end = new Date(p.endDate);
+        return now >= start && now <= end;
+      });
+
+      // Ordena colocando 'flash' primeiro para ter prioridade
+      activePromotions.sort((a, b) => (b.type === 'flash' ? 1 : 0) - (a.type === 'flash' ? 1 : 0));
+    }
 
     if (resAttr && resAttr.ok) {
       const attributesData = await resAttr.json();
@@ -158,30 +177,20 @@ async function init() {
       });
     }
 
-    // 2. CONEXÃO COM O SOCKET.IO
     if (typeof io !== 'undefined') {
       socket = io(API_BASE_URL);
 
-      // Ouvir atualizações de estoque
-      socket.on("product_stock_updated", (data) => { // Tem que ser exatamente o mesmo nome
-    console.log("📥 [FRONT-SOCKET] Recebendo atualização de estoque:", data);
-    handleSocketStockUpdate(data);
-});;
-
-      // Ouvir atualizações ou novos cadastros de produtos (Preço, Nome, Categoria...)
-      socket.on("product_updated", (data) => {
-  console.log("⚡ Notificação de cadastro/atualização via Socket:", data);
-  handleSocketProductUpdate(data.product); // <--- Passando o product direto aqui
-});
-
-      // Ouvir exclusões de produtos
-      socket.on("product_deleted", (data) => {
-        console.log("⚡ Produto excluído via Socket:", data);
-        handleSocketProductDelete(data.blingId);
+      socket.on("product_stock_updated", (data) => {
+        handleSocketStockUpdate(data);
       });
 
-    } else {
-      console.warn("⚠️ Socket.io não encontrado. Verifique a importação no HTML.");
+      socket.on("product_updated", (data) => {
+        handleSocketProductUpdate(data.product);
+      });
+
+      socket.on("product_deleted", (data) => {
+        handleSocketProductDelete(data.blingId);
+      });
     }
 
     const savedStore = localStorage.getItem("jack_pecas_preferred_store");
@@ -205,77 +214,59 @@ async function init() {
     const container = document.getElementById("catalog-content");
     if (container)
       container.innerHTML = `<p class="text-red-500 text-center py-10 uppercase font-black text-xs">Erro ao conectar com o servidor.</p>`;
-    if (overlay) overlay.remove();
+    if (overlay) overlay?.remove();
   }
 }
 
 /* ──────────────────────────────────────────
-   FUNÇÃO AUXILIAR PARA REAL-TIME
+   REAL-TIME (SOCKET) HANDLERS
 ────────────────────────────────────────── */
 
 function handleSocketProductUpdate(updatedProduct) {
   if (!updatedProduct) return;
-
   const productId = updatedProduct._id || updatedProduct.id;
-  console.log(`📥 [FRONT-SOCKET] Atualização recebida para: "${updatedProduct.name}"`);
 
   const status = updatedProduct.situacao || updatedProduct.status || "";
   const isInactive = String(status).toLowerCase().startsWith("i") || String(status).toLowerCase().startsWith("e") || updatedProduct.action === "delete";
 
   if (isInactive) {
-    console.log(`🗑️ [FRONT-SOCKET] O produto "${updatedProduct.name}" está INATIVO/EXCLUÍDO. Removendo da tela.`);
-    
     if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
       allProducts = allProducts.filter(p => String(p._id || p.id) !== String(productId));
     }
     
-    // Remove TUDO atrelado a este produto do carrinho silenciosamente
     if (typeof cart !== 'undefined' && Array.isArray(cart)) {
       const itensAntes = cart.length;
       cart = cart.filter(item => !String(item.id).startsWith(String(productId)));
       if (cart.length < itensAntes) {
-          mostrarAvisoCarrinho(`Um produto que estava no seu carrinho foi inativado e removido.`);
-          if (typeof updateCartUI === 'function') updateCartUI();
+        mostrarAvisoCarrinho(`Um produto que estava no seu carrinho foi inativado e removido.`);
+        if (typeof updateCartUI === 'function') updateCartUI();
       }
     }
-    
     render();
     return; 
   }
 
   const idx = allProducts.findIndex(p => String(p._id || p.id) === String(productId));
-
   if (idx !== -1) {
     allProducts[idx] = updatedProduct;
   } else {
     allProducts.unshift(updatedProduct);
   }
 
-  // A Mágica do Carrinho acontece toda aqui agora:
   atualizarDadosCarrinhoRealTime(productId, updatedProduct);
-  
-  console.log("🎨 [FRONT-SOCKET] Redesenhando o catálogo para exibir a novidade...");
   render();
 }
 
-// Remove o produto da tela imediatamente se ele for excluído no Bling
 function handleSocketProductDelete(blingId) {
   if (!blingId) return;
-  console.log(`🗑️ [FRONT-SOCKET] Removendo produto Bling ID ${blingId} da lista ativa.`);
-
-  // Array para armazenar o(s) ID(s) do MongoDB do(s) produto(s) excluído(s)
   let mongoIdsToRemove = [];
 
-  // Filtra o array mestre removendo o produto deletado e coleta os IDs originais
   if (typeof allProducts !== 'undefined' && Array.isArray(allProducts)) {
     allProducts = allProducts.filter(p => {
-      // Se for o produto principal deletado
       if (String(p.blingId) === String(blingId)) {
         mongoIdsToRemove.push(String(p._id || p.id));
         return false;
       }
-      
-      // Se for uma variação deletada isoladamente
       if (p.variations) {
         p.variations = p.variations.filter(v => String(v.blingId) !== String(blingId));
         if (p.variations.length === 0 && p.hasVariations) {
@@ -287,71 +278,41 @@ function handleSocketProductDelete(blingId) {
     });
   }
 
-  // Remove do carrinho SILENCIOSAMENTE usando o ID extraído do banco
   if (typeof cart !== 'undefined' && Array.isArray(cart) && mongoIdsToRemove.length > 0) {
     cart = cart.filter(item => {
-      // Divide o ID do carrinho (Ex: "MongoID-0") para pegar só a base e comparar
       const itemBaseMongoId = String(item.id).split('-')[0];
       return !mongoIdsToRemove.includes(itemBaseMongoId);
     });
     if (typeof updateCartUI === 'function') updateCartUI();
   }
 
-  // Redesenha a tela imediatamente sem o produto
-  console.log("🎨 [FRONT-SOCKET] Redesenhando catálogo limpo...");
   render();
 }
 
-// Inserir logo após a função handleSocketProductDelete...
-
 function handleSocketStockUpdate(data) {
-  console.log("📥 [FRONT-SOCKET] Atualização de estoque recebida:", data);
   if (!data || !data.productId) return;
-
-  // 1. Encontra o produto pai
   const targetProduct = allProducts.find(p => 
     String(p._id || p.id) === String(data.productId) || String(p.blingId) === String(data.productId)
   );
-  
-  if (!targetProduct) {
-    console.warn("⚠️ Produto não encontrado no catálogo.");
-    return;
-  }
+  if (!targetProduct) return;
 
   const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
   
-  // 2. Lógica para Variações
   if (data.isVariation && targetProduct.variations) {
-    // Procura o índice da variação usando o BlingID
-    const vIdx = targetProduct.variations.findIndex(v => 
-      String(v.blingId) === String(data.variantBlingId)
-    );
-
+    const vIdx = targetProduct.variations.findIndex(v => String(v.blingId) === String(data.variantBlingId));
     if (vIdx !== -1) {
-      // ATUALIZAÇÃO SEGURA: Agora vIdx existe e está dentro do escopo
       targetProduct.variations[vIdx].stock_by_store = data.stock_by_store;
-      
       const newStock = data.stock_by_store[storeKey] || 0;
       const varName = targetProduct.variations[vIdx].name;
-      
-      // Atualiza o carrinho
       const cartId = `${targetProduct._id || targetProduct.id}-${targetProduct.variations[vIdx].blingId}`;
       verificarLimitesCarrinhoRealTime(cartId, newStock, varName);
-      
-      console.log(`✅ [FRONT-SOCKET] Estoque da variação "${varName}" atualizado para ${newStock}`);
-    } else {
-      console.warn("⚠️ Variação filha não encontrada no produto:", data.variantBlingId);
     }
-  } 
-  // 3. Lógica para Produto Simples
-  else {
+  } else {
     targetProduct.stock_by_store = data.stock_by_store;
     const newStock = data.stock_by_store[storeKey] || 0;
-    
     verificarLimitesCarrinhoRealTime(targetProduct._id || targetProduct.id, newStock, targetProduct.name);
   }
 
-  // 4. Força a atualização visual de toda a vitrine
   render(); 
 }
 
@@ -360,7 +321,6 @@ function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
   const storeKey = STORE_SCHEMA_KEYS[activeStore] || "SaoRoque";
   let cartChanged = false;
 
-  // Usa filter para poder remover do carrinho as variações que sumirem ou zerarem
   cart = cart.filter(item => {
     if (String(item.id).startsWith(String(productId))) {
       let newStock = item.maxStock;
@@ -370,16 +330,14 @@ function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
       if (updatedProduct.hasVariations && updatedProduct.variations) {
         const parts = String(item.id).split('-');
         const varBlingId = parts[1]; 
-        
         const matchedVar = updatedProduct.variations.find(v => String(v.blingId) === String(varBlingId));
-        
         if (matchedVar) {
           item.name = matchedVar.name;
           item.price = matchedVar.price;
           newStock = matchedVar.stock_by_store ? (matchedVar.stock_by_store[storeKey] || 0) : 0;
           itemName = item.name;
         } else {
-          varAindaExiste = false; // A variação foi excluída do Bling!
+          varAindaExiste = false;
         }
       } else {
         item.name = updatedProduct.name;
@@ -391,7 +349,7 @@ function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
       if (!varAindaExiste) {
         mostrarAvisoCarrinho(`A opção "${itemName}" foi removida do catálogo e do seu carrinho.`);
         cartChanged = true;
-        return false; // Elimina do array do carrinho
+        return false;
       }
 
       item.maxStock = newStock;
@@ -399,26 +357,23 @@ function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
       if (newStock <= 0) {
         mostrarAvisoCarrinho(`A opção "${itemName}" esgotou na loja ativa e foi removida do carrinho.`);
         cartChanged = true;
-        return false; // Elimina do array do carrinho
+        return false;
       } else if (item.quantity > newStock) {
         mostrarAvisoCarrinho(`A quantidade de "${itemName}" foi ajustada para ${newStock} devido à disponibilidade do estoque.`);
         item.quantity = newStock;
         cartChanged = true;
       }
     }
-    return true; // Mantém no carrinho
+    return true;
   });
 
   if (cartChanged) updateCartUI();
 }
 
-// Verifica se a nova quantidade derruba ou limita o que o usuário já tem no carrinho
 function verificarLimitesCarrinhoRealTime(itemId, newStock, itemName) {
   const cartItem = cart.find(item => String(item.id) === String(itemId));
-  
   if (!cartItem) return;
 
-  // Atualiza o estoque máximo disponível para aquele item
   cartItem.maxStock = newStock;
 
   if (newStock <= 0) {
@@ -432,17 +387,13 @@ function verificarLimitesCarrinhoRealTime(itemId, newStock, itemName) {
   updateCartUI();
 }
 
-/* ──────────────────────────────────────────
-   MODAL DE AVISO CUSTOMIZADO (SUBSTITUTO DO ALERT)
-────────────────────────────────────────── */
 function mostrarAvisoCarrinho(mensagem) {
-  // Evita duplicar modais se estourarem vários eventos juntos
   const antigoModal = document.getElementById("socket-alert-modal");
   if (antigoModal) antigoModal.remove();
 
   const modalHtml = `
     <div id="socket-alert-modal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity duration-300">
-      <div class="bg-card border border-amber-500/30 rounded-xl p-6 max-w-sm w-full shadow-2xl transform scale-95 opacity-0 transition-all duration-300 id="socket-modal-content"">
+      <div class="bg-card border border-amber-500/30 rounded-xl p-6 max-w-sm w-full shadow-2xl transform scale-95 opacity-0 transition-all duration-300">
         <div class="flex items-center gap-3 text-accent mb-4">
           <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
@@ -458,17 +409,14 @@ function mostrarAvisoCarrinho(mensagem) {
   `;
 
   document.body.insertAdjacentHTML("beforeend", modalHtml);
-
   const modalElement = document.getElementById("socket-alert-modal");
   const contentElement = modalElement.querySelector("div");
 
-  // Animação de entrada
   setTimeout(() => {
     contentElement.classList.remove("scale-95", "opacity-0");
     contentElement.classList.add("scale-100", "opacity-100");
   }, 10);
 
-  // Evento de fechar no botão OK
   document.getElementById("close-socket-modal").addEventListener("click", () => {
     contentElement.classList.remove("scale-100", "opacity-100");
     contentElement.classList.add("scale-95", "opacity-0");
@@ -481,11 +429,9 @@ function mostrarAvisoCarrinho(mensagem) {
 ────────────────────────────────────────── */
 
 function updateStoreLabel(storeName) {
-  // Atualiza o botão no topo da página
   const el = document.getElementById("top-store-name");
   if (el) el.innerText = storeName;
 
-  // Atualiza o label dentro do carrinho
   const cartLabel = document.getElementById("cart-store-label");
   if (cartLabel) cartLabel.innerText = `Loja ${storeName}`;
 }
@@ -511,18 +457,13 @@ function closeStoreSelector() {
   setTimeout(() => backdrop.classList.add("hidden"), 300);
 }
 
-// Função para enviar os dados de escolha de loja para o Backend
 async function sendAnalyticsEvent(type, location) {
   try {
     const API_BASE_URL = "https://jack-pecas-backend.onrender.com";
     await fetch(`${API_BASE_URL}/api/analytics`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: type,
-        location: location,
-        isNewUser: false, // Opcional, dependendo da sua regra de novos usuários
-      }),
+      body: JSON.stringify({ type, location, isNewUser: false }),
     });
   } catch (err) {
     console.error("Erro ao registrar analytics:", err);
@@ -530,7 +471,6 @@ async function sendAnalyticsEvent(type, location) {
 }
 
 function selectStore(storeName) {
-  // Se mudar de loja com itens no carrinho, confirma limpeza
   if (cart.length > 0 && activeStore && activeStore !== storeName) {
     const ok = confirm(
       `Ao mudar para ${storeName}, o carrinho atual (${activeStore}) será esvaziado. Deseja continuar?`,
@@ -548,40 +488,30 @@ function selectStore(storeName) {
   render();
   updateCartUI();
 
-  // ── DISPARO DO ANALYTICS ADAPTADO PARA O SEU FORMATO ──
-  // Mapeia o nome bonito da tela para o formato do banco de dados (minúsculo e com underline)
   let locationKey = "sao_roque";
   if (storeName === "Cotia") locationKey = "cotia";
   if (storeName === "Ibiúna") locationKey = "ibiuna";
-
-  // Envia o evento para o servidor computar no Dashboard
   sendAnalyticsEvent("select_store", locationKey);
 }
 
 function updateStoreBadgesUI() {
-  // Busca todos os spans que possuem o atributo data-store
   const badges = document.querySelectorAll(".store-badge");
-
   badges.forEach((badge) => {
     const storeName = badge.getAttribute("data-store");
-
     if (activeStore === storeName) {
-      // Estilo quando estiver SELECIONADO: Cor amarela vibrante e texto destacado
       badge.textContent = "Selecionado";
-      badge.className =
-        "store-badge text-[9px] bg-[#FFC107] text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-[#FFC107]";
+      badge.className = "store-badge text-[9px] bg-[#FFC107] text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-[#FFC107]";
     } else {
-      // Estilo Padrão para os botões não ativos: Fundo branco comum
       badge.textContent = "Selecionar";
-      badge.className =
-        "store-badge text-[9px] bg-white text-[#0a0f1a] group-hover:bg-[#FFC107] group-hover:text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-white";
+      badge.className = "store-badge text-[9px] bg-white text-[#0a0f1a] group-hover:bg-[#FFC107] group-hover:text-[#0a0f1a] font-black px-2 py-1 rounded-md transition-colors border border-white";
     }
   });
 }
 
 /* ──────────────────────────────────────────
-   LÓGICA DE ORDENAÇÃO DE PRODUTOS
+   ORDENAÇÃO
 ────────────────────────────────────────── */
+
 function updateSort(value) {
   currentSort = value;
   render();
@@ -595,16 +525,19 @@ function applySort(list) {
     return getProductStock(p);
   };
 
-  // Divide estritamente entre Ativos (com estoque) e Indisponíveis (sem estoque)
   let inStock = list.filter(p => getProductTotalStock(p) > 0);
   let outOfStock = list.filter(p => getProductTotalStock(p) <= 0);
 
   const sortByCriteria = (a, b) => {
     const getMinPrice = (prod) => {
       if (prod.hasVariations && prod.variations?.length > 0) {
-        return Math.min(...prod.variations.map(v => v.price || prod.price || 0));
+        return Math.min(...prod.variations.map(v => {
+          const promoInfo = getPromotionalInfo(prod._id || prod.id, v.blingId, v.price || prod.price || 0);
+          return promoInfo ? promoInfo.promoPrice : (v.price || prod.price || 0);
+        }));
       }
-      return prod.price || 0;
+      const promoInfo = getPromotionalInfo(prod._id || prod.id, null, prod.price || 0);
+      return promoInfo ? promoInfo.promoPrice : (prod.price || 0);
     };
     
     if (currentSort === 'price-asc') return getMinPrice(a) - getMinPrice(b);
@@ -612,7 +545,6 @@ function applySort(list) {
     return 0;
   };
 
-  // Ordena ambas as sublistas de forma independente se não for o "Padrão"
   if (currentSort !== 'default') {
     inStock.sort(sortByCriteria);
     outOfStock.sort(sortByCriteria);
@@ -628,6 +560,7 @@ function applySort(list) {
 function resetAll() {
   document.getElementById("public-search").value = "";
   activeFilters = {};
+  activePromoId = null;
   changeView("HOME");
 }
 
@@ -635,47 +568,37 @@ function renderQuickNav() {
   const nav = document.getElementById("quick-nav");
   if (!nav || !activeStore) return;
 
-  const isHomeActive = currentView === "HOME" || !activeCat;
-  const styleInactive =
-    "botao-filtro hover:bg-[#0a0f1a] hover:border-accent/30 hover:text-[#fefefe] transition-all";
-  const styleActive =
-    "bg-cor-azul-escuro border border-white text-white font-black shadow-lg shadow-accent/20";
+  const isHomeActive = currentView === "HOME" || (!activeCat && !activePromoId);
+  const styleInactive = "botao-filtro hover:bg-[#0a0f1a] hover:border-accent/30 hover:text-[#fefefe] transition-all";
+  const styleActive = "bg-cor-azul-escuro border border-white text-white font-black shadow-lg shadow-accent/20";
 
   let html = `<button onclick="resetAll()" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${isHomeActive ? styleActive : styleInactive}">Tudo</button>`;
 
   (Array.isArray(categories) ? categories : []).forEach((cat) => {
-    const name =
-      typeof cat === "object" ? cat.name || cat.categoria || "" : cat;
+    const name = typeof cat === "object" ? cat.name || cat.categoria || "" : cat;
     if (!name) return;
 
     const hasProducts = allProducts.some((p) => {
-      if (
-        !p.category ||
-        p.category.trim().toLowerCase() !== name.trim().toLowerCase()
-      )
-        return false;
-      if (p.hasVariations && p.variations)
-        return p.variations.some((v) => getVariationStock(v) > 0);
+      if (!p.category || p.category.trim().toLowerCase() !== name.trim().toLowerCase()) return false;
+      if (p.hasVariations && p.variations) return p.variations.some((v) => getVariationStock(v) > 0);
       return getProductStock(p) > 0;
     });
     if (!hasProducts) return;
 
-    const isActive =
-      !isHomeActive &&
-      activeCat &&
-      activeCat.trim().toLowerCase() === name.trim().toLowerCase();
+    const isActive = !isHomeActive && activeCat && activeCat.trim().toLowerCase() === name.trim().toLowerCase();
     html += `<button onclick="changeView('CATEGORY','${name}')" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${isActive ? styleActive : styleInactive}">${name}</button>`;
   });
 
   nav.innerHTML = html;
 }
 
-function changeView(view, cat = null, sub = null) {
+function changeView(view, cat = null, sub = null, promoId = null) {
   showLocalLoading();
   setTimeout(() => {
     currentView = view;
     activeCat = cat;
     activeSub = sub;
+    activePromoId = promoId;
     if (view === "HOME") activeFilters = {};
     currentPage = 1;
     render();
@@ -693,7 +616,6 @@ function handleSearch() {
       render();
     }, 100);
   }, 400);
-  render();
 }
 
 function handleSubFilter(sub) {
@@ -724,6 +646,7 @@ function showLocalLoading() {
             <p class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mt-6 animate-pulse">Sincronizando Unidade...</p>
         </div>`;
 }
+
 function getSortDropdownHTML() {
   return `
     <div class="inline-flex items-center relative">
@@ -739,6 +662,150 @@ function getSortDropdownHTML() {
       </div>
     </div>
   `;
+}
+
+/* ──────────────────────────────────────────
+   CONTADOR DA OFERTA RELÂMPAGO
+────────────────────────────────────────── */
+
+function startFlashCountdown(endDateIso) {
+  if (flashCountdownInterval) clearInterval(flashCountdownInterval);
+
+  const update = () => {
+    const end = new Date(endDateIso).getTime();
+    const now = new Date().getTime();
+    const diff = end - now;
+
+    const elHours = document.getElementById("flash-timer-hours");
+    const elMins = document.getElementById("flash-timer-mins");
+    const elSecs = document.getElementById("flash-timer-secs");
+
+    if (!elHours || !elMins || !elSecs) {
+      if (flashCountdownInterval) clearInterval(flashCountdownInterval);
+      return;
+    }
+
+    if (diff <= 0) {
+      elHours.innerText = "00";
+      elMins.innerText = "00";
+      elSecs.innerText = "00";
+      if (flashCountdownInterval) clearInterval(flashCountdownInterval);
+      return;
+    }
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    elHours.innerText = String(hours).padStart(2, '0');
+    elMins.innerText = String(minutes).padStart(2, '0');
+    elSecs.innerText = String(seconds).padStart(2, '0');
+  };
+
+  update();
+  flashCountdownInterval = setInterval(update, 1000);
+}
+
+/* ──────────────────────────────────────────
+   RENDER DA SEÇÃO DE PROMOÇÕES NO TOPO
+────────────────────────────────────────── */
+
+function renderPromotionsHeaderSection(isMobile) {
+  if (!activePromotions || activePromotions.length === 0) return "";
+
+  let html = "";
+
+  activePromotions.forEach(promo => {
+    const isFlash = promo.type === 'flash';
+    const promoItemIds = new Set((promo.items || []).map(i => String(i.productId)));
+
+    const promoProducts = allProducts.filter(p => promoItemIds.has(String(p._id || p.id)));
+    if (promoProducts.length === 0) return;
+
+    const limit = isMobile ? 6 : 8;
+    const hasMore = promoProducts.length > limit;
+    const displayedProducts = promoProducts.slice(0, limit);
+
+    if (isFlash) {
+      // ── CARDS E HEADER DA OFERTA RELÂMPAGO ──
+      html += `
+      <div class="animate-in mb-12 bg-gradient-to-r from-gray-950 via-amber-950/40 to-gray-950 border-2 border-amber-500/50 p-4 md:p-6 rounded-3xl shadow-2xl relative overflow-hidden">
+        <div class="absolute -right-10 -top-10 w-40 h-40 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-4 border-b border-amber-500/20">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-amber-500/30 animate-bounce">
+              ⚡
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="bg-amber-500 text-slate-950 font-black text-[9px] uppercase px-2 py-0.5 rounded tracking-widest">OFERTA RELÂMPAGO (24H)</span>
+                <span class="text-[10px] text-amber-300 font-bold uppercase tracking-wider animate-pulse">Preços Imbatíveis</span>
+              </div>
+              <h3 class="text-xl md:text-2xl font-black text-white uppercase italic tracking-tight mt-0.5">${promo.title}</h3>
+            </div>
+          </div>
+
+          <!-- CONTADOR REGRESSIVO COM URGÊNCIA -->
+          <div class="flex items-center gap-2 bg-black/60 border border-amber-500/40 px-4 py-2 rounded-2xl shrink-0 self-start md:self-auto">
+            <span class="text-[10px] font-black text-amber-400 uppercase tracking-widest mr-1">TERMINA EM:</span>
+            <div class="flex items-center gap-1 font-mono font-black text-sm text-white">
+              <span id="flash-timer-hours" class="bg-amber-500/20 text-amber-300 px-2 py-1 rounded border border-amber-500/30">00</span>:
+              <span id="flash-timer-mins" class="bg-amber-500/20 text-amber-300 px-2 py-1 rounded border border-amber-500/30">00</span>:
+              <span id="flash-timer-secs" class="bg-amber-500/20 text-amber-300 px-2 py-1 rounded border border-amber-500/30">00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3">
+          ${displayedProducts.map(p => renderCard(p, promo)).join('')}
+        </div>
+
+        ${hasMore ? `
+          <div class="mt-4 pt-3 flex justify-center">
+            <button onclick="changeView('PROMOTION', null, null, '${promo._id || promo.id}')" class="bg-amber-500 hover:bg-yellow-400 text-slate-950 font-black text-xs uppercase tracking-widest px-8 py-3 rounded-xl transition-all shadow-lg shadow-amber-500/20 hover:scale-105 active:scale-95 flex items-center gap-2">
+              <span>VER TUDO (${promoProducts.length} ITENS DA OFERTA)</span>
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </div>
+        ` : ''}
+      </div>`;
+
+      setTimeout(() => startFlashCountdown(promo.endDate), 50);
+
+    } else {
+      // ── CARDS E HEADER DA PROMOÇÃO PADRÃO ──
+      html += `
+      <div class="animate-in mb-12 bg-gradient-to-r from-[#0307cc]/20 via-gray-900 to-[#0307cc]/20 border border-sky-500/30 p-4 md:p-6 rounded-3xl shadow-xl relative">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-sky-500/20">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-cor-amarelo text-cor-azul flex items-center justify-center font-black text-xl shadow-lg">
+              🔥
+            </div>
+            <div>
+              <span class="bg-cor-amarelo text-cor-azul font-black text-[9px] uppercase px-2 py-0.5 rounded tracking-widest">CAMPANHA PROMOCIONAL</span>
+              <h3 class="text-xl md:text-2xl font-black text-white uppercase italic tracking-tight mt-0.5">${promo.title}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3">
+          ${displayedProducts.map(p => renderCard(p, promo)).join('')}
+        </div>
+
+        ${hasMore ? `
+          <div class="mt-4 pt-3 flex justify-center">
+            <button onclick="changeView('PROMOTION', null, null, '${promo._id || promo.id}')" class="bg-cor-amarelo hover:bg-yellow-400 text-cor-azul font-black text-xs uppercase tracking-widest px-8 py-3 rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2">
+              <span>VER TUDO (${promoProducts.length} PRODUTOS)</span>
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </div>
+        ` : ''}
+      </div>`;
+    }
+  });
+
+  return html;
 }
 
 /* ──────────────────────────────────────────
@@ -770,39 +837,64 @@ function render() {
       const keywords = searchRaw.split(/\s+/);
       matchesSearch = keywords.every((word) => {
         const s = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        return new RegExp(`(^|\\s|[\\/\\-])(${s})($|\\s|[\\/\\-])`, "i").test(
-          p.name,
-        );
+        return new RegExp(`(^|\\s|[\\/\\-])(${s})($|\\s|[\\/\\-])`, "i").test(p.name);
       });
     }
+
+    if (currentView === "PROMOTION" && activePromoId) {
+      const promo = activePromotions.find(pr => (pr._id || pr.id) === activePromoId);
+      if (promo) {
+        const promoItemIds = new Set((promo.items || []).map(i => String(i.productId)));
+        if (!promoItemIds.has(String(p._id || p.id))) return false;
+      }
+    }
+
     const matchesCat = activeCat ? p.category === activeCat : true;
     const matchesSub = activeSub ? p.subcategory === activeSub : true;
     return matchesSearch && matchesCat && matchesSub;
   });
 
   Object.keys(activeFilters).forEach((key) => {
-    filtered = filtered.filter(
-      (p) => p.attributes && p.attributes[key] === activeFilters[key],
-    );
+    filtered = filtered.filter((p) => p.attributes && p.attributes[key] === activeFilters[key]);
   });
 
   filtered = applySort(filtered);
 
-  if (activeCat && currentView !== "HOME")
+  if (activeCat && currentView !== "HOME" && currentView !== "PROMOTION")
     renderAttributeSelectors(filtered, attrBox);
   else attrBox.innerHTML = "";
 
-  if (activeCat) {
+  if (activeCat && currentView !== "PROMOTION") {
     brandBox.classList.remove("hidden");
     setupBrandSelect();
   } else brandBox.classList.add("hidden");
 
   const isFiltering = Object.keys(activeFilters).length > 0 || searchRaw.length > 0;
 
-  if (currentView === "HOME" && !isFiltering) {
+  if (currentView === "PROMOTION" && activePromoId) {
+    // ── NAVEGAÇÃO / DETALHES DE UMA PROMOÇÃO ("VER TUDO") ──
+    const promoObj = activePromotions.find(pr => (pr._id || pr.id) === activePromoId);
+    header.classList.remove("hidden");
+    document.getElementById("active-title").innerText = promoObj ? `Promoção: ${promoObj.title}` : "Oferta Especial";
+
+    if (headerSortContainer) headerSortContainer.innerHTML = getSortDropdownHTML();
+
+    if (filtered.length === 0) {
+      htmlOutput = `<div class="py-20 text-center w-full"><p class="text-gray-500 font-black uppercase text-xs">Sem produtos disponíveis para esta promoção no momento.</p></div>`;
+    } else {
+      const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+      const pageItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+      htmlOutput = `<div class="flex flex-col gap-3 animate-in">${pageItems.map((p) => renderCard(p, promoObj)).join("")}</div>`;
+      renderPager(currentPage, totalPages, filtered.length, footer);
+    }
+  } else if (currentView === "HOME" && !isFiltering) {
     header.classList.add("hidden");
     
-    let isFirstCategory = true; // Controla para exibir o botão apenas na primeira seção ativa
+    // 1. RENDERIZA SEÇÃO DE PROMOÇÕES NO TOPO
+    htmlOutput += renderPromotionsHeaderSection(isMobile);
+
+    // 2. RENDERIZA CATEGORIAS NORMAIS ABAIXO
+    let isFirstCategory = true;
     categories.forEach((cat) => {
       const catProducts = filtered.filter((p) => p.category === cat.name);
       if (catProducts.length > 0) {
@@ -814,24 +906,20 @@ function render() {
           null,
           isFirstCategory 
         );
-        isFirstCategory = false; // Desativa para as próximas seções
+        isFirstCategory = false;
       }
     });
   } else if (currentView === "CATEGORY" && !isFiltering) {
     header.classList.remove("hidden");
     document.getElementById("active-title").innerText = activeCat;
-    
-    // Remove o botão da linha do título desta view como solicitado
     if (headerSortContainer) headerSortContainer.innerHTML = "";
     
     const catData = categories.find((c) => c.name === activeCat);
-    let isFirstSubcategory = true; // Controla para exibir apenas na primeira subcategoria ativa
+    let isFirstSubcategory = true;
     
     catData?.subcategories.forEach((sub) => {
       const products = filtered.filter(
-        (p) =>
-          p.subcategory &&
-          p.subcategory.trim().toLowerCase() === sub.trim().toLowerCase(),
+        (p) => p.subcategory && p.subcategory.trim().toLowerCase() === sub.trim().toLowerCase()
       );
       if (products.length > 0) {
         htmlOutput += createSectionHTML(
@@ -842,7 +930,7 @@ function render() {
           sub,
           isFirstSubcategory
         );
-        isFirstSubcategory = false; // Desativa para as próximas subcategorias
+        isFirstSubcategory = false;
       }
     });
   } else {
@@ -851,17 +939,13 @@ function render() {
       ? `${activeCat} > ${activeSub}`
       : activeCat || "Busca";
 
-    // Mantém o botão fixo no topo ao lado do título para Subcategoria e Busca
     if (headerSortContainer) headerSortContainer.innerHTML = getSortDropdownHTML();
 
     if (filtered.length === 0) {
       htmlOutput = `<div class="py-20 text-center w-full"><p class="text-gray-500 font-black uppercase text-xs">Sem resultados para esta unidade.</p></div>`;
     } else {
       const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-      const pageItems = filtered.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE,
-      );
+      const pageItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
       htmlOutput = `<div class="flex flex-col gap-3 animate-in">${pageItems.map((p) => renderCard(p)).join("")}</div>`;
       renderPager(currentPage, totalPages, filtered.length, footer);
     }
@@ -880,25 +964,28 @@ window.addEventListener("resize", () => {
 });
 
 /* ──────────────────────────────────────────
-   RENDER DOS CARDS
+   RENDER DOS CARDS (COM SUPORTE A PREÇO PROMOCIONAL)
 ────────────────────────────────────────── */
 
-function renderCard(p) {
+function renderCard(p, targetPromo = null) {
   const hasVars = p.hasVariations && p.variations?.length > 0;
   const lojaAtual = activeStore || "Geral";
+  const productId = p._id || p.id;
 
   // ── PRODUTO SIMPLES ──
   if (!hasVars) {
     const currentStock = getProductStock(p);
     const isOutOfStock = currentStock <= 0;
-    const itemId = p._id || p.id;
+    const itemId = productId;
     const alreadyInCart = isInCart(itemId);
+
+    const promoInfo = getPromotionalInfo(productId, null, p.price);
+    const finalPrice = promoInfo ? promoInfo.promoPrice : p.price;
 
     const stockCardClasses = isOutOfStock
       ? "opacity-50 grayscale-[30%] border-gray-900/50 bg-white pointer-events-none"
       : "hover:border-accent/30 hover:bg-gray-800/20 shadow-xl hover:shadow-accent/5";
 
-    // Botão dinâmico: "Adicionado" ou "Adicionar"
     let addBtn = "";
     if (isOutOfStock) {
       addBtn = `<button disabled class="bg-gray-900 text-gray-600 font-bold text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl cursor-not-allowed border border-gray-800/40">Indisponível</button>`;
@@ -908,10 +995,33 @@ function renderCard(p) {
                         Adicionado
                       </button>`;
     } else {
-      addBtn = `<button onclick="addToCart('${itemId}','${encodeURIComponent(p.name)}',${p.price},'${lojaAtual}', ${currentStock})"
+      addBtn = `<button onclick="addToCart('${itemId}','${encodeURIComponent(p.name)}',${finalPrice},'${lojaAtual}', ${currentStock})"
                         class="bg-cor-amarelo hover:bg-cor-azul-escuro text-[#0a0f1a] hover:text-white border border-gray-800 hover:border-white font-black text-[10px] md:text-xs uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg hover:shadow-accent/20">
                         Adicionar
                       </button>`;
+    }
+
+    // HTML do bloco de preço (Simples)
+    let priceBlock = "";
+    if (promoInfo) {
+      priceBlock = `
+        <div class="flex flex-col md:items-end">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-gray-400 line-through">R$ ${promoInfo.originalPrice.toFixed(2)}</span>
+            <span class="bg-emerald-500 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded">${promoInfo.discountPct}% OFF</span>
+          </div>
+          <p class="text-2xl md:text-3xl font-black text-emerald-600 font-mono tracking-tight leading-none mt-0.5">
+            <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${promoInfo.promoPrice.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </p>
+        </div>`;
+    } else {
+      priceBlock = `
+        <div class="flex flex-col md:items-end">
+            <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Preço à vista</span>
+            <p class="text-2xl md:text-3xl font-black ${isOutOfStock ? "text-gray-600" : "text-cor-verde font-mono"} tracking-tight leading-none mt-1">
+                <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${parseFloat(p.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            </p>
+        </div>`;
     }
 
     return `
@@ -921,6 +1031,7 @@ function renderCard(p) {
                     <div class="flex items-center gap-2">
                         <span class="text-[9px] font-black text-cor-azul bg-cor-amarelo px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || "Peça"}</span>
                         ${p.subcategory ? `<span class="text-[9px] font-bold text-gray-500 uppercase tracking-wide">/ ${p.subcategory}</span>` : ""}
+                        ${promoInfo ? `<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded text-amber-900 bg-amber-400 border border-amber-500/40">⚡ Promoção</span>` : ''}
                     </div>
                     <h4 class="text-sm md:text-base font-extrabold text-[#0a0f1a] leading-snug tracking-tight">${p.name}</h4>
                     <div class="flex flex-wrap gap-1.5 pt-0.5">
@@ -929,10 +1040,8 @@ function renderCard(p) {
                               ? Object.entries(p.attributes)
                                   .map(([k, v]) => {
                                       if (!v) return "";
-                                      // Garante a extração do nome, seja string ou objeto
                                       const valName = (typeof v === 'object' && v !== null) ? (v.name || '') : v;
                                       const { className, style } = getTagProps(v);
-                                      
                                       return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${valName}</span>`;
                                   })
                                   .join("")
@@ -941,36 +1050,31 @@ function renderCard(p) {
                     </div>
                 </div>
                 <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-gray-800/80 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
-                    <div class="flex flex-col md:items-end">
-                        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Preço à vista</span>
-                        <p class="text-2xl md:text-3xl font-black ${isOutOfStock ? "text-gray-600" : "text-cor-verde font-mono"} tracking-tight leading-none mt-1">
-                            <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${parseFloat(p.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </p>
-                    </div>
+                    ${priceBlock}
                     ${addBtn}
                 </div>
             </div>`;
   }
 
   // ── PRODUTO COM VARIAÇÕES ──
-  const totalStock = p.variations.reduce(
-    (acc, v) => acc + getVariationStock(v),
-    0,
-  );
+  const totalStock = p.variations.reduce((acc, v) => acc + getVariationStock(v), 0);
   const isParentOutOfStock = totalStock <= 0;
-  const minPrice = Math.min(...p.variations.map((v) => v.price || p.price));
-  const productId = p._id || p.id;
+
+  // Encontra o menor preço considerando promoções ativas por variação
+  const minPrice = Math.min(...p.variations.map((v) => {
+    const promoInfo = getPromotionalInfo(productId, v.blingId, v.price || p.price);
+    return promoInfo ? promoInfo.promoPrice : (v.price || p.price);
+  }));
 
   const sortedVariations = [...p.variations].sort((a, b) => {
-    const sA = getVariationStock(a),
-      sB = getVariationStock(b);
+    const sA = getVariationStock(a), sB = getVariationStock(b);
     if (sA > 0 && sB <= 0) return -1;
     if (sA <= 0 && sB > 0) return 1;
     return 0;
   });
 
   const variationsHTML = sortedVariations
-    .map((v, index) => {
+    .map((v) => {
       const vStock = getVariationStock(v);
       const isVOOS = vStock <= 0;
       const varId = `${productId}-${v.blingId}`;
@@ -979,6 +1083,9 @@ function renderCard(p) {
       const vStyleClasses = isVOOS
         ? "opacity-40 grayscale-[40%] bg-gray-950/20 pointer-events-none"
         : "hover:bg-gray-800/40";
+
+      const vPromoInfo = getPromotionalInfo(productId, v.blingId, v.price || p.price);
+      const vFinalPrice = vPromoInfo ? vPromoInfo.promoPrice : (v.price || p.price);
 
       let varBtn = "";
       if (isVOOS) {
@@ -989,10 +1096,29 @@ function renderCard(p) {
                         Adicionado
                       </button>`;
       } else {
-        varBtn = `<button onclick="addToCart('${varId}','${encodeURIComponent(varFullName)}',${v.price || p.price},'${lojaAtual}', ${vStock})"
+        varBtn = `<button onclick="addToCart('${varId}','${encodeURIComponent(varFullName)}',${vFinalPrice},'${lojaAtual}', ${vStock})"
                         class="bg-cor-amarelo hover:bg-cor-azul-escuro text-[#0a0f1a] hover:text-white font-black text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all active:scale-95 border border-gray-800 hover:border-white">
                         Adicionar
                       </button>`;
+      }
+
+      let varPriceBlock = "";
+      if (vPromoInfo) {
+        varPriceBlock = `
+          <div class="flex flex-col items-end">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[9px] font-bold text-gray-400 line-through">R$ ${vPromoInfo.originalPrice.toFixed(2)}</span>
+              <span class="bg-emerald-500 text-slate-950 text-[8px] font-black px-1 py-0.2 rounded">${vPromoInfo.discountPct}% OFF</span>
+            </div>
+            <p class="text-lg font-black text-emerald-600 font-mono">
+              <span class="text-[10px] font-bold mr-0.5">R$</span>${vPromoInfo.promoPrice.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            </p>
+          </div>`;
+      } else {
+        varPriceBlock = `
+          <p class="text-lg font-black ${isVOOS ? "text-gray-600" : "text-cor-verde font-mono"}">
+              <span class="text-[10px] font-bold mr-0.5">R$</span>${parseFloat(v.price || p.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </p>`;
       }
 
       return `
@@ -1001,12 +1127,11 @@ function renderCard(p) {
                     <div class="bg-cor-azul-escuro text-[10px] font-black text-cor-amarelo px-2.5 py-1 rounded-md border border-gray-800 uppercase">
                         ${v.type}: <span class="text-white">${v.value}</span>
                     </div>
+                    ${vPromoInfo ? `<span class="bg-emerald-500 text-slate-950 font-black text-[8px] uppercase px-1.5 py-0.5 rounded">Oferta</span>` : ''}
                     ${isVOOS ? `<span class="text-[9px] font-extrabold uppercase text-white tracking-wider bg-[#D32F2F] px-2 py-0.5 rounded-md border border-[#B71C1C]">Sem estoque</span>` : ""}
                 </div>
                 <div class="flex items-center justify-between sm:justify-end gap-6 mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-gray-800/40 sm:border-t-0">
-                    <p class="text-lg font-black ${isVOOS ? "text-gray-600" : "text-cor-verde font-mono"}">
-                        <span class="text-[10px] font-bold mr-0.5">R$</span>${parseFloat(v.price || p.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </p>
+                    ${varPriceBlock}
                     ${varBtn}
                 </div>
             </div>`;
@@ -1029,10 +1154,8 @@ function renderCard(p) {
                               ? Object.entries(p.attributes)
                                   .map(([k, v]) => {
                                       if (!v) return "";
-                                      // Garante a extração do nome, seja string ou objeto
                                       const valName = (typeof v === 'object' && v !== null) ? (v.name || '') : v;
                                       const { className, style } = getTagProps(v);
-                                      
                                       return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${valName}</span>`;
                                   })
                                   .join("")
@@ -1063,9 +1186,7 @@ function renderCard(p) {
 
 function toggleDropdown(productId) {
   const panel = document.getElementById(`dropdown-${productId}`);
-  const arrow = document
-    .getElementById(`arrow-${productId}`)
-    ?.querySelector("svg");
+  const arrow = document.getElementById(`arrow-${productId}`)?.querySelector("svg");
   if (!panel) return;
   if (panel.classList.contains("hidden")) {
     panel.classList.remove("hidden");
@@ -1109,10 +1230,7 @@ function renderAttributeSelectors(products, container) {
       `<option value="">${key}</option>` +
       Array.from(values)
         .sort()
-        .map(
-          (v) =>
-            `<option value="${v}" ${activeFilters[key] === v ? "selected" : ""}>${v}</option>`,
-        )
+        .map((v) => `<option value="${v}" ${activeFilters[key] === v ? "selected" : ""}>${v}</option>`)
         .join("");
     container.appendChild(select);
   });
@@ -1125,33 +1243,19 @@ function setupBrandSelect() {
   const subs = [
     ...new Set(
       allProducts
-        .filter(
-          (p) =>
-            p.category &&
-            p.category.trim().toLowerCase() ===
-              activeCat.trim().toLowerCase() &&
-            p.subcategory,
-        )
+        .filter((p) => p.category && p.category.trim().toLowerCase() === activeCat.trim().toLowerCase() && p.subcategory)
         .map((p) => p.subcategory),
     ),
   ];
 
   subSelect.innerHTML =
     `<option value="">Subcategoria</option>` +
-    subs
-      .sort()
-      .map(
-        (s) =>
-          `<option value="${s}" ${activeSub === s ? "selected" : ""}>${s}</option>`,
-      )
-      .join("");
+    subs.sort().map((s) => `<option value="${s}" ${activeSub === s ? "selected" : ""}>${s}</option>`).join("");
 
   if (activeSub && activeSub !== "") {
-    subSelect.className =
-      "bg-cor-azul-escuro border border-white hover:text-gray-500 rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none text-white min-w-[100px]";
+    subSelect.className = "bg-cor-azul-escuro border border-white hover:text-gray-500 rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none text-white min-w-[100px]";
   } else {
-    subSelect.className =
-      "botao-filtro border-gray-700 hover:bg-[#0a0f1a] hover:text-white rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none focus:border-accent min-w-[100px]";
+    subSelect.className = "botao-filtro border-gray-700 hover:bg-[#0a0f1a] hover:text-white rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none focus:border-accent min-w-[100px]";
   }
 }
 
@@ -1195,7 +1299,6 @@ function goToPage(p) {
 }
 
 function getTagProps(value) {
-    // 1. Se o valor já vier como objeto do novo formato salvo no produto
     if (value && typeof value === 'object') {
         const c = value.color;
         if (c) {
@@ -1209,7 +1312,6 @@ function getTagProps(value) {
         }
     }
 
-    // 2. Fallback: se for string, busca a cor no attributeColorMap
     const valName = (value && typeof value === 'object') ? value.name : value;
     const color = attributeColorMap[valName];
 
@@ -1231,7 +1333,6 @@ function getTagProps(value) {
    CARRINHO
 ────────────────────────────────────────── */
 
-// AJUSTE 2: toggleCartPanel abre/fecha o drawer — NÃO é chamado pelo addToCart
 function toggleCartPanel() {
   const panel = document.getElementById("cart-panel");
   const backdrop = document.getElementById("cart-backdrop");
@@ -1240,14 +1341,12 @@ function toggleCartPanel() {
   const isOpen = !panel.classList.contains("translate-x-full");
 
   if (isOpen) {
-    // Fecha
     panel.classList.add("translate-x-full");
     if (backdrop) {
       backdrop.classList.add("opacity-0");
       setTimeout(() => backdrop.classList.add("hidden"), 300);
     }
   } else {
-    // Abre
     if (backdrop) {
       backdrop.classList.remove("hidden");
       setTimeout(() => backdrop.classList.remove("opacity-0"), 10);
@@ -1256,26 +1355,20 @@ function toggleCartPanel() {
   }
 }
 
-// AJUSTE: addToCart recebe maxStock e salva no objeto do carrinho
 function addToCart(id, name, price, store, maxStock) {
   const decodedName = decodeURIComponent(name);
-  const existingItem = cart.find(
-    (item) => item.id === id && item.store === store,
-  );
+  const existingItem = cart.find((item) => item.id === id && item.store === store);
 
   if (existingItem) {
     if (existingItem.quantity < maxStock) {
       existingItem.quantity += 1;
-      existingItem.stockWarning = null; // Limpa aviso se houver
+      existingItem.stockWarning = null;
     } else {
-      // Mostra o erro inline e abre o carrinho se estiver fechado
       existingItem.stockWarning = `Apenas ${maxStock} unidade(s) em estoque.`;
-
       const panel = document.getElementById("cart-panel");
       if (panel && panel.classList.contains("translate-x-full")) {
-        toggleCartPanel(); // Abre o painel lateral
+        toggleCartPanel();
       }
-
       setTimeout(() => {
         const currentItem = cart.find((i) => i.id === id && i.store === store);
         if (currentItem) {
@@ -1301,23 +1394,17 @@ function addToCart(id, name, price, store, maxStock) {
   render();
 }
 
-// AJUSTE: updateQuantity respeita o maxStock salvo no item[cite: 11]
 function updateQuantity(id, store, change) {
   const idx = cart.findIndex((item) => item.id === id && item.store === store);
   if (idx === -1) return;
 
   const novaQuantidade = cart[idx].quantity + change;
-
-  // Limpa qualquer aviso anterior para não encavalar
   cart[idx].stockWarning = null;
 
-  // Se tentar passar do limite
   if (change > 0 && novaQuantidade > cart[idx].maxStock) {
-    cart[idx].stockWarning =
-      `Apenas ${cart[idx].maxStock} unidade(s) em estoque.`;
-    updateCartUI(); // Atualiza a interface imediatamente para mostrar o erro
+    cart[idx].stockWarning = `Apenas ${cart[idx].maxStock} unidade(s) em estoque.`;
+    updateCartUI();
 
-    // Esconde a mensagem após 3 segundos
     setTimeout(() => {
       const currentItem = cart.find((i) => i.id === id && i.store === store);
       if (currentItem) {
@@ -1329,7 +1416,6 @@ function updateQuantity(id, store, change) {
   }
 
   cart[idx].quantity = novaQuantidade;
-
   if (cart[idx].quantity < 1) cart.splice(idx, 1);
 
   updateCartUI();
@@ -1372,7 +1458,6 @@ function updateCartUI() {
   if (badge) {
     badge.innerText = totalItems;
     badge.classList.remove("hidden");
-    // Pequena animação de bump no badge
     badge.classList.add("bump");
     setTimeout(() => badge.classList.remove("bump"), 200);
   }
@@ -1415,7 +1500,6 @@ function updateCartUI() {
                                 ${itemTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                             </span>
                         </div>
-                        <!-- Renderiza a mensagem de erro temporária se existir -->
                         ${item.stockWarning ? `<span class="text-[9px] font-bold text-rose-500 uppercase tracking-wider mt-1 animate-in">${item.stockWarning}</span>` : ""}
                     </div>
                 </div>`;
@@ -1424,22 +1508,20 @@ function updateCartUI() {
   }
 }
 
-// AJUSTE 4: checkoutCart limpa o carrinho após enviar a mensagem
 function checkoutCart() {
   if (cart.length === 0) {
     alert("Seu carrinho está vazio!");
     return;
   }
 
-  const phoneNumber =
-    STORE_CONTACTS[activeStore] || STORE_CONTACTS["São Roque"];
+  const phoneNumber = STORE_CONTACTS[activeStore] || STORE_CONTACTS["São Roque"];
 
   let totalGeral = 0;
   let message = `*NOVO PEDIDO - JACK PEÇAS*\n`;
   message += `*Unidade:* Loja ${activeStore}\n`;
   message += `───────────────────────────\n\n`;
 
-  cart.forEach((item, index) => {
+  cart.forEach((item) => {
     const subtotal = item.price * item.quantity;
     totalGeral += subtotal;
     message += `*${item.quantity}x* ${item.name}\n`;
@@ -1456,7 +1538,6 @@ function checkoutCart() {
     "_blank",
   );
 
-  // AJUSTE 4: limpa o carrinho e fecha o drawer após envio
   cart = [];
   updateCartUI();
   render();
