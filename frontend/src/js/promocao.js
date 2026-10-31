@@ -455,12 +455,73 @@ function removeItemFromPricing(key) {
    SALVAMENTO / EDIÇÃO / CANCELAMENTO
 ────────────────────────────────────────── */
 
+function editPromotion(id) {
+    const promo = promotions.find(p => (p._id || p.id) === id);
+    if (!promo) return;
+
+    editingPromoId = id;
+    currentType = promo.type || 'standard';
+    selectedItems.clear();
+
+    (promo.items || []).forEach((item) => {
+        const key = `${item.productId}_${item.isVariation ? 'var_' + item.variantBlingId : 'simple'}`;
+        selectedItems.set(key, item);
+    });
+
+    document.getElementById('promo-title-input').value = promo.title;
+
+    // Converte e formata as datas para o input local em horário legível
+    const startDateObj = new Date(promo.startDate);
+    const endDateObj = new Date(promo.endDate);
+
+    const formatToInput = (dateObj) => {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const hours = String(dateObj.getHours()).padStart(2, '0');
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    const startInput = document.getElementById('promo-start-input');
+    const endInput = document.getElementById('promo-end-input');
+    const flashInput = document.getElementById('promo-flash-date-input');
+
+    // PRESERVAÇÃO RIGOROSA DA DATA ORIGINAL JÁ SALVA NO BANCO
+    startInput.value = formatToInput(startDateObj);
+    endInput.value = formatToInput(endDateObj);
+
+    // Trava os inputs visuais de data para impedir alterações indevidas
+    startInput.disabled = true;
+    startInput.classList.add('opacity-50', 'cursor-not-allowed');
+    endInput.disabled = true;
+    endInput.classList.add('opacity-50', 'cursor-not-allowed');
+
+    if (promo.type === 'flash') {
+        const year = startDateObj.getFullYear();
+        const month = String(startDateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(startDateObj.getDate()).padStart(2, '0');
+        flashInput.value = `${year}-${month}-${day}`;
+        flashInput.disabled = true;
+        flashInput.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+
+    goToPricingStep();
+}
+
 async function savePromotion() {
     const title = document.getElementById('promo-title-input').value.trim();
     let startDateVal = document.getElementById('promo-start-input').value;
     let endDateVal = document.getElementById('promo-end-input').value;
 
-    if (currentType === 'flash') {
+    // Se estiver editando uma promoção existente, resgata as datas ISO originais salvas no banco
+    if (editingPromoId) {
+        const promoOriginal = promotions.find(p => (p._id || p.id) === editingPromoId);
+        if (promoOriginal) {
+            startDateVal = promoOriginal.startDate;
+            endDateVal = promoOriginal.endDate;
+        }
+    } else if (currentType === 'flash') {
         const flashDate = document.getElementById('promo-flash-date-input').value;
         if (flashDate) {
             startDateVal = `${flashDate}T00:00`;
@@ -494,11 +555,15 @@ async function savePromotion() {
         return;
     }
 
+    // Garante formato ISO correto para envio
+    const finalStartIso = editingPromoId ? startDateVal : new Date(startDateVal).toISOString();
+    const finalEndIso = editingPromoId ? endDateVal : new Date(endDateVal).toISOString();
+
     const payload = {
         title,
         type: currentType,
-        startDate: new Date(startDateVal).toISOString(),
-        endDate: new Date(endDateVal).toISOString(),
+        startDate: finalStartIso,
+        endDate: finalEndIso,
         items: Array.from(selectedItems.values())
     };
 
@@ -537,47 +602,6 @@ async function savePromotion() {
         btnSave.disabled = false;
         btnSave.innerHTML = origText;
     }
-}
-
-function editPromotion(id) {
-    const promo = promotions.find(p => (p._id || p.id) === id);
-    if (!promo) return;
-
-    editingPromoId = id;
-    currentType = promo.type || 'standard';
-    selectedItems.clear();
-
-    (promo.items || []).forEach((item, idx) => {
-        const key = `${item.productId}_${item.isVariation ? 'var_' + item.variantBlingId : 'simple'}`;
-        selectedItems.set(key, item);
-    });
-
-    document.getElementById('promo-title-input').value = promo.title;
-
-    const startLocal = new Date(promo.startDate).toISOString().slice(0, 16);
-    const endLocal = new Date(promo.endDate).toISOString().slice(0, 16);
-
-    const startInput = document.getElementById('promo-start-input');
-    const endInput = document.getElementById('promo-end-input');
-    const flashInput = document.getElementById('promo-flash-date-input');
-
-    startInput.value = startLocal;
-    endInput.value = endLocal;
-
-    // Trava os campos de vigência conforme solicitado na edição
-    startInput.disabled = true;
-    startInput.classList.add('opacity-50', 'cursor-not-allowed');
-    endInput.disabled = true;
-    endInput.classList.add('opacity-50', 'cursor-not-allowed');
-
-    if (promo.type === 'flash') {
-        const flashDateStr = promo.startDate.slice(0, 10);
-        flashInput.value = flashDateStr;
-        flashInput.disabled = true;
-        flashInput.classList.add('opacity-50', 'cursor-not-allowed');
-    }
-
-    goToPricingStep();
 }
 
 async function cancelPromotion(id) {

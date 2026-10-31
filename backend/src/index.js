@@ -839,7 +839,7 @@ async function processProductWebhook(data) {
                 console.log(`🧬 Removendo variação filha ID ${blingId} do produto Pai ID ${idPaiBling}...`);
                 await Product.updateOne(
                     { blingId: idPaiBling },
-                    { $pull: { variations: { blingId: blingId } },$set: { updatedAt: new Date() } }
+                    { $pull: { variations: { blingId: blingId } }, $set: { updatedAt: new Date() } }
                 );
                 await Product.findOneAndDelete({ blingId: blingId });
                 console.log(`🗑️ [SUCESSO] Variação filha limpa do catálogo.`);
@@ -869,16 +869,15 @@ async function processProductWebhook(data) {
         if (idPaiBling !== "0" && idPaiBling !== "null" && idPaiBling !== undefined) {
             console.log(`🧬 [FILHO DETECTADO] ID ${blingId} ("${nomeProduto}") é filho do Pai Bling ID: ${idPaiBling}`);
 
-            // Extração dinâmica do Tipo ("Modelo", "Cor", "Tamanho"...), Valor e Nome Limpo do Pai
             const { tipoVariacao, valorVariacao, nomePaiAproximado } = extractVariationDetails(data, nomeProduto);
-
             console.log(`📌 Variação processada: Tipo: "${tipoVariacao}" | Valor: "${valorVariacao}" | Pai: "${nomePaiAproximado}"`);
 
-            // 🎯 1. GARANTE QUE O PAI EXISTE (Garante estrutura básica em condições de corrida)
+            // 🎯 1. GARANTE QUE O PAI EXISTE
             await Product.findOneAndUpdate(
                 { blingId: String(idPaiBling) },
                 { 
-                    $set: { hasVariations: true, updatedAt: new Date() },$setOnInsert: {
+                    $set: { hasVariations: true, updatedAt: new Date() },
+                    $setOnInsert: {
                         name: nomePaiAproximado,
                         category: mapCategory(nomeProduto)?.cat || "Geral",
                         subcategory: mapCategory(nomeProduto)?.sub || "",
@@ -890,20 +889,32 @@ async function processProductWebhook(data) {
                 { new: true, upsert: true }
             );
 
-            // 🎯 2. BLINDAGEM ATÔMICA DO ESTOQUE
-            // Atualiza os metadados da variação mantendo os saldos de estoque intactos
+            // 🛡️ VERIFICA SE A VARIAÇÃO ESTÁ EM PROMOÇÃO ATIVA
+            const promoAtivaVar = await Promotion.findOne({
+                status: 'ativa',
+                'items.variantBlingId': String(blingId)
+            });
+
+            const updateVarFields = {
+                "variations.$.name": nomeProduto,
+                "variations.$.sku": data.codigo ? String(data.codigo).trim() : "",
+                "variations.$.type": tipoVariacao,
+                "variations.$.value": valorVariacao
+            };
+
+            if (!promoAtivaVar) {
+                updateVarFields["variations.$.price"] = !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : 0;
+            } else {
+                console.log(`🛡️ [PROMOÇÃO ATIVA] Preço da variação "${nomeProduto}" preservado durante o webhook.`);
+            }
+
+            // 🎯 2. ATUALIZA A VARIAÇÃO PRESERVANDO O PREÇO SE ESTIVER EM PROMOÇÃO
             const updateVarResult = await Product.updateOne(
                 { blingId: String(idPaiBling), "variations.blingId": String(blingId) },
-                { $set: { 
-                    "variations.$.name": nomeProduto,
-                    "variations.$.sku": data.codigo ? String(data.codigo).trim() : "",
-                    "variations.$.price": !isNaN(parseFloat(data.preco)) ? parseFloat(data.preco) : 0,
-                    "variations.$.type": tipoVariacao,
-                    "variations.$.value": valorVariacao
-                } }
+                { $set: updateVarFields }
             );
 
-            // 🎯 3. Se a variação ainda não existia no array, adiciona como nova
+            // 🎯 3. SE FOR UMA VARIAÇÃO NOVA QUE AINDA NÃO EXISTIA
             if (updateVarResult.matchedCount === 0) {
                 const objetoVariacaoNova = {
                     blingId: String(blingId),
@@ -952,14 +963,30 @@ async function processProductWebhook(data) {
         };
 
         if (data.codigo) updateFields.sku = String(data.codigo).trim();
-        if (!isNaN(parseFloat(data.preco))) updateFields.price = parseFloat(data.preco);
+
+        // VERIFICA SE O PRODUTO SIMPLES/PAI ESTÁ EM PROMOÇÃO ATIVA
+        const promoAtivaProduto = await Promotion.findOne({
+            status: 'ativa',
+            $or: [
+                { 'items.blingId': String(blingId) },
+                { 'items.productId': String(data._id || '') }
+            ]
+        });
+
+        if (!promoAtivaProduto) {
+            if (!isNaN(parseFloat(data.preco))) updateFields.price = parseFloat(data.preco);
+        } else {
+            console.log(`🛡️ [PROMOÇÃO ATIVA] Preço do produto "${nomeProduto}" preservado durante o webhook.`);
+        }
+
         if (data.formato === "V") updateFields.hasVariations = true;
 
         // 🎯 1. ATUALIZAÇÃO ATÔMICA DO PAI
         let produtoAtualizado = await Product.findOneAndUpdate(
             { blingId },
             { 
-                $set: updateFields,$setOnInsert: {
+                $set: updateFields,
+                $setOnInsert: {
                     stock_by_store: { SaoRoque: 0, Cotia: 0, Ibiuna: 0 },
                     variations: []
                 }
@@ -967,8 +994,8 @@ async function processProductWebhook(data) {
             { new: true, upsert: true }
         );
 
-        // 🎯 2. PROPAGAÇÃO DE PREÇO ATÔMICA
-        if (produtoAtualizado.hasVariations && updateFields.price !== undefined) {
+        // 🎯 2. PROPAGAÇÃO DE PREÇO ATÔMICA (APENAS SE NÃO ESTIVER EM PROMOÇÃO)
+        if (produtoAtualizado.hasVariations && updateFields.price !== undefined && !promoAtivaProduto) {
             await Product.updateOne(
                 { blingId },
                 { $set: { "variations.$[].price": updateFields.price } }
@@ -981,7 +1008,7 @@ async function processProductWebhook(data) {
             
             await Product.updateOne(
                 { blingId },
-                { $pull: { variations: { blingId: {$nin: idsVariacoesNoBling } } } }
+                { $pull: { variations: { blingId: { $nin: idsVariacoesNoBling } } } }
             );
         }
         
