@@ -170,7 +170,6 @@ function selectPromoType(type) {
     if (endInput) { endInput.value = ''; endInput.disabled = false; endInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
     if (flashInput) { flashInput.value = ''; flashInput.disabled = false; flashInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
 
-    // CORREÇÃO: Para nova promoção, abre diretamente o modal de seleção de produtos primeiro
     openSelectProductsModal();
 }
 
@@ -181,11 +180,15 @@ function openSelectProductsModal() {
 
 function closeSelectProductsModal() {
     document.getElementById('modal-select-products').classList.add('hidden');
-    
-    // Se o usuário concluiu a seleção e tem itens, abre o modal de precificação/vigência
-    if (selectedItems.size > 0 && document.getElementById('modal-pricing').classList.contains('hidden')) {
-        goToPricingStep();
+}
+
+function finishProductSelection() {
+    if (selectedItems.size === 0) {
+        showNotification("Selecione ao menos um produto antes de continuar.", "error");
+        return;
     }
+    document.getElementById('modal-select-products').classList.add('hidden');
+    goToPricingStep();
 }
 
 /* ──────────────────────────────────────────
@@ -356,13 +359,6 @@ function updateSelectedBadge() {
 ────────────────────────────────────────── */
 
 function goToPricingStep() {
-    if (selectedItems.size === 0 && !editingPromoId) {
-        showNotification("Selecione ao menos um produto antes de continuar.", "error");
-        openSelectProductsModal();
-        return;
-    }
-
-    closeSelectProductsModal();
     document.getElementById('modal-pricing').classList.remove('hidden');
 
     const startDateContainer = document.getElementById('start-date-container');
