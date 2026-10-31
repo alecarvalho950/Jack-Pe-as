@@ -180,6 +180,8 @@ function openSelectProductsModal() {
 
 function closeSelectProductsModal() {
     document.getElementById('modal-select-products').classList.add('hidden');
+    // CORREÇÃO: Sempre re-renderiza a lista de preços ao fechar o modal de seleção de produtos
+    renderPricingList();
 }
 
 /* ──────────────────────────────────────────
@@ -242,7 +244,6 @@ function renderModalProductsList() {
             const varRows = p.variations.map((v, idx) => {
                 const key = `${p._id}_var_${v.blingId || v.sku || idx}`;
                 const isChecked = selectedItems.has(key);
-                const isLockedOriginal = editingPromoId && isChecked; 
 
                 const sr = v.stock_by_store?.SaoRoque ?? 0;
                 const co = v.stock_by_store?.Cotia ?? 0;
@@ -259,11 +260,11 @@ function renderModalProductsList() {
                             sku: v.sku || p.sku,
                             originalPrice: v.price || p.price,
                             isVariation: true
-                        }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} ${isLockedOriginal ? 'disabled title="Produto já pertencente à promoção."' : ''} class="w-4 h-4 accent-accent cursor-pointer ${isLockedOriginal ? 'opacity-60 cursor-not-allowed' : ''}">
+                        }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} class="w-4 h-4 accent-accent cursor-pointer">
                         <div>
                             <span class="text-xs font-bold text-accent uppercase">${v.type}: ${v.value}</span>
                             <span class="text-[10px] text-gray-500 ml-2 font-mono">SKU: ${v.sku || '---'}</span>
-                            ${isLockedOriginal ? '<span class="ml-2 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Selecionado</span>' : ''}
+                            ${isChecked ? '<span class="ml-2 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20 font-bold">Selecionado</span>' : ''}
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
@@ -291,7 +292,6 @@ function renderModalProductsList() {
         } else {
             const key = `${p._id}_simple`;
             const isChecked = selectedItems.has(key);
-            const isLockedOriginal = editingPromoId && isChecked;
 
             const sr = p.stock_by_store?.SaoRoque ?? 0;
             const co = p.stock_by_store?.Cotia ?? 0;
@@ -307,11 +307,11 @@ function renderModalProductsList() {
                         sku: p.sku,
                         originalPrice: p.price,
                         isVariation: false
-                    }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} ${isLockedOriginal ? 'disabled title="Produto já pertencente à promoção."' : ''} class="w-4 h-4 accent-accent cursor-pointer ${isLockedOriginal ? 'opacity-60 cursor-not-allowed' : ''}">
+                    }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} class="w-4 h-4 accent-accent cursor-pointer">
                     <div>
                         <div class="text-xs font-bold text-white">${p.name}</div>
                         <div class="text-[10px] text-gray-500">${p.category || ''} • ${p.subcategory || 'Geral'} • SKU: ${p.sku || '---'}</div>
-                        ${isLockedOriginal ? '<span class="inline-block mt-0.5 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Selecionado</span>' : ''}
+                        ${isChecked ? '<span class="inline-block mt-0.5 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20 font-bold">Selecionado</span>' : ''}
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -332,6 +332,8 @@ function renderModalProductsList() {
 function toggleItemSelection(key, isChecked, data) {
     if (isChecked) {
         if (!selectedItems.has(key)) {
+            // CORREÇÃO: Garante que promoPrice inicie com o valor original quando adicionado
+            data.originalPrice = parseFloat(data.originalPrice || 0);
             data.promoPrice = data.originalPrice; 
             selectedItems.set(key, data);
         }
@@ -415,9 +417,14 @@ function renderPricingList() {
     const container = document.getElementById('selected-pricing-list');
     if (!container) return;
 
+    if (selectedItems.size === 0) {
+        container.innerHTML = `<div class="p-6 text-center text-gray-500 text-xs italic">Nenhum produto selecionado ainda. Clique em "+ ADICIONAR PRODUTOS".</div>`;
+        return;
+    }
+
     container.innerHTML = Array.from(selectedItems.entries()).map(([key, item]) => {
         const orig = parseFloat(item.originalPrice || 0);
-        const promo = parseFloat(item.promoPrice || orig);
+        const promo = parseFloat(item.promoPrice !== undefined ? item.promoPrice : orig);
         const discountPct = orig > 0 ? Math.max(0, Math.round(((orig - promo) / orig) * 100)) : 0;
 
         return `
@@ -502,8 +509,17 @@ function editPromotion(id, viewOnly = false) {
     selectedItems.clear();
 
     (promo.items || []).forEach((item) => {
-        const key = `${item.productId}_${item.isVariation ? 'var_' + item.variantBlingId : 'simple'}`;
-        selectedItems.set(key, item);
+        const key = `${item.productId}_${item.isVariation ? 'var_' + (item.variantBlingId || item.sku) : 'simple'}`;
+        
+        // CORREÇÃO: Garante mapeamento consistente de originalPrice e promoPrice na edição
+        const origPrice = parseFloat(item.originalPrice || item.price || 0);
+        const pPrice = parseFloat(item.promoPrice !== undefined ? item.promoPrice : (item.price || origPrice));
+
+        selectedItems.set(key, {
+            ...item,
+            originalPrice: origPrice,
+            promoPrice: pPrice
+        });
     });
 
     document.getElementById('promo-title-input').value = promo.title;
