@@ -91,9 +91,12 @@ function renderPromotionsList() {
 
         const typeBadge = p.type === 'flash'
             ? '<span class="px-2 py-0.5 rounded text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">⚡ Relâmpago (24h)</span>'
-            : '<span class="px-2 py-0.5 rounded text-[9px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/30 uppercase">Padrão</span>';
+            : '<span class="px-2 py-0.5 rounded text-[9px] font-black bg-sky-500/20 text-sky-300 border border-sky-500/30 uppercase">Promoção</span>';
 
         const formatDate = (d) => new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+        // Regra: se estiver cancelada ou finalizada, NÃO mostra o botão de editar, apenas detalhes/visualização
+        const canEdit = calculatedStatus !== 'cancelada' && calculatedStatus !== 'finalizada';
 
         return `
         <tr class="block md:table-row bg-[#111827] md:bg-transparent rounded-2xl border border-gray-800 md:border-b md:border-gray-800/60 mb-4 md:mb-0 hover:bg-white/[0.02] transition">
@@ -110,12 +113,18 @@ function renderPromotionsList() {
             </td>
             <td class="block md:table-cell p-4 text-right">
                 <div class="flex items-center justify-end gap-2">
-                    <button onclick="editPromotion('${p._id || p.id}')" class="p-2 bg-gray-800 hover:bg-accent hover:text-black rounded-lg transition text-xs font-bold uppercase" title="Editar">
-                        Editar
-                    </button>
+                    ${canEdit ? `
+                        <button onclick="editPromotion('${p._id || p.id}')" class="p-2 bg-gray-800 hover:bg-accent hover:text-black rounded-lg transition text-xs font-bold uppercase" title="Editar">
+                            Editar
+                        </button>
+                    ` : `
+                        <button onclick="editPromotion('${p._id || p.id}')" class="p-2 bg-gray-800/50 text-gray-400 hover:text-white rounded-lg transition text-xs font-bold uppercase" title="Ver Detalhes">
+                            Detalhes
+                        </button>
+                    `}
                     ${(calculatedStatus === 'ativa' || calculatedStatus === 'agendada') ? `
-                        <button onclick="cancelPromotion('${p._id || p.id}')" class="p-2 bg-red-950/40 border border-red-800/40 hover:bg-red-900 text-red-300 rounded-lg transition text-xs font-bold uppercase" title="Encerrar">
-                            Cancelar
+                        <button onclick="cancelPromotion('${p._id || p.id}')" class="p-2 bg-red-950/40 border border-red-800/40 hover:bg-red-900 text-red-300 rounded-lg transition text-xs font-bold uppercase" title="Finalizar">
+                            Finalizar
                         </button>
                     ` : ''}
                 </div>
@@ -144,17 +153,15 @@ function selectPromoType(type) {
 
     const badge = document.getElementById('badge-promo-type-label');
     if (badge) {
-        badge.innerText = type === 'flash' ? '⚡ Oferta Relâmpago (24h)' : 'Promoção Padrão';
+        badge.innerText = type === 'flash' ? '⚡ Oferta Relâmpago (24h)' : 'Promoção';
         badge.className = type === 'flash' 
             ? 'text-[10px] font-black uppercase px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40'
             : 'text-[10px] font-black uppercase px-3 py-1 rounded-lg bg-accent/10 text-accent border border-accent/20';
     }
 
-    // Reseta o campo de título para vazio e garante foco/estado inicial
     const titleInput = document.getElementById('promo-title-input');
     if (titleInput) titleInput.value = '';
 
-    // Libera os inputs de data para novas promoções
     const startInput = document.getElementById('promo-start-input');
     const endInput = document.getElementById('promo-end-input');
     const flashInput = document.getElementById('promo-flash-date-input');
@@ -175,19 +182,23 @@ function closeSelectProductsModal() {
 }
 
 /* ──────────────────────────────────────────
-   SELEÇÃO DE PRODUTOS E VARIAÇÕES (Com lógica de busca avançada do main.js)
+   SELEÇÃO DE PRODUTOS E VARIAÇÕES
 ────────────────────────────────────────── */
 
 function filterModalProducts() {
     const catName = document.getElementById('modal-filter-cat')?.value;
     const subFilter = document.getElementById('modal-filter-subcat');
 
-    if (subFilter && catName) {
+    if (subFilter) {
+        const currentSubVal = subFilter.value;
         subFilter.innerHTML = '<option value="">Todas as Subcategorias</option>';
-        const catObj = categories.find(c => c.name === catName);
-        catObj?.subcategories?.forEach(s => {
-            subFilter.innerHTML += `<option value="${s}">${s}</option>`;
-        });
+        if (catName) {
+            const catObj = categories.find(c => c.name === catName);
+            catObj?.subcategories?.forEach(s => {
+                const selectedAttr = s === currentSubVal ? 'selected' : '';
+                subFilter.innerHTML += `<option value="${s}" ${selectedAttr}>${s}</option>`;
+            });
+        }
     }
 
     renderModalProductsList();
@@ -230,6 +241,9 @@ function renderModalProductsList() {
             const varRows = p.variations.map((v, idx) => {
                 const key = `${p._id}_var_${v.blingId || v.sku || idx}`;
                 const isChecked = selectedItems.has(key);
+                // Se for edição e o item já estava salvo na promoção, travamos o checkbox para não desmarcar diretamente aqui
+                const isLockedOriginal = editingPromoId && isChecked; 
+
                 const sr = v.stock_by_store?.SaoRoque ?? 0;
                 const co = v.stock_by_store?.Cotia ?? 0;
                 const ib = v.stock_by_store?.Ibiuna ?? 0;
@@ -245,10 +259,11 @@ function renderModalProductsList() {
                             sku: v.sku || p.sku,
                             originalPrice: v.price || p.price,
                             isVariation: true
-                        }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} class="w-4 h-4 accent-accent cursor-pointer">
+                        }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} ${isLockedOriginal ? 'disabled title="Produto já pertencente à promoção. Remova pela lista de preços se necessário."' : ''} class="w-4 h-4 accent-accent cursor-pointer ${isLockedOriginal ? 'opacity-60 cursor-not-allowed' : ''}">
                         <div>
                             <span class="text-xs font-bold text-accent uppercase">${v.type}: ${v.value}</span>
                             <span class="text-[10px] text-gray-500 ml-2 font-mono">SKU: ${v.sku || '---'}</span>
+                            ${isLockedOriginal ? '<span class="ml-2 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Já incluso</span>' : ''}
                         </div>
                     </div>
                     <div class="flex items-center gap-3">
@@ -276,6 +291,8 @@ function renderModalProductsList() {
         } else {
             const key = `${p._id}_simple`;
             const isChecked = selectedItems.has(key);
+            const isLockedOriginal = editingPromoId && isChecked;
+
             const sr = p.stock_by_store?.SaoRoque ?? 0;
             const co = p.stock_by_store?.Cotia ?? 0;
             const ib = p.stock_by_store?.Ibiuna ?? 0;
@@ -290,10 +307,11 @@ function renderModalProductsList() {
                         sku: p.sku,
                         originalPrice: p.price,
                         isVariation: false
-                    }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} class="w-4 h-4 accent-accent cursor-pointer">
+                    }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} ${isLockedOriginal ? 'disabled title="Produto já pertencente à promoção."' : ''} class="w-4 h-4 accent-accent cursor-pointer ${isLockedOriginal ? 'opacity-60 cursor-not-allowed' : ''}">
                     <div>
                         <div class="text-xs font-bold text-white">${p.name}</div>
                         <div class="text-[10px] text-gray-500">${p.category || ''} • ${p.subcategory || 'Geral'} • SKU: ${p.sku || '---'}</div>
+                        ${isLockedOriginal ? '<span class="inline-block mt-0.5 text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">Já incluso na promoção</span>' : ''}
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
@@ -313,8 +331,11 @@ function renderModalProductsList() {
 
 function toggleItemSelection(key, isChecked, data) {
     if (isChecked) {
-        data.promoPrice = data.originalPrice; 
-        selectedItems.set(key, data);
+        // Se já existe nos selecionados, preserva o promoPrice caso já estivesse configurado
+        if (!selectedItems.has(key)) {
+            data.promoPrice = data.originalPrice; 
+            selectedItems.set(key, data);
+        }
     } else {
         selectedItems.delete(key);
     }
@@ -353,6 +374,16 @@ function goToPricingStep() {
         flashDateContainer.classList.add('hidden');
     }
 
+    // Gerencia a visibilidade do botão "Voltar para seleção" (Não aparece se for edição)
+    const btnBackStep = document.getElementById('btn-back-step');
+    if (btnBackStep) {
+        if (editingPromoId) {
+            btnBackStep.classList.add('hidden');
+        } else {
+            btnBackStep.classList.remove('hidden');
+        }
+    }
+
     renderPricingList();
 }
 
@@ -377,7 +408,7 @@ function renderPricingList() {
     const container = document.getElementById('selected-pricing-list');
     if (!container) return;
 
-    container.innerHTML = Array.from(selectedItems.entries()).map(([key, item]) => {
+    let htmlContent = Array.from(selectedItems.entries()).map(([key, item]) => {
         const orig = parseFloat(item.originalPrice || 0);
         const promo = parseFloat(item.promoPrice || orig);
         const discountPct = orig > 0 ? Math.max(0, Math.round(((orig - promo) / orig) * 100)) : 0;
@@ -410,6 +441,18 @@ function renderPricingList() {
             </div>
         </div>`;
     }).join('');
+
+    // Botão para adicionar mais produtos mesmo estando no modo de edição
+    htmlContent += `
+        <div class="pt-2">
+            <button onclick="openSelectProductsModal()" type="button" class="w-full py-2.5 border-2 border-dashed border-gray-700 hover:border-accent rounded-xl text-xs font-bold text-gray-300 hover:text-accent uppercase tracking-wider transition flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Adicionar mais produtos à lista
+            </button>
+        </div>
+    `;
+
+    container.innerHTML = htmlContent;
 }
 
 function updateItemByPrice(key, value) {
@@ -470,7 +513,6 @@ function editPromotion(id) {
 
     document.getElementById('promo-title-input').value = promo.title;
 
-    // Converte e formata as datas para o input local em horário legível
     const startDateObj = new Date(promo.startDate);
     const endDateObj = new Date(promo.endDate);
 
@@ -487,11 +529,9 @@ function editPromotion(id) {
     const endInput = document.getElementById('promo-end-input');
     const flashInput = document.getElementById('promo-flash-date-input');
 
-    // PRESERVAÇÃO RIGOROSA DA DATA ORIGINAL JÁ SALVA NO BANCO
     startInput.value = formatToInput(startDateObj);
     endInput.value = formatToInput(endDateObj);
 
-    // Trava os inputs visuais de data para impedir alterações indevidas
     startInput.disabled = true;
     startInput.classList.add('opacity-50', 'cursor-not-allowed');
     endInput.disabled = true;
@@ -514,7 +554,6 @@ async function savePromotion() {
     let startDateVal = document.getElementById('promo-start-input').value;
     let endDateVal = document.getElementById('promo-end-input').value;
 
-    // Se estiver editando uma promoção existente, resgata as datas ISO originais salvas no banco
     if (editingPromoId) {
         const promoOriginal = promotions.find(p => (p._id || p.id) === editingPromoId);
         if (promoOriginal) {
@@ -542,7 +581,6 @@ async function savePromotion() {
         return;
     }
 
-    // Validação de preços preenchidos
     let precosValidos = true;
     selectedItems.forEach((item) => {
         if (item.promoPrice === undefined || item.promoPrice === null || isNaN(item.promoPrice) || item.promoPrice < 0) {
@@ -555,7 +593,6 @@ async function savePromotion() {
         return;
     }
 
-    // Garante formato ISO correto para envio
     const finalStartIso = editingPromoId ? startDateVal : new Date(startDateVal).toISOString();
     const finalEndIso = editingPromoId ? endDateVal : new Date(endDateVal).toISOString();
 
@@ -605,15 +642,14 @@ async function savePromotion() {
 }
 
 async function cancelPromotion(id) {
-    // Substituição de alert nativo por toast/confirmação estilizada
     const confirmModalHtml = `
         <div id="cancel-confirm-modal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <div class="bg-[#111827] border border-red-500/30 rounded-xl p-6 max-w-sm w-full shadow-2xl">
-                <h3 class="text-base font-black text-white uppercase tracking-wider mb-2">Encerrar Promoção</h3>
-                <p class="text-slate-300 text-xs mb-6">Deseja realmente cancelar/encerrar esta promoção?</p>
+                <h3 class="text-base font-black text-white uppercase tracking-wider mb-2">Finalizar Promoção</h3>
+                <p class="text-slate-300 text-xs mb-6">Deseja realmente finalizar/encerrar esta promoção?</p>
                 <div class="flex gap-3 justify-end">
                     <button id="btn-no-cancel" class="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-xs font-bold uppercase">Não</button>
-                    <button id="btn-yes-cancel" class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold uppercase">Sim, Encerrar</button>
+                    <button id="btn-yes-cancel" class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold uppercase">Sim, Finalizar</button>
                 </div>
             </div>
         </div>
@@ -634,10 +670,10 @@ async function cancelPromotion(id) {
             });
 
             if (res.ok) {
-                showNotification("Promoção encerrada com sucesso!");
+                showNotification("Promoção finalizada com sucesso!");
                 loadInitialData();
             } else {
-                showNotification("Erro ao cancelar promoção.", "error");
+                showNotification("Erro ao finalizar promoção.", "error");
             }
         } catch {
             showNotification("Erro de conexão.", "error");
