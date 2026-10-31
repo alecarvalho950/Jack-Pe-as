@@ -170,7 +170,8 @@ function selectPromoType(type) {
     if (endInput) { endInput.value = ''; endInput.disabled = false; endInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
     if (flashInput) { flashInput.value = ''; flashInput.disabled = false; flashInput.classList.remove('opacity-50', 'cursor-not-allowed'); }
 
-    goToPricingStep();
+    // CORREÇÃO: Para nova promoção, abre diretamente o modal de seleção de produtos primeiro
+    openSelectProductsModal();
 }
 
 function openSelectProductsModal() {
@@ -180,8 +181,11 @@ function openSelectProductsModal() {
 
 function closeSelectProductsModal() {
     document.getElementById('modal-select-products').classList.add('hidden');
-    // CORREÇÃO: Sempre re-renderiza a lista de preços ao fechar o modal de seleção de produtos
-    renderPricingList();
+    
+    // Se o usuário concluiu a seleção e tem itens, abre o modal de precificação/vigência
+    if (selectedItems.size > 0 && document.getElementById('modal-pricing').classList.contains('hidden')) {
+        goToPricingStep();
+    }
 }
 
 /* ──────────────────────────────────────────
@@ -332,7 +336,6 @@ function renderModalProductsList() {
 function toggleItemSelection(key, isChecked, data) {
     if (isChecked) {
         if (!selectedItems.has(key)) {
-            // CORREÇÃO: Garante que promoPrice inicie com o valor original quando adicionado
             data.originalPrice = parseFloat(data.originalPrice || 0);
             data.promoPrice = data.originalPrice; 
             selectedItems.set(key, data);
@@ -354,6 +357,7 @@ function updateSelectedBadge() {
 
 function goToPricingStep() {
     if (selectedItems.size === 0 && !editingPromoId) {
+        showNotification("Selecione ao menos um produto antes de continuar.", "error");
         openSelectProductsModal();
         return;
     }
@@ -418,7 +422,7 @@ function renderPricingList() {
     if (!container) return;
 
     if (selectedItems.size === 0) {
-        container.innerHTML = `<div class="p-6 text-center text-gray-500 text-xs italic">Nenhum produto selecionado ainda. Clique em "+ ADICIONAR PRODUTOS".</div>`;
+        container.innerHTML = `<div class="p-6 text-center text-gray-500 text-xs italic">Nenhum produto selecionado ainda. Clique em "ADICIONAR PRODUTOS".</div>`;
         return;
     }
 
@@ -511,7 +515,6 @@ function editPromotion(id, viewOnly = false) {
     (promo.items || []).forEach((item) => {
         const key = `${item.productId}_${item.isVariation ? 'var_' + (item.variantBlingId || item.sku) : 'simple'}`;
         
-        // CORREÇÃO: Garante mapeamento consistente de originalPrice e promoPrice na edição
         const origPrice = parseFloat(item.originalPrice || item.price || 0);
         const pPrice = parseFloat(item.promoPrice !== undefined ? item.promoPrice : (item.price || origPrice));
 
