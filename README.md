@@ -23,6 +23,21 @@ O sistema está publicado e pode ser visualizado nos links abaixo:
 
 ---
 
+## 🧪 Prévia local do design de promoções
+
+O frontend é estático e não precisa de build. Para testar uma alteração visual sem publicá-la:
+
+1. Abra `frontend/src/index.html` no VS Code e inicie o **Live Server**. Use a porta padrão `5500` (`http://127.0.0.1:5500` ou `http://localhost:5500`).
+2. Acesse a página com `?previewPromo=1`, por exemplo `http://127.0.0.1:5500/frontend/src/index.html?previewPromo=1`.
+3. Edite `frontend/local-preview/promotion-preview.css`. Os estilos estão limitados ao seletor `.promo-preview-scope`, disponível na moldura renderizada pelo catálogo.
+4. Sem o parâmetro, a folha de estilos de prévia não é carregada. Em qualquer domínio que não seja `localhost` ou `127.0.0.1`, ela não é carregada mesmo que o parâmetro seja informado.
+
+O catálogo continua usando a API de produção para buscar produtos, categorias e promoções. Para permitir essas chamadas e o Socket.IO a partir do Live Server, configure `ALLOW_LOCAL_FRONTEND=true` nas variáveis de ambiente do serviço backend no Render e faça o deploy do backend. O padrão é desativado; os domínios de produção continuam permitidos normalmente. Se usar outra porta no Live Server, inclua a origem exata correspondente em `allowedOrigins` em `backend/src/index.js`.
+
+Os caminhos do frontend (`./css/...` e `./js/...`) são relativos ao `index.html`; portanto, funcionam tanto pelo Live Server quanto pelo deploy estático sem ajustes de diretório. A folha de prévia fica fora de `frontend/src` para não fazer parte do deploy estático quando essa pasta é a raiz de publicação. Ela só deve conter alterações de apresentação — a flag não é um controle de segurança para dados ou operações da API.
+
+---
+
 ## 🔍 Visão Geral e Impacto no Negócio
 
 Antes deste sistema, a loja dependia de planilhas estáticas e atualizações manuais de catálogo, gerando furos de estoque e lentidão no atendimento aos clientes. 

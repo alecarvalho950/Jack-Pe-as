@@ -941,7 +941,7 @@ function renderPromoFrame(promo, bodyHTML, footerHTML = "") {
     : "";
 
   return `
-    <section class="rounded-3xl ${frameCls}">
+    <section class="promo-preview-scope rounded-3xl ${frameCls}">
       <div class="rounded-[22px] bg-[#111827] overflow-hidden">
         <div class="relative px-4 md:px-6 py-4 md:py-5 border-b ${headerCls}">
           ${isFlash ? `<div class="absolute -left-10 -top-10 w-40 h-40 bg-amber-400/10 rounded-full blur-3xl pointer-events-none"></div>` : ""}

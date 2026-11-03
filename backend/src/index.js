@@ -8,16 +8,21 @@ const axios    = require('axios');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
+const allowedOrigins = [
+    "https://jackpecas.com.br",
+    "https://www.jackpecas.com.br",
+    "https://jack-pe-as.vercel.app"
+];
+
+if (process.env.ALLOW_LOCAL_FRONTEND === 'true') {
+    allowedOrigins.push("http://localhost:5500", "http://127.0.0.1:5500");
+}
 
 // Configuração do Servidor HTTP + Socket.io
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
     cors: {
-        origin: [
-            "https://jackpecas.com.br", 
-            "https://www.jackpecas.com.br", 
-            "https://jack-pe-as.vercel.app" // Mantém o da Vercel antigo por segurança
-        ],
+        origin: allowedOrigins,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
     }
 });
@@ -1074,12 +1079,8 @@ async function processProductDeleteWebhook(blingId) {
 // MIDDLEWARES
 // ============================================================
 
-app.use(cors({ 
-    origin: [
-        "https://jackpecas.com.br", 
-        "https://www.jackpecas.com.br", 
-        "https://jack-pe-as.vercel.app"
-    ], 
+app.use(cors({
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], 
     allowedHeaders: ['Content-Type', 'Authorization'] 
 }));
