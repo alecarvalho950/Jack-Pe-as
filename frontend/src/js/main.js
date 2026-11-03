@@ -99,12 +99,11 @@ function findPromoById(id) {
   return activePromotions.find((pr) => getPromoId(pr) === String(id)) || null;
 }
 
-/** Promoção realmente vigente AGORA (não só no momento do carregamento da página). */
 function isPromoLive(promo, now = Date.now()) {
   if (!promo || promo.status === "cancelada" || promo.status === "finalizada") return false;
   const start = new Date(promo.startDate).getTime();
   const end = new Date(promo.endDate).getTime();
-  return now >= start && now <= end; // NaN => false
+  return now >= start && now <= end;
 }
 
 function pruneExpiredPromotions() {
@@ -119,13 +118,11 @@ function getTotalStock(p) {
   return getProductStock(p);
 }
 
-/** Produtos do catálogo que pertencem a uma promoção. */
 function getPromoProducts(promo) {
   const ids = new Set((promo.items || []).map((i) => String(i.productId)));
   return allProducts.filter((p) => ids.has(String(p._id || p.id)));
 }
 
-/** Maior % de desconto entre os itens da campanha (usado no chip "Até X% OFF"). */
 function getPromoMaxDiscount(promo) {
   return (promo.items || []).reduce((max, i) => {
     const o = parseFloat(i.originalPrice);
@@ -136,7 +133,7 @@ function getPromoMaxDiscount(promo) {
 }
 
 /* ──────────────────────────────────────────
-   ÍNDICE DE PROMOÇÕES (lookup O(1) por produto/variação)
+   ÍNDICE DE PROMOÇÕES (O(1))
 ────────────────────────────────────────── */
 
 let _promoIndex = null;
@@ -167,11 +164,6 @@ function getPromoIndex() {
   return idx;
 }
 
-/**
- * Preço promocional ativo para um produto simples OU uma variação.
- * `preferredPromo` (opcional): quando estamos dentro de uma campanha ("VER TUDO"),
- * o preço dessa campanha tem prioridade sobre as demais.
- */
 function getPromotionalInfo(productId, variantBlingId = null, defaultPrice = 0, preferredPromo = null) {
   if (!activePromotions || activePromotions.length === 0) return null;
 
@@ -198,7 +190,7 @@ function getPromotionalInfo(productId, variantBlingId = null, defaultPrice = 0, 
 
     const itemOrig = parseFloat(item.originalPrice);
     const reference = current > 0 ? current : itemOrig;
-    if (!(promoP < reference)) continue; // sem desconto real
+    if (!(promoP < reference)) continue;
 
     const orig = itemOrig > promoP ? itemOrig : reference;
     const discountPct = Math.max(1, Math.round(((orig - promoP) / orig) * 100));
@@ -216,14 +208,6 @@ function getPromotionalInfo(productId, variantBlingId = null, defaultPrice = 0, 
   return null;
 }
 
-/**
- * Resumo promocional do PRODUTO PAI (com variações).
- *  - hasPromo:      alguma variação (com estoque, se houver) está em promoção
- *  - sameDiscount:  todas as variações promovidas têm o MESMO % → mostra "30% OFF" + preço cortado
- *  - maxPct/minPct: para "Oferta de até X% OFF" quando os % diferem
- *  - minPromoPrice / originalOfMin: menor preço promocional e o preço original correspondente
- *  - minPrice:      menor preço efetivo (promo ou normal) — usado quando não há promoção
- */
 function getProductParentPromoInfo(p, preferredPromo = null) {
   if (!p.hasVariations || !p.variations?.length) return null;
   const productId = p._id || p.id;
@@ -237,7 +221,6 @@ function getProductParentPromoInfo(p, preferredPromo = null) {
     };
   });
 
-  // Variações sem estoque não devem ditar preço/desconto exibido no pai
   const inStock = rows.filter((r) => r.stock > 0);
   const pool = inStock.length ? inStock : rows;
 
@@ -308,7 +291,6 @@ async function init() {
         return now >= start && now <= end;
       });
 
-      // Ordena colocando 'flash' primeiro para ter prioridade
       activePromotions.sort((a, b) => (b.type === 'flash' ? 1 : 0) - (a.type === 'flash' ? 1 : 0));
     }
 
@@ -760,6 +742,11 @@ function handleSearch() {
   searchTimer = setTimeout(() => {
     showLocalLoading();
     setTimeout(() => {
+      // Se o usuário digitou algo na busca, garante que sai da view restrita de promoção unitária
+      if (currentView === "PROMOTION" && document.getElementById("public-search")?.value.trim()) {
+        activePromoId = null;
+        currentView = "HOME";
+      }
       currentPage = 1;
       render();
     }, 100);
@@ -813,7 +800,7 @@ function getSortDropdownHTML() {
 }
 
 /* ──────────────────────────────────────────
-   ESTILOS (animações sutis) — injetados uma única vez
+   ESTILOS CORPORATIVOS E CLEAN (SEM ÍCONES POLUIDOS)
 ────────────────────────────────────────── */
 
 function ensurePromoStyles() {
@@ -821,43 +808,37 @@ function ensurePromoStyles() {
   const style = document.createElement("style");
   style.id = "promo-styles";
   style.textContent = `
-    @keyframes promoGlow {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0), 0 0 10px rgba(251,191,36,.30); }
-      50%      { box-shadow: 0 0 0 3px rgba(251,191,36,.12), 0 0 20px rgba(251,191,36,.55); }
+    @keyframes corporateGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(217,119,6,0); }
+      50%      { box-shadow: 0 0 0 3px rgba(217,119,6,0.15); }
     }
-    @keyframes promoFrameGlow {
-      0%, 100% { box-shadow: 0 0 26px -8px rgba(251,191,36,.30); }
-      50%      { box-shadow: 0 0 44px -6px rgba(251,191,36,.50); }
-    }
-    .promo-glow { animation: promoGlow 2.2s ease-in-out infinite; }
-    .promo-frame-flash { animation: promoFrameGlow 3s ease-in-out infinite; }
+    .corporate-glow { animation: corporateGlow 3s ease-in-out infinite; }
     @media (prefers-reduced-motion: reduce) {
-      .promo-glow, .promo-frame-flash { animation: none; }
+      .corporate-glow { animation: none; }
     }
   `;
   document.head.appendChild(style);
 }
 
 /* ──────────────────────────────────────────
-   CONTADOR DA OFERTA RELÂMPAGO
-   (suporta mais de um contador na tela; lê o fim de data-countdown-end)
+   CONTADOR DA OFERTA RELÂMPAGO (DESIGN CLEAN E CORPORATIVO)
 ────────────────────────────────────────── */
 
 function renderCountdownHTML(endDateIso) {
   const box = (unit, label) => `
     <div class="flex flex-col items-center">
-      <div class="min-w-[2.9rem] md:min-w-[3.4rem] text-center bg-[#0a0f1a] border border-amber-400/30 rounded-xl px-2 py-2 shadow-inner">
-        <span data-cd="${unit}" class="font-mono font-black text-xl md:text-2xl text-amber-300 tabular-nums leading-none">00</span>
+      <div class="min-w-[2.4rem] md:min-w-[2.8rem] text-center bg-slate-900 border border-amber-500/30 rounded-lg px-2 py-1.5 shadow-sm">
+        <span data-cd="${unit}" class="font-mono font-bold text-base md:text-lg text-amber-400 tabular-nums leading-none">00</span>
       </div>
-      <span class="mt-1 text-[8px] font-black uppercase tracking-widest text-gray-400">${label}</span>
+      <span class="mt-1 text-[7px] font-bold uppercase tracking-widest text-slate-400">${label}</span>
     </div>`;
-  const sep = `<span class="text-amber-400/70 font-black text-xl mt-2 animate-pulse">:</span>`;
+  const sep = `<span class="text-amber-500/60 font-bold text-base mt-1">:</span>`;
 
   return `
-    <div class="flex flex-col items-start md:items-end gap-1.5 shrink-0">
-      <span class="text-[9px] font-black text-amber-300/90 uppercase tracking-[0.25em]">Termina em</span>
-      <div data-countdown-end="${escapeHTML(endDateIso)}" class="flex items-start gap-1.5">
-        ${box("h", "horas")}${sep}${box("m", "min")}${sep}${box("s", "seg")}
+    <div class="flex flex-col items-start md:items-end gap-1 shrink-0">
+      <span class="text-[8px] font-bold text-amber-400 uppercase tracking-widest">Encerra em</span>
+      <div data-countdown-end="${escapeHTML(endDateIso)}" class="flex items-start gap-1">
+        ${box("h", "h")}${sep}${box("m", "m")}${sep}${box("s", "s")}
       </div>
     </div>`;
 }
@@ -892,7 +873,6 @@ function startFlashCountdown() {
       });
     });
 
-    // Oferta terminou com a página aberta: remove e redesenha
     if (expired) {
       clearInterval(flashCountdownInterval);
       flashCountdownInterval = null;
@@ -908,8 +888,7 @@ function startFlashCountdown() {
 }
 
 /* ──────────────────────────────────────────
-   MOLDURA / CABEÇALHO DE UMA PROMOÇÃO
-   (usada na Home e na tela "VER TUDO")
+   MOLDURA / CABEÇALHO PROFISSIONAL E SÓBRIO
 ────────────────────────────────────────── */
 
 function formatPromoEnd(iso) {
@@ -925,62 +904,48 @@ function renderPromoFrame(promo, bodyHTML, footerHTML = "") {
   const endLabel = formatPromoEnd(promo.endDate);
   const title = escapeHTML(promo.title);
 
-  // Borda em gradiente (neon sutil no relâmpago, discreta no padrão)
+  // Estilo corporativo/clean sem cores berrantes
   const frameCls = isFlash
-    ? "p-[1.5px] bg-gradient-to-br from-amber-300 via-amber-500/40 to-orange-500 promo-frame-flash"
-    : "p-px bg-gradient-to-br from-[#fbbf24]/50 via-[#0307cc]/40 to-[#fbbf24]/15";
+    ? "p-px bg-amber-500/40 corporate-glow rounded-2xl"
+    : "p-px bg-slate-800 rounded-2xl";
 
   const headerCls = isFlash
-    ? "bg-gradient-to-r from-amber-400/15 via-amber-400/5 to-transparent border-amber-400/20"
-    : "bg-gradient-to-r from-[#0307cc]/25 via-[#0307cc]/10 to-transparent border-white/5";
-
-  const icon = isFlash
-    ? `<div class="w-11 h-11 shrink-0 rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 text-[#0a0f1a] flex items-center justify-center text-xl shadow-[0_0_18px_rgba(251,191,36,0.45)]">⚡</div>`
-    : `<div class="w-11 h-11 shrink-0 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-xl">🔥</div>`;
+    ? "bg-slate-900 border-b border-amber-500/20"
+    : "bg-slate-900 border-b border-slate-800";
 
   const badge = isFlash
-    ? `<span class="promo-glow inline-flex items-center gap-1.5 bg-amber-400 text-[#0a0f1a] font-black text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full">
-         <span class="relative flex h-2 w-2">
-           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0a0f1a]/50"></span>
-           <span class="relative inline-flex rounded-full h-2 w-2 bg-[#0a0f1a]"></span>
-         </span>
+    ? `<span class="inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-md">
          Oferta Relâmpago
        </span>`
-    : `<span class="inline-flex items-center bg-amber-400/15 text-amber-300 border border-amber-400/30 font-black text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-full">Promoção</span>`;
+    : `<span class="inline-flex items-center bg-sky-500/10 text-sky-400 border border-sky-500/30 font-bold text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-md">
+         Promoção Especial
+       </span>`;
 
   const pctChip = maxPct > 0
-    ? `<span class="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${isFlash ? "text-amber-300 border-amber-400/40 bg-amber-400/10" : "text-emerald-300 border-emerald-400/30 bg-emerald-400/10"}">Até ${maxPct}% OFF</span>`
+    ? `<span class="inline-flex items-center text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Até ${maxPct}% OFF</span>`
     : "";
 
   const subtitle = isFlash
-    ? "Preços especiais por tempo limitado"
-    : endLabel ? `Válida até ${endLabel}` : "Condições especiais por tempo limitado";
+    ? "Condição exclusiva por tempo limitado"
+    : endLabel ? `Válida até ${endLabel}` : "Oferta válida enquanto durarem os estoques";
 
   const rightSide = isFlash && promo.endDate
     ? renderCountdownHTML(promo.endDate)
     : "";
 
   return `
-    <section class="rounded-3xl ${frameCls}">
-      <div class="rounded-[22px] bg-[#111827] overflow-hidden">
-        <div class="relative px-4 md:px-6 py-4 md:py-5 border-b ${headerCls}">
-          ${isFlash ? `<div class="absolute -left-10 -top-10 w-40 h-40 bg-amber-400/10 rounded-full blur-3xl pointer-events-none"></div>` : ""}
-          <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="flex items-center gap-3 min-w-0">
-              ${icon}
-              <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">${badge}${pctChip}</div>
-                <h3 class="text-lg md:text-2xl font-black text-white uppercase tracking-tight mt-1.5 leading-tight break-words">${title}</h3>
-                <p class="text-[10px] md:text-xs font-semibold text-gray-400 mt-0.5">${subtitle}</p>
-              </div>
-            </div>
-            ${rightSide}
-          </div>
+    <section class="${frameCls} bg-slate-900 shadow-xl overflow-hidden mb-8">
+      <div class="px-5 py-4 ${headerCls} flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex flex-wrap items-center gap-2">${badge}${pctChip}</div>
+          <h3 class="text-base md:text-lg font-bold text-white uppercase tracking-tight">${title}</h3>
+          <p class="text-[10px] font-medium text-slate-400">${subtitle}</p>
         </div>
-        <div class="p-3 md:p-6">
-          ${bodyHTML}
-          ${footerHTML}
-        </div>
+        ${rightSide}
+      </div>
+      <div class="p-4 md:p-6 bg-[#0a0f1a]">
+        ${bodyHTML}
+        ${footerHTML}
       </div>
     </section>`;
 }
@@ -1001,7 +966,6 @@ function renderPromotionsHeaderSection(isMobile) {
       const promoProducts = getPromoProducts(promo);
       if (promoProducts.length === 0) return "";
 
-      // Produtos com estoque primeiro (ordem original preservada dentro de cada grupo)
       const ordered = [...promoProducts].sort(
         (a, b) => (getTotalStock(a) > 0 ? 0 : 1) - (getTotalStock(b) > 0 ? 0 : 1)
       );
@@ -1011,25 +975,24 @@ function renderPromotionsHeaderSection(isMobile) {
       const isFlash = promo.type === "flash";
 
       const btnCls = isFlash
-        ? "bg-gradient-to-r from-amber-300 to-amber-500 text-[#0a0f1a] shadow-[0_0_20px_rgba(251,191,36,0.35)] hover:brightness-110"
-        : "border border-amber-400/40 text-amber-300 hover:bg-amber-400 hover:text-[#0a0f1a]";
+        ? "bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+        : "bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700";
 
       const footer = hasMore
-        ? `<div class="mt-5 flex justify-center">
+        ? `<div class="mt-4 pt-3 flex justify-center">
              <button onclick="changeView('PROMOTION', null, null, '${getPromoId(promo)}')"
-               class="${btnCls} font-black text-xs uppercase tracking-widest px-8 py-3 rounded-xl transition-all active:scale-95 flex items-center gap-2">
-               <span>Ver tudo</span>
-               <span class="opacity-70 font-bold">(${ordered.length} produtos)</span>
-               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+               class="${btnCls} text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl transition-all active:scale-95 flex items-center gap-2 shadow-sm">
+               <span>Ver todos (${ordered.length} itens)</span>
+               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
              </button>
            </div>`
         : "";
 
-      return `<div class="animate-in mb-12">${renderPromoFrame(
+      return renderPromoFrame(
         promo,
         `<div class="flex flex-col gap-3">${cards}</div>`,
         footer
-      )}</div>`;
+      );
     })
     .join("");
 }
@@ -1049,7 +1012,6 @@ function render() {
 
   if (!container || !activeStore) return;
 
-  // Garante que promoções vencidas durante a sessão não apareçam
   pruneExpiredPromotions();
 
   const isMobile = window.innerWidth < 768;
@@ -1060,7 +1022,6 @@ function render() {
   attrBox.innerHTML = "";
   if (headerSortContainer) headerSortContainer.innerHTML = "";
 
-  // Promoção da tela "VER TUDO" (resolvida uma vez, fora do filtro)
   const isPromoView = currentView === "PROMOTION" && !!activePromoId;
   const promoObj = isPromoView ? findPromoById(activePromoId) : null;
   const promoProductIds = promoObj
@@ -1078,7 +1039,6 @@ function render() {
     }
 
     if (isPromoView) {
-      // Promoção inexistente/expirada => nenhum produto (nunca listar o catálogo inteiro)
       if (!promoProductIds || !promoProductIds.has(String(p._id || p.id))) return false;
     }
 
@@ -1104,19 +1064,15 @@ function render() {
 
   const isFiltering = Object.keys(activeFilters).length > 0 || searchRaw.length > 0;
 
-  // Mantém a página dentro do intervalo válido (ex.: lista encolheu via socket)
   const clampPage = (totalPages) => {
     currentPage = Math.min(Math.max(1, currentPage), Math.max(1, totalPages));
   };
 
   if (isPromoView) {
-    // ── TELA DEDICADA DA PROMOÇÃO ("VER TUDO") ──
     header.classList.remove("hidden");
     const titleEl = document.getElementById("active-title");
     if (titleEl) {
-      titleEl.innerText = promoObj
-        ? promoObj.type === "flash" ? "⚡ Oferta Relâmpago" : "🔥 Promoção"
-        : "Oferta Especial";
+      titleEl.innerText = promoObj ? promoObj.title : "Oferta Especial";
     }
 
     if (!promoObj) {
@@ -1129,30 +1085,28 @@ function render() {
       if (headerSortContainer) headerSortContainer.innerHTML = getSortDropdownHTML();
 
       if (filtered.length === 0) {
-        htmlOutput = `<div class="animate-in">${renderPromoFrame(
+        htmlOutput = renderPromoFrame(
           promoObj,
           `<p class="py-10 text-center text-gray-500 font-black uppercase text-xs">Nenhum produto desta promoção encontrado.</p>`
-        )}</div>`;
+        );
       } else {
         const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
         clampPage(totalPages);
         const pageItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
         const cards = pageItems.map((p) => renderCard(p, promoObj)).join("");
 
-        htmlOutput = `<div class="animate-in">${renderPromoFrame(
+        htmlOutput = renderPromoFrame(
           promoObj,
           `<div class="flex flex-col gap-3">${cards}</div>`
-        )}</div>`;
+        );
         renderPager(currentPage, totalPages, filtered.length, footer);
       }
     }
   } else if (currentView === "HOME" && !isFiltering) {
     header.classList.add("hidden");
 
-    // 1. SEÇÕES DE PROMOÇÃO NO TOPO
     htmlOutput += renderPromotionsHeaderSection(isMobile);
 
-    // 2. CATEGORIAS NORMAIS ABAIXO
     let isFirstCategory = true;
     categories.forEach((cat) => {
       const catProducts = filtered.filter((p) => p.category === cat.name);
@@ -1193,8 +1147,6 @@ function render() {
       }
     });
   } else {
-    // ── BUSCA / FILTROS / SUBCATEGORIA ──
-    // renderCard aplica sozinho preço promocional, % OFF e preço riscado
     header.classList.remove("hidden");
     document.getElementById("active-title").innerText = activeSub
       ? `${activeCat} > ${activeSub}`
@@ -1214,8 +1166,6 @@ function render() {
   }
 
   container.innerHTML = htmlOutput;
-
-  // Contadores só existem depois do innerHTML
   startFlashCountdown();
 }
 
@@ -1229,27 +1179,24 @@ window.addEventListener("resize", () => {
 });
 
 /* ──────────────────────────────────────────
-   RENDER DOS CARDS (COM SUPORTE A PREÇO PROMOCIONAL)
+   RENDER DOS CARDS (DESIGN CORPORATIVO & LIMPO)
 ────────────────────────────────────────── */
 
-/** Tag de desconto (ex.: "30% OFF" ou "Oferta de até 40% OFF"). Relâmpago ganha brilho suave. */
 function renderDiscountTag(label, promoType, size = "md") {
-  const sizeCls = size === "sm" ? "text-[8px] px-1.5 py-1" : "text-[10px] px-2 py-1";
+  const sizeCls = size === "sm" ? "text-[8px] px-1.5 py-0.5" : "text-[9px] px-2 py-0.5";
   const color =
     promoType === "flash"
-      ? "bg-gradient-to-r from-amber-400 to-orange-500 text-[#0a0f1a] promo-glow"
-      : "bg-emerald-500 text-white";
-  return `<span class="${color} ${sizeCls} font-black rounded-md leading-none whitespace-nowrap uppercase">${promoType === "flash" ? "⚡ " : ""}${label}</span>`;
+      ? "bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold"
+      : "bg-sky-500/10 text-sky-400 border border-sky-500/30 font-bold";
+  return `<span class="${color} ${sizeCls} rounded uppercase tracking-wider">${label}</span>`;
 }
 
-/** Chip de promoção ao lado da categoria. */
 function renderPromoChip(promoType) {
   return promoType === "flash"
-    ? `<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded text-amber-900 bg-amber-400 border border-amber-500/40">⚡ Relâmpago</span>`
-    : `<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded text-orange-900 bg-orange-100 border border-orange-300">🔥 Promoção</span>`;
+    ? `<span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded text-amber-400 bg-amber-500/10 border border-amber-500/30">Relâmpago</span>`
+    : `<span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded text-sky-400 bg-sky-500/10 border border-sky-500/30">Promoção</span>`;
 }
 
-/** Preço de produto simples OU de linha de variação em promoção: tag + "De:" riscado + preço final. */
 function renderPromoPrice(info, size = "lg") {
   const isLg = size === "lg";
   const align = isLg ? "md:items-end" : "items-end";
@@ -1258,54 +1205,51 @@ function renderPromoPrice(info, size = "lg") {
     <div class="flex flex-col ${align}">
       <div class="flex items-center gap-1.5 flex-wrap ${justify}">
         ${renderDiscountTag(`${info.discountPct}% OFF`, info.promoType, isLg ? "md" : "sm")}
-        <span class="${isLg ? "text-[11px]" : "text-[10px]"} font-bold text-gray-400 line-through whitespace-nowrap">De: R$ ${formatBRL(info.originalPrice)}</span>
+        <span class="${isLg ? "text-[11px]" : "text-[10px]"} font-semibold text-slate-400 line-through whitespace-nowrap">R$ ${formatBRL(info.originalPrice)}</span>
       </div>
-      <p class="${isLg ? "text-2xl md:text-3xl" : "text-lg"} font-black text-emerald-600 font-mono tracking-tight leading-none mt-1">
-        <span class="${isLg ? "text-xs md:text-sm" : "text-[10px]"} font-bold mr-0.5">R$</span>${formatBRL(info.promoPrice)}
+      <p class="${isLg ? "text-xl md:text-2xl" : "text-base"} font-black text-emerald-400 font-mono tracking-tight leading-none mt-1">
+        <span class="${isLg ? "text-xs" : "text-[10px]"} font-bold mr-0.5">R$</span>${formatBRL(info.promoPrice)}
       </p>
     </div>`;
 }
 
-/** Preço do produto PAI (fechado) com variações. */
 function renderParentPrice(info) {
   if (!info || !info.hasPromo) {
     return `
       <div class="flex flex-col md:items-end">
-        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">A partir de</span>
-        <p class="text-2xl md:text-3xl font-black text-cor-verde font-mono tracking-tight leading-none mt-1">
-          <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${formatBRL(info?.minPrice)}
+        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">A partir de</span>
+        <p class="text-xl md:text-2xl font-black text-white font-mono tracking-tight leading-none mt-1">
+          <span class="text-xs font-bold mr-0.5">R$</span>${formatBRL(info?.minPrice)}
         </p>
       </div>`;
   }
 
   const partialNote =
     info.promoCount < info.totalCount
-      ? `<span class="text-[9px] font-bold text-gray-500 mt-1">em opções selecionadas</span>`
+      ? `<span class="text-[8px] font-medium text-slate-400 mt-1">em opções selecionadas</span>`
       : "";
 
-  // Mesmo % em todas as variações promovidas: tag exata + menor preço com o original correspondente riscado
   if (info.sameDiscount) {
     return `
       <div class="flex flex-col md:items-end">
         <div class="flex items-center gap-1.5 flex-wrap md:justify-end">
           ${renderDiscountTag(`${info.maxPct}% OFF`, info.promoType)}
-          <span class="text-[11px] font-bold text-gray-400 line-through whitespace-nowrap">De: R$ ${formatBRL(info.originalOfMin)}</span>
+          <span class="text-[11px] font-semibold text-slate-400 line-through whitespace-nowrap">R$ ${formatBRL(info.originalOfMin)}</span>
         </div>
-        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-1.5">A partir de</span>
-        <p class="text-2xl md:text-3xl font-black text-emerald-600 font-mono tracking-tight leading-none mt-0.5">
-          <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${formatBRL(info.minPromoPrice)}
+        <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">A partir de</span>
+        <p class="text-xl md:text-2xl font-black text-emerald-400 font-mono tracking-tight leading-none mt-0.5">
+          <span class="text-xs font-bold mr-0.5">R$</span>${formatBRL(info.minPromoPrice)}
         </p>
         ${partialNote}
       </div>`;
   }
 
-  // % diferentes: sem preço riscado no pai, só "Oferta de até X% OFF" + preço promocional a partir de
   return `
     <div class="flex flex-col md:items-end">
-      ${renderDiscountTag(`Oferta de até ${info.maxPct}% OFF`, info.promoType)}
-      <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-1.5">Promo a partir de</span>
-      <p class="text-2xl md:text-3xl font-black text-emerald-600 font-mono tracking-tight leading-none mt-0.5">
-        <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${formatBRL(info.minPromoPrice)}
+      ${renderDiscountTag(`Até ${info.maxPct}% OFF`, info.promoType)}
+      <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Promo a partir de</span>
+      <p class="text-xl md:text-2xl font-black text-emerald-400 font-mono tracking-tight leading-none mt-0.5">
+        <span class="text-xs font-bold mr-0.5">R$</span>${formatBRL(info.minPromoPrice)}
       </p>
       ${partialNote}
     </div>`;
@@ -1328,22 +1272,22 @@ function renderCard(p, targetPromo = null) {
     const promoInfo = getPromotionalInfo(productId, null, p.price, targetPromo);
     const finalPrice = promoInfo ? promoInfo.promoPrice : p.price;
 
-    const borderCls = promoInfo && !isOutOfStock ? "border-amber-400/60" : "border-gray-800";
+    const borderCls = promoInfo && !isOutOfStock ? "border-amber-500/40" : "border-slate-800";
     const stockCardClasses = isOutOfStock
-      ? "opacity-50 grayscale-[30%] border-gray-900/50 bg-white pointer-events-none"
-      : "hover:border-accent/30 hover:bg-gray-800/20 shadow-xl hover:shadow-accent/5";
+      ? "opacity-50 grayscale-[30%] border-slate-800 bg-slate-900/40 pointer-events-none"
+      : "hover:border-slate-700 bg-slate-900 shadow-md";
 
     let addBtn = "";
     if (isOutOfStock) {
-      addBtn = `<button disabled class="bg-gray-900 text-gray-600 font-bold text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl cursor-not-allowed border border-gray-800/40">Indisponível</button>`;
+      addBtn = `<button disabled class="bg-slate-800 text-slate-500 font-bold text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl cursor-not-allowed border border-slate-700/50">Indisponível</button>`;
     } else if (alreadyInCart) {
-      addBtn = `<button disabled class="bg-[#008b00] text-white border border-emerald-800/50 font-black text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-1.5">
+      addBtn = `<button disabled class="bg-emerald-600 text-white border border-emerald-500 font-bold text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-1.5">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                         Adicionado
                       </button>`;
     } else {
       addBtn = `<button onclick="addToCart('${itemId}','${encodeURIComponent(p.name)}',${finalPrice},'${lojaAtual}', ${currentStock})"
-                        class="bg-cor-amarelo hover:bg-cor-azul-escuro text-[#0a0f1a] hover:text-white border border-gray-800 hover:border-white font-black text-[10px] md:text-xs uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg hover:shadow-accent/20">
+                        class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-[10px] md:text-xs uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-sm">
                         Adicionar
                       </button>`;
     }
@@ -1352,22 +1296,22 @@ function renderCard(p, targetPromo = null) {
       ? renderPromoPrice(promoInfo, "lg")
       : `
         <div class="flex flex-col md:items-end">
-            <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Preço à vista</span>
-            <p class="text-2xl md:text-3xl font-black ${isOutOfStock ? "text-gray-600" : "text-cor-verde font-mono"} tracking-tight leading-none mt-1">
-                <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${formatBRL(p.price)}
+            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Preço</span>
+            <p class="text-xl md:text-2xl font-black ${isOutOfStock ? "text-slate-600" : "text-white font-mono"} tracking-tight leading-none mt-1">
+                <span class="text-xs font-bold mr-0.5">R$</span>${formatBRL(p.price)}
             </p>
         </div>`;
 
     return `
-            <div class="gpu-card bg-white border ${borderCls} rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 w-full relative transition-all duration-300 ${stockCardClasses}">
-                ${isOutOfStock ? `<div class="absolute top-3 right-3 bg-[#D32F2F] border border-[#B71C1C] text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado na Loja</div>` : ""}
-                <div class="flex-grow space-y-2.5 md:max-w-[65%]">
+            <div class="gpu-card border ${borderCls} rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 w-full relative transition-all duration-300 ${stockCardClasses}">
+                ${isOutOfStock ? `<div class="absolute top-3 right-3 bg-red-600 text-white font-bold uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado</div>` : ""}
+                <div class="flex-grow space-y-2 md:max-w-[65%]">
                     <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-[9px] font-black text-cor-azul bg-cor-amarelo px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || "Peça"}</span>
-                        ${p.subcategory ? `<span class="text-[9px] font-bold text-gray-500 uppercase tracking-wide">/ ${p.subcategory}</span>` : ""}
+                        <span class="text-[9px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded uppercase tracking-wider">${p.category || "Peça"}</span>
+                        ${p.subcategory ? `<span class="text-[9px] font-medium text-slate-400 uppercase">/ ${p.subcategory}</span>` : ""}
                         ${promoInfo ? renderPromoChip(promoInfo.promoType) : ""}
                     </div>
-                    <h4 class="text-sm md:text-base font-extrabold text-[#0a0f1a] leading-snug tracking-tight">${p.name}</h4>
+                    <h4 class="text-sm md:text-base font-bold text-white leading-snug tracking-tight">${p.name}</h4>
                     <div class="flex flex-wrap gap-1.5 pt-0.5">
                         ${
                           p.attributes
@@ -1376,14 +1320,14 @@ function renderCard(p, targetPromo = null) {
                                       if (!v) return "";
                                       const valName = (typeof v === 'object' && v !== null) ? (v.name || '') : v;
                                       const { className, style } = getTagProps(v);
-                                      return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${valName}</span>`;
+                                      return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-medium uppercase tracking-wide ${className}" style="${style}">${valName}</span>`;
                                   })
                                   .join("")
                               : ""
                       }
                     </div>
                 </div>
-                <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-gray-800/80 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
+                <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-slate-800 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
                     ${priceBlock}
                     ${addBtn}
                 </div>
@@ -1394,11 +1338,9 @@ function renderCard(p, targetPromo = null) {
   const totalStock = getTotalStock(p);
   const isParentOutOfStock = totalStock <= 0;
 
-  // Resumo promocional do pai (menor preço, "X% OFF" ou "até X% OFF")
   const parentInfo = getProductParentPromoInfo(p, targetPromo);
   const parentHasPromo = !!parentInfo?.hasPromo;
 
-  // Linhas de variação com a promoção de cada uma
   const rows = p.variations.map((v) => {
     const basePrice = v.price || p.price;
     return {
@@ -1409,7 +1351,6 @@ function renderCard(p, targetPromo = null) {
     };
   });
 
-  // Com estoque primeiro; dentro de cada grupo, as em promoção primeiro
   const sortedRows = [...rows].sort((a, b) => {
     if (a.stock > 0 !== b.stock > 0) return a.stock > 0 ? -1 : 1;
     return (b.promo ? 1 : 0) - (a.promo ? 1 : 0);
@@ -1422,22 +1363,22 @@ function renderCard(p, targetPromo = null) {
       const alreadyInCart = isInCart(varId);
       const varFullName = `${p.name} (${v.type}: ${v.value})`;
       const vStyleClasses = isVOOS
-        ? "opacity-40 grayscale-[40%] bg-gray-950/20 pointer-events-none"
-        : "hover:bg-gray-800/40";
+        ? "opacity-40 grayscale-[40%] bg-slate-950/20 pointer-events-none"
+        : "hover:bg-slate-800/40";
 
       const vFinalPrice = vPromoInfo ? vPromoInfo.promoPrice : basePrice;
 
       let varBtn = "";
       if (isVOOS) {
-        varBtn = `<span class="text-[10px] font-bold text-gray-600 uppercase tracking-wider px-4 py-2.5">Indisponível</span>`;
+        varBtn = `<span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider px-4 py-2.5">Indisponível</span>`;
       } else if (alreadyInCart) {
-        varBtn = `<button disabled class="bg-[#008b00] text-white border border-[#09af00] font-black text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg flex items-center gap-1.5">
+        varBtn = `<button disabled class="bg-emerald-600 text-white border border-emerald-500 font-bold text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg flex items-center gap-1.5">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                         Adicionado
                       </button>`;
       } else {
         varBtn = `<button onclick="addToCart('${varId}','${encodeURIComponent(varFullName)}',${vFinalPrice},'${lojaAtual}', ${vStock})"
-                        class="bg-cor-amarelo hover:bg-cor-azul-escuro text-[#0a0f1a] hover:text-white font-black text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all active:scale-95 border border-gray-800 hover:border-white">
+                        class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all active:scale-95 border border-slate-700">
                         Adicionar
                       </button>`;
       }
@@ -1445,19 +1386,19 @@ function renderCard(p, targetPromo = null) {
       const varPriceBlock = vPromoInfo
         ? renderPromoPrice(vPromoInfo, "sm")
         : `
-          <p class="text-lg font-black ${isVOOS ? "text-gray-600" : "text-cor-verde font-mono"}">
+          <p class="text-base font-black ${isVOOS ? "text-slate-600" : "text-white font-mono"}">
               <span class="text-[10px] font-bold mr-0.5">R$</span>${formatBRL(basePrice)}
           </p>`;
 
       return `
-            <div class="flex flex-col bg-white sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border ${vPromoInfo && !isVOOS ? "border-amber-400/50" : "border-gray-800/40"} transition-all ${vStyleClasses}">
+            <div class="flex flex-col bg-slate-900 sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border ${vPromoInfo && !isVOOS ? "border-amber-500/40" : "border-slate-800"} transition-all ${vStyleClasses}">
                 <div class="flex flex-wrap items-center gap-3">
-                    <div class="bg-cor-azul-escuro text-[10px] font-black text-cor-amarelo px-2.5 py-1 rounded-md border border-gray-800 uppercase">
+                    <div class="bg-slate-800 text-[10px] font-bold text-slate-200 px-2.5 py-1 rounded-md border border-slate-700 uppercase">
                         ${v.type}: <span class="text-white">${v.value}</span>
                     </div>
-                    ${isVOOS ? `<span class="text-[9px] font-extrabold uppercase text-white tracking-wider bg-[#D32F2F] px-2 py-0.5 rounded-md border border-[#B71C1C]">Sem estoque</span>` : ""}
+                    ${isVOOS ? `<span class="text-[9px] font-bold uppercase text-white tracking-wider bg-red-600 px-2 py-0.5 rounded-md">Sem estoque</span>` : ""}
                 </div>
-                <div class="flex items-center justify-between sm:justify-end gap-6 mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-gray-800/40 sm:border-t-0">
+                <div class="flex items-center justify-between sm:justify-end gap-6 mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-slate-800 sm:border-t-0">
                     ${varPriceBlock}
                     ${varBtn}
                 </div>
@@ -1466,16 +1407,16 @@ function renderCard(p, targetPromo = null) {
     .join("");
 
   return `
-        <div class="w-full bg-white border ${parentHasPromo && !isParentOutOfStock ? "border-amber-400/60" : "border-gray-800"} rounded-2xl overflow-hidden transition-all duration-300 ${isParentOutOfStock ? "opacity-50" : ""}">
-            <div onclick="toggleDropdown('${productId}')" class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 w-full relative cursor-pointer hover:bg-gray-800/10 group select-none">
-                ${isParentOutOfStock ? `<div class="absolute top-3 right-3 bg-[#D32F2F] border border-[#B71C1C] text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado</div>` : ""}
-                <div class="flex-grow space-y-2.5 md:max-w-[65%]">
+        <div class="w-full bg-slate-900 border ${parentHasPromo && !isParentOutOfStock ? "border-amber-500/40" : "border-slate-800"} rounded-2xl overflow-hidden transition-all duration-300 ${isParentOutOfStock ? "opacity-50" : ""}">
+            <div onclick="toggleDropdown('${productId}')" class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 w-full relative cursor-pointer hover:bg-slate-800/20 group select-none">
+                ${isParentOutOfStock ? `<div class="absolute top-3 right-3 bg-red-600 text-white font-bold uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado</div>` : ""}
+                <div class="flex-grow space-y-2 md:max-w-[65%]">
                     <div class="flex flex-wrap items-center gap-2">
-                        <span class="text-[9px] font-black text-cor-azul bg-cor-amarelo px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || "Peça"}</span>
-                        <span class="text-[9px] font-black text-white bg-cor-azul-escuro border border-[#0a0f1a] px-2 py-0.5 rounded-md uppercase tracking-wider">Possui Variações</span>
+                        <span class="text-[9px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded uppercase tracking-wider">${p.category || "Peça"}</span>
+                        <span class="text-[9px] font-bold text-slate-200 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded uppercase tracking-wider">Variações</span>
                         ${parentHasPromo ? renderPromoChip(parentInfo.promoType) : ""}
                     </div>
-                    <h4 class="text-sm md:text-base font-extrabold text-[#0a0f1a] leading-snug tracking-tight transition-colors">${p.name}</h4>
+                    <h4 class="text-sm md:text-base font-bold text-white leading-snug tracking-tight transition-colors">${p.name}</h4>
                     <div class="flex flex-wrap gap-1.5 pt-0.5">
                         ${
                           p.attributes
@@ -1484,24 +1425,24 @@ function renderCard(p, targetPromo = null) {
                                       if (!v) return "";
                                       const valName = (typeof v === 'object' && v !== null) ? (v.name || '') : v;
                                       const { className, style } = getTagProps(v);
-                                      return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-bold uppercase tracking-wide ${className}" style="${style}">${valName}</span>`;
+                                      return `<span class="px-2 py-0.5 rounded-md text-[8px] md:text-[9px] font-medium uppercase tracking-wide ${className}" style="${style}">${valName}</span>`;
                                   })
                                   .join("")
                               : ""
                       }
                     </div>
                 </div>
-                <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-gray-800/80 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
+                <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-slate-800 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
                     ${renderParentPrice(parentInfo)}
-                    <div id="arrow-${productId}" class="text-[#0a0f1a] bg-cor-amarelo p-2.5 rounded-xl border border-gray-800 group-hover:bg-cor-azul-escuro group-hover:text-white transition-all duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <div id="arrow-${productId}" class="text-slate-300 bg-slate-800 p-2.5 rounded-xl border border-slate-700 group-hover:bg-slate-700 group-hover:text-white transition-all duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </div>
                 </div>
             </div>
-            <div id="dropdown-${productId}" class="hidden border-t border-gray-800 bg-[#e1f5fe]/50 px-5 pb-5 pt-2">
-                <p class="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-3">Selecione a opção desejada:</p>
+            <div id="dropdown-${productId}" class="hidden border-t border-slate-800 bg-slate-950/60 px-5 pb-5 pt-3">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Selecione a opção desejada:</p>
                 <div class="flex flex-col gap-2.5">${variationsHTML}</div>
             </div>
         </div>`;
@@ -1524,10 +1465,10 @@ function createSectionHTML(title, products, targetView, cat, sub = null, showSor
   return `
         <div class="animate-in mb-10">
             <div class="flex items-center justify-between mb-4 px-1 gap-2">
-                <h3 class="text-xs font-black uppercase tracking-[0.3em] text-gray-500">${title}</h3>
+                <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">${title}</h3>
                 <div class="flex items-center gap-2">
                     ${showSort ? getSortDropdownHTML() : ""}
-                    <button onclick="changeView('${targetView}','${cat}','${sub || ""}')" class="text-[9px] bg-cor-azul-escuro hover:bg-[#FFC107] text-white hover:text-[#0a0f1a] font-black border border-accent/20 px-4 py-1.5 rounded-full uppercase transition-all whitespace-nowrap">Ver Tudo</button>
+                    <button onclick="changeView('${targetView}','${cat}','${sub || ""}')" class="text-[9px] bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700 px-4 py-1.5 rounded-full uppercase transition-all whitespace-nowrap">Ver tudo</button>
                 </div>
             </div>
             <div class="flex flex-col gap-3">${products.map((p) => renderCard(p)).join("")}</div>
