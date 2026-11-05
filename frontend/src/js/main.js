@@ -994,7 +994,7 @@ function renderPromotionsHeaderSection(isMobile) {
       );
 
       const hasMore = ordered.length > limit;
-      const cards = ordered.slice(0, limit).map((p) => renderCard(p, promo)).join("");
+      const products = ordered.slice(0, limit);
       const isFlash = promo.type === "flash";
 
       // Botão "Ver todos os produtos..." com cor baseada no design respectivo
@@ -1013,7 +1013,7 @@ function renderPromotionsHeaderSection(isMobile) {
 
       return `<div class="animate-in mb-10">${renderPromoFrame(
         promo,
-        `<div class="flex flex-col gap-3">${cards}</div>`,
+        renderProductColumns(products, promo),
         footer
       )}</div>`;
     })
@@ -1118,11 +1118,9 @@ function render() {
         const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
         clampPage(totalPages);
         const pageItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-        const cards = pageItems.map((p) => renderCard(p, promoObj)).join("");
-
         htmlOutput = `<div class="animate-in">${renderPromoFrame(
           promoObj,
-          `<div class="flex flex-col gap-3">${cards}</div>`
+          renderProductColumns(pageItems, promoObj)
         )}</div>`;
         renderPager(currentPage, totalPages, filtered.length, footer);
       }
@@ -1185,7 +1183,7 @@ function render() {
       const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
       clampPage(totalPages);
       const pageItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-      htmlOutput = `<div class="flex flex-col gap-3 animate-in">${pageItems.map((p) => renderCard(p)).join("")}</div>`;
+      htmlOutput = `<div class="animate-in">${renderProductColumns(pageItems)}</div>`;
       renderPager(currentPage, totalPages, filtered.length, footer);
     }
   }
@@ -1231,8 +1229,8 @@ function renderPromoChip(promoType) {
 
 function renderPromoPrice(info, size = "lg") {
   const isLg = size === "lg";
-  const align = isLg ? "md:items-end" : "items-end";
-  const justify = isLg ? "md:justify-end" : "justify-end";
+  const align = isLg ? "lg:items-end" : "items-end";
+  const justify = isLg ? "lg:justify-end" : "justify-end";
   const textColor = info.promoType === "flash" ? "text-orange-600" : "text-blue-700";
 
   return `
@@ -1252,7 +1250,7 @@ function renderParentPrice(info, targetPromo = null) {
 
   if (!info || !info.hasPromo) {
     return `
-      <div class="flex flex-col md:items-end">
+      <div class="flex flex-col lg:items-end">
         <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">A partir de</span>
         <p class="text-2xl md:text-3xl font-black text-cor-verde font-mono tracking-tight leading-none mt-1">
           <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${formatBRL(info?.minPrice)}
@@ -1262,8 +1260,8 @@ function renderParentPrice(info, targetPromo = null) {
 
   if (isFlash) {
     return `
-      <div class="flex flex-col md:items-end gap-1.5">
-        <div class="flex items-center gap-2 flex-wrap md:justify-end">
+      <div class="flex flex-col lg:items-end gap-1.5">
+        <div class="flex items-center gap-2 flex-wrap lg:justify-end">
           ${renderDiscountTag(`Até ${info.maxPct}% OFF`, 'flash', 'lg')}
         </div>
         <span class="text-[10px] font-black text-orange-800 uppercase tracking-wider">Selecione a opção abaixo</span>
@@ -1279,8 +1277,8 @@ function renderParentPrice(info, targetPromo = null) {
 
   if (info.sameDiscount) {
     return `
-      <div class="flex flex-col md:items-end">
-        <div class="flex items-center gap-1.5 flex-wrap md:justify-end">
+      <div class="flex flex-col lg:items-end">
+        <div class="flex items-center gap-1.5 flex-wrap lg:justify-end">
           ${renderDiscountTag(`${info.maxPct}% OFF`, info.promoType, 'lg')}
           <span class="text-[11px] font-bold text-gray-400 line-through whitespace-nowrap">De: R$ ${formatBRL(info.originalOfMin)}</span>
         </div>
@@ -1293,7 +1291,7 @@ function renderParentPrice(info, targetPromo = null) {
   }
 
   return `
-    <div class="flex flex-col md:items-end">
+    <div class="flex flex-col lg:items-end">
       ${renderDiscountTag(`Oferta de até ${info.maxPct}% OFF`, info.promoType, 'lg')}
       <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-1.5">Promo a partir de</span>
       <p class="text-2xl md:text-3xl font-black ${textColor} font-mono tracking-tight leading-none mt-0.5">
@@ -1356,7 +1354,7 @@ function renderCard(p, targetPromo = null) {
     const priceBlock = promoInfo
       ? renderPromoPrice(promoInfo, "lg")
       : `
-        <div class="flex flex-col md:items-end">
+        <div class="flex flex-col lg:items-end">
             <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Preço à vista</span>
             <p class="text-2xl md:text-3xl font-black ${isOutOfStock ? "text-gray-400" : "text-cor-verde font-mono"} tracking-tight leading-none mt-1">
                 <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${formatBRL(p.price)}
@@ -1364,9 +1362,9 @@ function renderCard(p, targetPromo = null) {
         </div>`;
 
     return `
-            <div class="gpu-card border ${borderCls} rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 w-full relative transition-all duration-300 ${stockCardClasses}">
+            <div class="gpu-card border ${borderCls} rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 w-full relative transition-all duration-300 ${stockCardClasses}">
                 ${isOutOfStock ? `<div class="absolute top-3 right-3 bg-[#D32F2F] text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado na Loja</div>` : ""}
-                <div class="flex-grow space-y-2.5 md:max-w-[65%]">
+                <div class="flex-grow space-y-2.5 lg:max-w-[65%]">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-[9px] font-black text-cor-azul bg-cor-amarelo px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || "Peça"}</span>
                         ${p.subcategory ? `<span class="text-[9px] font-bold text-gray-500 uppercase tracking-wide">/ ${p.subcategory}</span>` : ""}
@@ -1388,7 +1386,7 @@ function renderCard(p, targetPromo = null) {
                       }
                     </div>
                 </div>
-                <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-gray-100 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
+                <div class="flex flex-row items-center justify-between lg:flex-col lg:items-end lg:justify-center pt-4 lg:pt-0 border-t border-gray-100 lg:border-t-0 shrink-0 lg:pl-6 lg:min-w-[200px] gap-4">
                     ${priceBlock}
                     ${addBtn}
                 </div>
@@ -1481,10 +1479,10 @@ function renderCard(p, targetPromo = null) {
     : "border-gray-200 bg-white";
 
   return `
-        <div class="w-full border ${parentBorder} rounded-2xl overflow-hidden transition-all duration-300 ${isParentOutOfStock ? "opacity-50" : ""}">
-            <div onclick="toggleDropdown('${productId}')" class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 w-full relative cursor-pointer hover:bg-gray-50 group select-none">
+        <div class="self-start w-full border ${parentBorder} rounded-2xl overflow-hidden transition-all duration-300 ${isParentOutOfStock ? "opacity-50" : ""}">
+            <div onclick="toggleDropdown('${productId}')" class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 w-full relative cursor-pointer hover:bg-gray-50 group select-none">
                 ${isParentOutOfStock ? `<div class="absolute top-3 right-3 bg-red-600 text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado</div>` : ""}
-                <div class="flex-grow space-y-2.5 md:max-w-[65%]">
+                <div class="flex-grow space-y-2.5 lg:max-w-[65%]">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-[9px] font-black text-cor-azul bg-cor-amarelo px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || "Peça"}</span>
                         <span class="text-[9px] font-black text-white bg-gray-900 px-2 py-0.5 rounded-md uppercase tracking-wider">Possui Variações</span>
@@ -1506,7 +1504,7 @@ function renderCard(p, targetPromo = null) {
                       }
                     </div>
                 </div>
-                <div class="flex flex-row items-center justify-between md:flex-col md:items-end md:justify-center pt-4 md:pt-0 border-t border-gray-100 md:border-t-0 shrink-0 md:pl-6 md:min-w-[200px] gap-4">
+                <div class="flex flex-row items-center justify-between lg:flex-col lg:items-end lg:justify-center pt-4 lg:pt-0 border-t border-gray-100 lg:border-t-0 shrink-0 lg:pl-6 lg:min-w-[200px] gap-4">
                     ${renderParentPrice(parentInfo, targetPromo)}
                     <div id="arrow-${productId}" class="text-[#0a0f1a] bg-cor-amarelo p-2.5 rounded-xl border border-gray-200 group-hover:bg-cor-azul-escuro group-hover:text-white transition-all duration-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
@@ -1520,6 +1518,22 @@ function renderCard(p, targetPromo = null) {
                 <div class="flex flex-col gap-2.5">${variationsHTML}</div>
             </div>
         </div>`;
+}
+
+function renderProductColumns(products, targetPromo = null) {
+  const columns = [[], []];
+
+  products.forEach((product, index) => {
+    columns[index % 2].push(
+      `<div class="catalog-product-item" style="--catalog-product-order:${index}">${renderCard(product, targetPromo)}</div>`
+    );
+  });
+
+  return `
+    <div class="catalog-product-columns">
+      <div class="catalog-product-column">${columns[0].join("")}</div>
+      <div class="catalog-product-column">${columns[1].join("")}</div>
+    </div>`;
 }
 
 function toggleDropdown(productId) {
@@ -1545,7 +1559,7 @@ function createSectionHTML(title, products, targetView, cat, sub = null, showSor
                     <button onclick="changeView('${targetView}','${cat}','${sub || ""}')" class="text-[9px] bg-cor-azul-escuro hover:bg-[#FFC107] text-white hover:text-[#0a0f1a] font-black border border-accent/20 px-4 py-1.5 rounded-full uppercase transition-all whitespace-nowrap">Ver Tudo</button>
                 </div>
             </div>
-            <div class="flex flex-col gap-3">${products.map((p) => renderCard(p)).join("")}</div>
+            ${renderProductColumns(products)}
         </div>`;
 }
 
