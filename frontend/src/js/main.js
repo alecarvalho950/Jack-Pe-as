@@ -1210,13 +1210,13 @@ function renderDiscountTag(label, promoType, size = "md") {
   if (size === "lg") {
     const color = isFlash
       ? "bg-orange-600 text-white font-black text-sm md:text-base px-3 py-1.5 shadow-md border border-orange-400"
-      : "bg-blue-600 text-white font-black text-sm md:text-base px-3 py-1.5 shadow-md border border-blue-400";
+      : "bg-[rgb(3,7,204)] text-white font-black text-sm md:text-base px-3 py-1.5 shadow-md border border-blue-600";
     return `<span class="${color} rounded-lg leading-none whitespace-nowrap uppercase">${label}</span>`;
   } else {
     const sizeCls = size === "sm" ? "text-[9px] px-2 py-1" : "text-[10px] px-2 py-1";
     const color = isFlash
       ? "bg-orange-600 text-white font-black"
-      : "bg-blue-600 text-white font-black";
+      : "bg-[rgb(3,7,204)] text-white font-black";
     return `<span class="${color} ${sizeCls} rounded-md leading-none whitespace-nowrap uppercase">${label}</span>`;
   }
 }
@@ -1245,10 +1245,8 @@ function renderPromoPrice(info, size = "lg") {
     </div>`;
 }
 
-function renderParentPrice(info, targetPromo = null) {
-  const isFlash = targetPromo?.type === "flash" || info?.promoType === "flash";
-
-  if (!info || !info.hasPromo) {
+function renderParentPrice(info) {
+  if (!info?.hasPromo) {
     return `
       <div class="flex flex-col lg:items-end">
         <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">A partir de</span>
@@ -1258,46 +1256,14 @@ function renderParentPrice(info, targetPromo = null) {
       </div>`;
   }
 
-  if (isFlash) {
-    return `
-      <div class="flex flex-col lg:items-end gap-1.5">
-        <div class="flex items-center gap-2 flex-wrap lg:justify-end">
-          ${renderDiscountTag(`Até ${info.maxPct}% OFF`, 'flash', 'lg')}
-        </div>
-        <span class="text-[10px] font-black text-orange-800 uppercase tracking-wider">Selecione a opção abaixo</span>
-      </div>`;
-  }
-
-  const partialNote =
-    info.promoCount < info.totalCount
-      ? `<span class="text-[9px] font-bold text-gray-500 mt-1">em opções selecionadas</span>`
-      : "";
-
-  const textColor = "text-blue-700";
-
-  if (info.sameDiscount) {
-    return `
-      <div class="flex flex-col lg:items-end">
-        <div class="flex items-center gap-1.5 flex-wrap lg:justify-end">
-          ${renderDiscountTag(`${info.maxPct}% OFF`, info.promoType, 'lg')}
-          <span class="text-[11px] font-bold text-gray-400 line-through whitespace-nowrap">De: R$ ${formatBRL(info.originalOfMin)}</span>
-        </div>
-        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-1.5">A partir de</span>
-        <p class="text-2xl md:text-3xl font-black ${textColor} font-mono tracking-tight leading-none mt-0.5">
-          <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${formatBRL(info.minPromoPrice)}
-        </p>
-        ${partialNote}
-      </div>`;
-  }
+  const isFlash = info.promoType === "flash";
+  const discountLabel = info.sameDiscount
+    ? `${info.maxPct}% OFF`
+    : `Até ${info.maxPct}% OFF`;
 
   return `
-    <div class="flex flex-col lg:items-end">
-      ${renderDiscountTag(`Oferta de até ${info.maxPct}% OFF`, info.promoType, 'lg')}
-      <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-1.5">Promo a partir de</span>
-      <p class="text-2xl md:text-3xl font-black ${textColor} font-mono tracking-tight leading-none mt-0.5">
-        <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${formatBRL(info.minPromoPrice)}
-      </p>
-      ${partialNote}
+    <div class="flex items-center lg:justify-end">
+      ${renderDiscountTag(discountLabel, isFlash ? "flash" : info.promoType, "lg")}
     </div>`;
 }
 
@@ -1319,18 +1285,19 @@ function renderCard(p, targetPromo = null) {
 
     const promoInfo = getPromotionalInfo(productId, null, p.price, targetPromo);
     const finalPrice = promoInfo ? promoInfo.promoPrice : p.price;
+    const isFlashCardPromo = promoInfo?.promoType === "flash" || isFlashPromo;
+    const isStandardCardPromo = (promoInfo && !isFlashCardPromo) || isStandardPromo;
 
-    const borderCls = promoInfo && !isOutOfStock 
-      ? (isFlashPromo ? "border-orange-400/80 bg-white" : "border-blue-500/50 bg-white") 
-      : "border-gray-200 bg-white";
-    
-    const stockCardClasses = isOutOfStock
-      ? "opacity-50 grayscale-[30%] border-gray-200 bg-white pointer-events-none"
-      : "hover:border-accent/30 shadow-xl hover:shadow-accent/5";
+    const borderCls = promoInfo && !isOutOfStock
+      ? (isFlashCardPromo ? "border-orange-400/80" : "border-blue-500/50")
+      : "border-gray-200";
+    const hoverBorderCls = promoInfo && !isOutOfStock
+      ? (isFlashCardPromo ? "hover:border-orange-500" : "hover:border-blue-600")
+      : "hover:border-gray-300";
 
     let addBtn = "";
     if (isOutOfStock) {
-      addBtn = `<button disabled class="bg-gray-100 text-gray-400 font-bold text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl cursor-not-allowed border border-gray-200">Indisponível</button>`;
+      addBtn = `<button disabled class="bg-gray-100 text-gray-400 font-bold text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl cursor-not-allowed border border-gray-200">ESGOTADO</button>`;
     } else if (alreadyInCart) {
       addBtn = `<button disabled class="bg-[#008b00] text-white border border-emerald-800/50 font-black text-[10px] uppercase tracking-wider px-5 py-3 rounded-xl flex items-center gap-1.5">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -1338,10 +1305,10 @@ function renderCard(p, targetPromo = null) {
                       </button>`;
     } else {
       // Cor do botão conforme solicitação: Azul para Promoção, Laranja para Oferta Relâmpago, Amarelo para o restante
-      let btnStyle = "bg-cor-amarelo hover:bg-cor-azul-escuro text-[#0a0f1a] hover:text-white border-gray-800";
-      if (isFlashPromo) {
+      let btnStyle = "bg-cor-amarelo hover:bg-yellow-600 text-[#0a0f1a] border border-gray-300";
+      if (isFlashCardPromo) {
         btnStyle = "bg-orange-600 hover:bg-orange-700 text-white border-orange-500";
-      } else if (isStandardPromo) {
+      } else if (isStandardCardPromo) {
         btnStyle = "bg-[rgb(3,7,204)] hover:bg-blue-800 text-white border-blue-600";
       }
       
@@ -1362,8 +1329,8 @@ function renderCard(p, targetPromo = null) {
         </div>`;
 
     return `
-            <div class="gpu-card border ${borderCls} rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 w-full relative transition-all duration-300 ${stockCardClasses}">
-                ${isOutOfStock ? `<div class="absolute top-3 right-3 bg-[#D32F2F] text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado na Loja</div>` : ""}
+            <div class="border ${borderCls} bg-white rounded-2xl shadow-sm hover:shadow-md ${hoverBorderCls} transition-all duration-300 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 w-full relative ${isOutOfStock ? "opacity-50 grayscale-[30%] pointer-events-none" : ""}">
+                ${isOutOfStock ? `<div class="absolute top-3 right-3 bg-[#D32F2F] text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">ESGOTADO</div>` : ""}
                 <div class="flex-grow space-y-2.5 lg:max-w-[65%]">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-[9px] font-black text-cor-azul bg-cor-amarelo px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || "Peça"}</span>
@@ -1399,6 +1366,15 @@ function renderCard(p, targetPromo = null) {
 
   const parentInfo = getProductParentPromoInfo(p, targetPromo);
   const parentHasPromo = !!parentInfo?.hasPromo;
+  const isFlash = targetPromo?.type === "flash" || parentInfo?.promoType === "flash";
+  const isStandard =
+    (targetPromo && targetPromo.type !== "flash") ||
+    (parentInfo?.hasPromo && parentInfo?.promoType !== "flash");
+  const arrowClasses = isFlash
+    ? "bg-orange-600 text-white border-orange-500 group-hover:bg-orange-700 group-hover:text-white"
+    : isStandard
+      ? "bg-blue-500 text-white border-blue-600 group-hover:bg-blue-800 group-hover:text-white"
+      : "text-[#0a0f1a] bg-cor-amarelo border-gray-200 group-hover:bg-yellow-600 group-hover:text-[#0a0f1a]";
 
   const rows = p.variations.map((v) => {
     const basePrice = v.price || p.price;
@@ -1429,17 +1405,17 @@ function renderCard(p, targetPromo = null) {
 
       let varBtn = "";
       if (isVOOS) {
-        varBtn = `<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-4 py-2.5">Indisponível</span>`;
+        varBtn = `<span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-4 py-2.5">ESGOTADO</span>`;
       } else if (alreadyInCart) {
         varBtn = `<button disabled class="bg-[#008b00] text-white border border-[#09af00] font-black text-[9px] uppercase tracking-wider px-4 py-2.5 rounded-lg flex items-center gap-1.5">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                         Adicionado
                       </button>`;
       } else {
-        let btnVarStyle = "bg-cor-amarelo hover:bg-cor-azul-escuro text-[#0a0f1a] hover:text-white border-gray-800";
-        if (isFlashPromo) {
+        let btnVarStyle = "bg-cor-amarelo hover:bg-yellow-600 text-[#0a0f1a] border border-gray-300";
+        if (isFlash) {
           btnVarStyle = "bg-orange-600 hover:bg-orange-700 text-white border-orange-500";
-        } else if (isStandardPromo) {
+        } else if (isStandard) {
           btnVarStyle = "bg-[rgb(3,7,204)] hover:bg-blue-800 text-white border-blue-600";
         }
 
@@ -1456,7 +1432,7 @@ function renderCard(p, targetPromo = null) {
               <span class="text-[10px] font-bold mr-0.5">R$</span>${formatBRL(basePrice)}
           </p>`;
 
-      const borderVar = vPromoInfo && !isVOOS ? (isFlashPromo ? "border-orange-300 bg-white" : "border-blue-300 bg-white") : "border-gray-200 bg-white";
+      const borderVar = vPromoInfo && !isVOOS ? (isFlash ? "border-orange-300 bg-white" : "border-blue-300 bg-white") : "border-gray-200 bg-white";
 
       return `
             <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border ${borderVar} transition-all ${vStyleClasses}">
@@ -1464,7 +1440,7 @@ function renderCard(p, targetPromo = null) {
                     <div class="bg-gray-900 text-[10px] font-black text-white px-2.5 py-1 rounded-md uppercase">
                         ${v.type}: <span class="text-orange-400">${v.value}</span>
                     </div>
-                    ${isVOOS ? `<span class="text-[9px] font-extrabold uppercase text-white tracking-wider bg-red-600 px-2 py-0.5 rounded-md">Sem estoque</span>` : ""}
+                    ${isVOOS ? `<span class="text-[9px] font-extrabold uppercase text-white tracking-wider bg-red-600 px-2 py-0.5 rounded-md">ESGOTADO</span>` : ""}
                 </div>
                 <div class="flex items-center justify-between sm:justify-end gap-6 mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-gray-100 sm:border-t-0">
                     ${varPriceBlock}
@@ -1474,14 +1450,17 @@ function renderCard(p, targetPromo = null) {
     })
     .join("");
 
-  const parentBorder = parentHasPromo && !isParentOutOfStock 
-    ? (isFlashPromo ? "border-orange-400/80 bg-white" : "border-blue-500/50 bg-white") 
-    : "border-gray-200 bg-white";
+  const parentBorder = parentHasPromo && !isParentOutOfStock
+    ? (isFlash ? "border-orange-400/80" : "border-blue-500/50")
+    : "border-gray-200";
+  const parentHoverBorder = parentHasPromo && !isParentOutOfStock
+    ? (isFlash ? "hover:border-orange-500" : "hover:border-blue-600")
+    : "hover:border-gray-300";
 
   return `
-        <div class="self-start w-full border ${parentBorder} rounded-2xl overflow-hidden transition-all duration-300 ${isParentOutOfStock ? "opacity-50" : ""}">
-            <div onclick="toggleDropdown('${productId}')" class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 w-full relative cursor-pointer hover:bg-gray-50 group select-none">
-                ${isParentOutOfStock ? `<div class="absolute top-3 right-3 bg-red-600 text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">Esgotado</div>` : ""}
+        <div class="self-start w-full border ${parentBorder} bg-white rounded-2xl shadow-sm hover:shadow-md ${parentHoverBorder} transition-all duration-300 overflow-hidden ${isParentOutOfStock ? "opacity-50" : ""}">
+            <div onclick="toggleDropdown(this, '${productId}')" class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 w-full relative cursor-pointer hover:bg-gray-50 group select-none">
+                ${isParentOutOfStock ? `<div class="absolute top-3 right-3 bg-red-600 text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">ESGOTADO</div>` : ""}
                 <div class="flex-grow space-y-2.5 lg:max-w-[65%]">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-[9px] font-black text-cor-azul bg-cor-amarelo px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || "Peça"}</span>
@@ -1505,8 +1484,8 @@ function renderCard(p, targetPromo = null) {
                     </div>
                 </div>
                 <div class="flex flex-row items-center justify-between lg:flex-col lg:items-end lg:justify-center pt-4 lg:pt-0 border-t border-gray-100 lg:border-t-0 shrink-0 lg:pl-6 lg:min-w-[200px] gap-4">
-                    ${renderParentPrice(parentInfo, targetPromo)}
-                    <div id="arrow-${productId}" class="text-[#0a0f1a] bg-cor-amarelo p-2.5 rounded-xl border border-gray-200 group-hover:bg-cor-azul-escuro group-hover:text-white transition-all duration-300">
+                    ${renderParentPrice(parentInfo)}
+                    <div id="arrow-${productId}" class="${arrowClasses} p-2.5 rounded-xl border transition-all duration-300">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                         </svg>
@@ -1536,16 +1515,18 @@ function renderProductColumns(products, targetPromo = null) {
     </div>`;
 }
 
-function toggleDropdown(productId) {
-  const panel = document.getElementById(`dropdown-${productId}`);
-  const arrow = document.getElementById(`arrow-${productId}`)?.querySelector("svg");
+function toggleDropdown(headerEl, productId) {
+  const cardWrapper = headerEl.closest(".self-start") || headerEl.parentElement;
+  const panel = cardWrapper.querySelector('[id^="dropdown-"]') || headerEl.nextElementSibling;
+  const arrowSvg = headerEl.querySelector("svg.transform");
+
   if (!panel) return;
   if (panel.classList.contains("hidden")) {
     panel.classList.remove("hidden");
-    if (arrow) arrow.classList.add("rotate-180");
+    if (arrowSvg) arrowSvg.classList.add("rotate-180");
   } else {
     panel.classList.add("hidden");
-    if (arrow) arrow.classList.remove("rotate-180");
+    if (arrowSvg) arrowSvg.classList.remove("rotate-180");
   }
 }
 
