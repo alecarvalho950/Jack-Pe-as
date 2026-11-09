@@ -98,25 +98,28 @@
         </button>
     </div>
 
-    <nav class="py-8 text-center">
-        <h1 onclick="resetAll()"
-            class="text-3xl font-black tracking-[0.2em] text-cor-azul cursor-pointer uppercase italic inline-block">
-            JACK<span class="text-cor-amarelo">PEÇAS</span>
-        </h1>
-    </nav>
-
-    <header id="hero-banner" class="relative overflow-hidden bg-hero-pattern pb-16 px-4">
-        <div class="max-w-4xl mx-auto text-center space-y-6 animate-in">
-            <h2 class="text-5xl text-cor-azul md:text-7xl font-black italic tracking-tighter leading-none">
-                QUALIDADE EM <br>
-                <span class="text-accent text-glow">CADA COMPONENTE</span>
-            </h2>
-            <p class="text-gray-500 text-[10px] md:text-xs font-black uppercase tracking-[0.4em]">
-                Displays • Baterias • Acessórios • Reposição
+    <header id="hero-banner"
+        class="relative isolate overflow-hidden bg-[#0a0f1a] px-4 pt-8 pb-14 md:pt-5 md:pb-10">
+        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(3,7,204,0.2),transparent_65%)]"></div>
+        <div class="relative z-10 mx-auto flex max-w-4xl flex-col items-center gap-4 text-center animate-in md:gap-6">
+            <p class="mb-5 text-[9px] font-bold uppercase tracking-widest text-gray-300 sm:text-[10px] md:text-xs">
+                Displays <span class="mx-1 text-amber-400/80">•</span> Baterias <span class="mx-1 text-amber-400/80">•</span> Acessórios <span class="mx-1 text-amber-400/80">•</span> Reposição
             </p>
-            <div class="relative max-w-2xl mx-auto mt-10">
+            <button type="button" onclick="resetAll()" aria-label="Voltar ao início" class="mx-auto block">
+                <img src="./assets/jack-pecas-logo.png" alt="Logo Jack Peças"
+                    class="mx-auto h-auto w-56 max-w-full drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] md:w-[280px]">
+            </button>
+            <h2 class="text-3xl font-black tracking-tight sm:text-4xl md:text-5xl">
+                <span class="bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 bg-clip-text text-transparent drop-shadow-[0_0_16px_rgba(251,191,36,0.3)]">BLACK</span>
+                <span class="text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.18)]">NOVEMBER</span>
+            </h2>
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-300 md:text-sm">
+                As melhores peças e preços do ano estão aqui
+            </p>
+
+            <div class="relative mx-auto mt-6 w-full max-w-2xl shrink-0 md:mt-8">
                 <input type="text" id="public-search" oninput="handleSearch()" placeholder="O QUE VOCÊ PROCURA HOJE?"
-                    class="w-full bg-white border-2 border-[#0a0f1a] rounded-2xl py-4 px-14 text-base md:text-xs text-[#0a0f1a] font-bold focus:border-gray-400 outline-none transition-all shadow-2xl">
+                    class="w-full bg-white border-2 border-amber-300/70 rounded-2xl py-3.5 md:py-4 px-14 text-sm md:text-xs text-[#0a0f1a] placeholder:text-gray-500 font-bold focus:border-[rgb(3,7,204)] outline-none transition-all shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
                 <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#0a0f1a]">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
