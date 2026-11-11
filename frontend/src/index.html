@@ -99,12 +99,9 @@
     </div>
 
     <header id="hero-banner"
-        class="relative isolate overflow-hidden bg-[#0a0f1a] px-4 pt-8 pb-14 md:pt-5 md:pb-10">
+        class="relative isolate overflow-hidden bg-[#0a0f1a] px-4 pt-4 pb-8 md:pt-6 md:pb-8">
         <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(3,7,204,0.2),transparent_65%)]"></div>
         <div class="relative z-10 mx-auto flex max-w-4xl flex-col items-center gap-4 text-center animate-in md:gap-6">
-            <p class="mb-5 text-[9px] font-bold uppercase tracking-widest text-gray-300 sm:text-[10px] md:text-xs">
-                Displays <span class="mx-1 text-amber-400/80">•</span> Baterias <span class="mx-1 text-amber-400/80">•</span> Acessórios <span class="mx-1 text-amber-400/80">•</span> Reposição
-            </p>
             <button type="button" onclick="resetAll()" aria-label="Voltar ao início" class="mx-auto block">
                 <img src="./assets/jack-pecas-logo.png" alt="Logo Jack Peças"
                     class="mx-auto h-auto w-56 max-w-full drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] md:w-[280px]">
@@ -113,13 +110,38 @@
                 <span class="bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-500 bg-clip-text text-transparent drop-shadow-[0_0_16px_rgba(251,191,36,0.3)]">BLACK</span>
                 <span class="text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.18)]">NOVEMBER</span>
             </h2>
-            <p class="text-xs font-bold uppercase tracking-widest text-gray-300 md:text-sm">
-                As melhores peças e preços do ano estão aqui
+            <div id="black-friday-countdown" class="flex items-center justify-center gap-2 md:gap-3 my-2">
+                <!-- Dias -->
+                <div class="flex flex-col items-center bg-white/5 border border-amber-300/30 rounded-xl px-3 py-2 min-w-[52px] md:min-w-[60px] backdrop-blur-sm">
+                    <span id="cd-days" class="font-mono font-black text-lg md:text-2xl text-amber-300">00</span>
+                    <span class="text-[8px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Dias</span>
+                </div>
+                <span class="text-amber-300 font-black text-base md:text-xl">:</span>
+                <!-- Horas -->
+                <div class="flex flex-col items-center bg-white/5 border border-amber-300/30 rounded-xl px-3 py-2 min-w-[52px] md:min-w-[60px] backdrop-blur-sm">
+                    <span id="cd-hours" class="font-mono font-black text-lg md:text-2xl text-white">00</span>
+                    <span class="text-[8px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Horas</span>
+                </div>
+                <span class="text-amber-300 font-black text-base md:text-xl">:</span>
+                <!-- Minutos -->
+                <div class="flex flex-col items-center bg-white/5 border border-amber-300/30 rounded-xl px-3 py-2 min-w-[52px] md:min-w-[60px] backdrop-blur-sm">
+                    <span id="cd-minutes" class="font-mono font-black text-lg md:text-2xl text-white">00</span>
+                    <span class="text-[8px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Min</span>
+                </div>
+                <span class="text-amber-300 font-black text-base md:text-xl">:</span>
+                <!-- Segundos -->
+                <div class="flex flex-col items-center bg-white/5 border border-amber-300/30 rounded-xl px-3 py-2 min-w-[52px] md:min-w-[60px] backdrop-blur-sm">
+                    <span id="cd-seconds" class="font-mono font-black text-lg md:text-2xl text-amber-300">00</span>
+                    <span class="text-[8px] font-bold uppercase tracking-widest text-gray-400 mt-0.5">Seg</span>
+                </div>
+            </div>
+            <p class="text-[10px] md:text-xs font-bold uppercase tracking-widest text-amber-200/90">
+                A CONTAGEM REGRESSIVA PARA OS MENORES PREÇOS DO ANO COMEÇOU
             </p>
 
-            <div class="relative mx-auto mt-6 w-full max-w-2xl shrink-0 md:mt-8">
+            <div class="relative mx-auto mt-2 w-full max-w-2xl shrink-0 md:mt-4">
                 <input type="text" id="public-search" oninput="handleSearch()" placeholder="O QUE VOCÊ PROCURA HOJE?"
-                    class="w-full bg-white border-2 border-amber-300/70 rounded-2xl py-3.5 md:py-4 px-14 text-sm md:text-xs text-[#0a0f1a] placeholder:text-gray-500 font-bold focus:border-[rgb(3,7,204)] outline-none transition-all shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+                    class="w-full bg-white border-2 border-amber-400/80 rounded-2xl py-3.5 md:py-4 px-14 text-sm md:text-xs text-[#0a0f1a] placeholder:text-gray-500 font-bold focus:border-amber-300 outline-none transition-all shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
                 <div class="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#0a0f1a]">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

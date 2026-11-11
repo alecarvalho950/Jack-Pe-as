@@ -252,7 +252,49 @@ function getProductParentPromoInfo(p, preferredPromo = null) {
    INIT & FETCH
 ────────────────────────────────────────── */
 
+function startBlackFridayCountdown() {
+  const targetDate = new Date("2026-11-27T00:00:00").getTime();
+  let countdownInterval = null;
+
+  const updateTimer = () => {
+    const difference = targetDate - Date.now();
+    const elements = {
+      days: document.getElementById("cd-days"),
+      hours: document.getElementById("cd-hours"),
+      minutes: document.getElementById("cd-minutes"),
+      seconds: document.getElementById("cd-seconds"),
+    };
+
+    if (difference <= 0) {
+      Object.values(elements).forEach((element) => {
+        if (element) element.textContent = "00";
+      });
+      if (countdownInterval) clearInterval(countdownInterval);
+      return;
+    }
+
+    const values = {
+      days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+      minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
+      seconds: Math.floor((difference % (1000 * 60)) / 1000),
+    };
+
+    Object.entries(values).forEach(([unit, value]) => {
+      const element = elements[unit];
+      if (element) element.textContent = String(value).padStart(2, "0");
+    });
+  };
+
+  updateTimer();
+  if (targetDate > Date.now()) {
+    countdownInterval = setInterval(updateTimer, 1000);
+  }
+}
+
 async function init() {
+  startBlackFridayCountdown();
+
   const API_BASE_URL = "https://api.jackpecas.com.br";
   const overlay = document.getElementById("loading-overlay");
 
