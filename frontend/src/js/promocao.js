@@ -66,22 +66,8 @@ function renderPromotionsList() {
     }
 
     const now = new Date();
-
     tbody.innerHTML = promotions.map(p => {
-        const startDate = new Date(p.startDate);
-        const endDate = new Date(p.endDate);
-
-        let calculatedStatus = p.status || 'agendada';
-        
-        if (p.status !== 'cancelada' && p.status !== 'finalizada') {
-            if (now < startDate) {
-                calculatedStatus = 'agendada';
-            } else if (now >= startDate && now <= endDate) {
-                calculatedStatus = 'ativa';
-            } else if (now > endDate) {
-                calculatedStatus = 'finalizada';
-            }
-        }
+        const calculatedStatus = getCalculatedPromotionStatus(p, now);
 
         const statusBadges = {
             'agendada': '<span class="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">Agendada</span>',
@@ -97,6 +83,13 @@ function renderPromotionsList() {
         const formatDate = (d) => new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 
         const canEdit = calculatedStatus !== 'cancelada' && calculatedStatus !== 'finalizada';
+        const promotionId = String(p._id || p.id);
+        const promotionIdForHandler = JSON.stringify(promotionId).replace(/"/g, '&quot;');
+        const exportButton = calculatedStatus === 'ativa'
+            ? `<button type="button" onclick="exportPromotionPDF(${promotionIdForHandler})" class="px-2.5 py-2 bg-emerald-950/40 border border-emerald-700/40 hover:bg-emerald-900 text-emerald-300 rounded-lg transition text-[10px] font-bold uppercase whitespace-nowrap" title="Exportar campanha para PDF">EXPORTAR PDF</button>`
+            : (calculatedStatus === 'finalizada' || calculatedStatus === 'cancelada')
+                ? `<button type="button" disabled class="px-2.5 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-500 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap opacity-60 cursor-not-allowed" title="Campanhas finalizadas ou canceladas não podem ser exportadas">EXPORTAR PDF</button>`
+                : '';
 
         return `
         <tr class="block md:table-row bg-[#111827] md:bg-transparent rounded-2xl border border-gray-800 md:border-b md:border-gray-800/60 mb-4 md:mb-0 hover:bg-white/[0.02] transition">
@@ -112,7 +105,7 @@ function renderPromotionsList() {
                 <div class="text-[10px] text-gray-600">até ${formatDate(p.endDate)}</div>
             </td>
             <td class="block md:table-cell p-4 text-right">
-                <div class="flex items-center justify-end gap-2">
+                <div class="flex flex-wrap items-center justify-end gap-2">
                     ${canEdit ? `
                         <button onclick="editPromotion('${p._id || p.id}', false)" class="p-2 bg-gray-800 hover:bg-accent hover:text-black rounded-lg transition text-xs font-bold uppercase" title="Editar">
                             Editar
@@ -127,10 +120,176 @@ function renderPromotionsList() {
                             Finalizar
                         </button>
                     ` : ''}
+                    ${exportButton}
                 </div>
             </td>
         </tr>`;
     }).join('');
+}
+
+function getCalculatedPromotionStatus(promotion, now = new Date()) {
+    const startDate = new Date(promotion.startDate);
+    const endDate = new Date(promotion.endDate);
+    let calculatedStatus = promotion.status || 'agendada';
+
+    if (promotion.status !== 'cancelada' && promotion.status !== 'finalizada') {
+        if (now < startDate) {
+            calculatedStatus = 'agendada';
+        } else if (now >= startDate && now <= endDate) {
+            calculatedStatus = 'ativa';
+        } else if (now > endDate) {
+            calculatedStatus = 'finalizada';
+        }
+    }
+
+    return calculatedStatus;
+}
+
+function exportPromotionPDF(promotionId) {
+    const promotion = promotions.find(p => String(p._id || p.id) === String(promotionId));
+    if (!promotion) {
+        showNotification("A campanha selecionada não foi encontrada.", "error");
+        return;
+    }
+
+    if (getCalculatedPromotionStatus(promotion) !== 'ativa') {
+        showNotification("Somente campanhas ativas podem ser exportadas.", "error");
+        return;
+    }
+
+    if (!Array.isArray(promotion.items) || promotion.items.length === 0) {
+        showNotification("Esta campanha não possui produtos para exportar.", "error");
+        return;
+    }
+
+    const jsPDF = window.jspdf?.jsPDF;
+    if (!jsPDF || typeof jsPDF.API.autoTable !== 'function') {
+        showNotification("Não foi possível carregar a biblioteca de geração de PDF.", "error");
+        return;
+    }
+
+    const generatedAt = new Date();
+    const formatDate = value => {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime())
+            ? ''
+            : date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    };
+    const formatCurrency = value => {
+        if (value === null || value === undefined || value === '') return '';
+        const amount = Number(value);
+        return Number.isFinite(amount)
+            ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)
+            : '';
+    };
+    const formatDiscount = (originalPrice, promotionalPrice) => {
+        if (
+            originalPrice === null || originalPrice === undefined || originalPrice === ''
+            || promotionalPrice === null || promotionalPrice === undefined || promotionalPrice === ''
+        ) return '—';
+        const original = Number(originalPrice);
+        const promotional = Number(promotionalPrice);
+        if (!Number.isFinite(original) || original === 0 || !Number.isFinite(promotional)) return '—';
+        const percentage = ((original - promotional) / original) * 100;
+        return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(percentage)}%`;
+    };
+
+    const rows = promotion.items.map(item => {
+        const originalPrice = item.originalPrice ?? item.price;
+        const promotionalPrice = item.promoPrice ?? item.price;
+        return [
+            item.name || '',
+            item.sku || '',
+            formatCurrency(originalPrice),
+            formatCurrency(promotionalPrice),
+            formatDiscount(originalPrice, promotionalPrice)
+        ];
+    });
+
+    try {
+        const document = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageWidth = document.internal.pageSize.getWidth();
+        const generatedDate = generatedAt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+        const promotionType = promotion.type === 'flash' ? 'Oferta Relâmpago' : 'Promoção';
+
+        document.setFillColor(10, 15, 30);
+        const titleLines = document.splitTextToSize(promotion.title || '', pageWidth - 28);
+        const detailY = 34 + titleLines.length * 6 + 2;
+        const headerBottom = detailY + 7;
+        document.rect(0, 0, pageWidth, headerBottom, 'F');
+        document.setTextColor(250, 204, 21);
+        document.setFont('helvetica', 'bold');
+        document.setFontSize(19);
+        document.text('JACK PEÇAS', 14, 17);
+        document.setTextColor(255, 255, 255);
+        document.setFontSize(10);
+        document.text('LISTA DE PRODUTOS EM PROMOÇÃO', 14, 25);
+        document.setTextColor(250, 204, 21);
+        document.setFontSize(14);
+        document.text(titleLines, 14, 34);
+
+        document.setTextColor(220, 226, 238);
+        document.setFont('helvetica', 'normal');
+        document.setFontSize(8);
+        document.text(
+            `${promotionType}  |  Início: ${formatDate(promotion.startDate)}  |  Término: ${formatDate(promotion.endDate)}`,
+            14,
+            detailY
+        );
+        const generatedDateY = headerBottom + 6;
+        document.text(`Documento gerado em: ${generatedDate}`, 14, generatedDateY);
+
+        document.autoTable({
+            startY: generatedDateY + 5,
+            head: [['Produto', 'SKU', 'Preço original', 'Preço promocional', 'Desconto']],
+            body: rows,
+            theme: 'grid',
+            margin: { left: 14, right: 14, bottom: 18 },
+            styles: {
+                font: 'helvetica',
+                fontSize: 8,
+                cellPadding: 2.5,
+                textColor: [31, 41, 55],
+                lineColor: [220, 226, 235],
+                lineWidth: 0.2,
+                overflow: 'linebreak'
+            },
+            headStyles: {
+                fillColor: [17, 24, 39],
+                textColor: [250, 204, 21],
+                fontStyle: 'bold'
+            },
+            alternateRowStyles: { fillColor: [245, 247, 250] },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { cellWidth: 25 },
+                2: { halign: 'right', cellWidth: 30 },
+                3: { halign: 'right', cellWidth: 34 },
+                4: { halign: 'right', cellWidth: 22, textColor: [4, 120, 87], fontStyle: 'bold' }
+            }
+        });
+
+        const pageCount = document.getNumberOfPages();
+        for (let page = 1; page <= pageCount; page++) {
+            document.setPage(page);
+            document.setFont('helvetica', 'normal');
+            document.setFontSize(8);
+            document.setTextColor(107, 114, 128);
+            document.text(`Gerado em ${generatedDate}`, 14, document.internal.pageSize.getHeight() - 9);
+            document.text(`Página ${page} de ${pageCount}`, pageWidth - 14, document.internal.pageSize.getHeight() - 9, { align: 'right' });
+        }
+
+        const safeTitle = (promotion.title || 'Campanha')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'Campanha';
+        const safeType = promotion.type === 'flash' ? 'Oferta-Relampago' : 'Promocao';
+        document.save(`Jack-Pecas-${safeType}-${safeTitle}.pdf`);
+    } catch (error) {
+        console.error("Erro ao gerar PDF da campanha:", error);
+        showNotification("Não foi possível gerar o PDF desta campanha.", "error");
+    }
 }
 
 /* ──────────────────────────────────────────
