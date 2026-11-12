@@ -1339,28 +1339,6 @@ function renderPromoPrice(info, size = "lg") {
     </div>`;
 }
 
-function renderParentPrice(info) {
-  if (!info?.hasPromo) {
-    return `
-      <div class="flex flex-col lg:items-end">
-        <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">A partir de</span>
-        <p class="text-2xl md:text-3xl font-black text-cor-verde font-mono tracking-tight leading-none mt-1">
-          <span class="text-xs md:text-sm font-bold mr-0.5">R$</span>${formatBRL(info?.minPrice)}
-        </p>
-      </div>`;
-  }
-
-  const isFlash = info.promoType === "flash";
-  const discountLabel = info.sameDiscount
-    ? `${info.maxPct}% OFF`
-    : `Até ${info.maxPct}% OFF`;
-
-  return `
-    <div class="flex items-center lg:justify-end">
-      ${renderDiscountTag(discountLabel, isFlash ? "flash" : info.promoType, "lg")}
-    </div>`;
-}
-
 function renderCard(p, targetPromo = null) {
   ensurePromoStyles();
 
@@ -1465,10 +1443,10 @@ function renderCard(p, targetPromo = null) {
     (targetPromo && targetPromo.type !== "flash") ||
     (parentInfo?.hasPromo && parentInfo?.promoType !== "flash");
   const arrowClasses = isFlash
-    ? "bg-orange-600 text-white border-orange-500 group-hover:bg-orange-700 group-hover:text-white"
+    ? "bg-orange-600 text-white border-orange-500 hover:bg-orange-700 hover:border-orange-600"
     : isStandard
-      ? "bg-blue-500 text-white border-blue-600 group-hover:bg-blue-800 group-hover:text-white"
-      : "text-[#0a0f1a] bg-cor-amarelo border-gray-200 group-hover:bg-yellow-600 group-hover:text-[#0a0f1a]";
+      ? "bg-blue-600 text-white border-blue-700 hover:bg-blue-800 hover:border-blue-800"
+      : "text-[#0a0f1a] bg-cor-amarelo border-amber-300 hover:bg-yellow-500 hover:border-yellow-500";
 
   const rows = p.variations.map((v) => {
     const basePrice = v.price || p.price;
@@ -1553,9 +1531,9 @@ function renderCard(p, targetPromo = null) {
 
   return `
         <div class="self-start w-full border ${parentBorder} bg-white rounded-2xl shadow-sm hover:shadow-md ${parentHoverBorder} transition-all duration-300 overflow-hidden ${isParentOutOfStock ? "opacity-50" : ""}">
-            <div onclick="toggleDropdown(this, '${productId}')" class="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-5 w-full relative cursor-pointer hover:bg-gray-50 group select-none">
+            <div class="p-5 flex flex-col gap-4 w-full relative">
                 ${isParentOutOfStock ? `<div class="absolute top-3 right-3 bg-red-600 text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">ESGOTADO</div>` : ""}
-                <div class="flex-grow space-y-2.5 lg:max-w-[65%]">
+                <div class="w-full space-y-2.5">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="text-[9px] font-black text-cor-azul bg-cor-amarelo px-2 py-0.5 rounded-md uppercase tracking-wider">${p.category || "Peça"}</span>
                         <span class="text-[9px] font-black text-white bg-gray-900 px-2 py-0.5 rounded-md uppercase tracking-wider">Possui Variações</span>
@@ -1577,17 +1555,15 @@ function renderCard(p, targetPromo = null) {
                       }
                     </div>
                 </div>
-                <div class="flex flex-row items-center justify-between lg:flex-col lg:items-end lg:justify-center pt-4 lg:pt-0 border-t border-gray-100 lg:border-t-0 shrink-0 lg:pl-6 lg:min-w-[200px] gap-4">
-                    ${renderParentPrice(parentInfo)}
-                    <div id="arrow-${productId}" class="${arrowClasses} p-2.5 rounded-xl border transition-all duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </div>
-                </div>
+                <button type="button" aria-controls="dropdown-${productId}" onclick="toggleDropdown(this, '${productId}')"
+                    class="w-full min-h-12 relative flex items-center justify-center px-11 py-3 rounded-xl border ${arrowClasses} font-black text-[9px] sm:text-xs uppercase tracking-wider text-center transition-all duration-200 hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
+                    <span class="leading-snug">SELECIONE A OPÇÃO DESEJADA</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="absolute right-4 h-4 w-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
             </div>
             <div id="dropdown-${productId}" class="hidden border-t border-gray-200 bg-gray-50 px-5 pb-5 pt-2">
-                <p class="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-3">Selecione a opção desejada:</p>
                 <div class="flex flex-col gap-2.5">${variationsHTML}</div>
             </div>
         </div>`;
