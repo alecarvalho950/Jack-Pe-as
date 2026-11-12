@@ -139,7 +139,12 @@ select {
 .botao-top-bar {
     background-color: #FFFFFF;
     color: #0a0f1a;
-    border: 1px solid #0a0f1a;
+    border: 1px solid rgba(10, 15, 26, 0.18);
+    box-shadow: 0 2px 6px rgba(10, 15, 26, 0.12);
+}
+
+.botao-top-bar:hover {
+    box-shadow: 0 3px 8px rgba(10, 15, 26, 0.18);
 }
 
 .botao-filtro {

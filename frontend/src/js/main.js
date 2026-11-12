@@ -8,7 +8,6 @@ let currentView = "HOME"; // "HOME", "CATEGORY", "SUBCATEGORY", "PROMOTION"
 let activeCat = null;
 let activeSub = null;
 let activePromoId = null;
-let activeFilters = {};
 let currentPage = 1;
 let currentSort = 'default';
 const ITEMS_PER_PAGE = 20;
@@ -369,7 +368,7 @@ async function init() {
     if (savedStore && STORE_CONTACTS[savedStore]) {
       activeStore = savedStore;
       updateStoreLabel(activeStore);
-      renderQuickNav();
+      renderCategoriesDrawer();
       render();
     } else {
       openStoreSelector();
@@ -656,7 +655,7 @@ function selectStore(storeName) {
   updateStoreBadgesUI();
   updateStoreLabel(storeName);
   closeStoreSelector();
-  renderQuickNav();
+  renderCategoriesDrawer();
   render();
   updateCartUI();
 
@@ -685,8 +684,37 @@ function updateStoreBadgesUI() {
 ────────────────────────────────────────── */
 
 function updateSort(value) {
-  currentSort = value;
+  currentSort = currentSort === value ? "default" : value;
+  currentPage = 1;
   render();
+}
+
+function updateSortButtons() {
+  const activeClasses = ["bg-cor-azul-escuro", "text-white", "border-white", "shadow-md", "hover:bg-blue-900"];
+  const inactiveClasses = [
+    "bg-white",
+    "text-[#0a0f1a]",
+    "border-gray-300",
+    "shadow-sm",
+    "hover:bg-cor-azul-escuro",
+    "hover:text-white",
+    "hover:border-cor-azul-escuro",
+    "hover:shadow-md",
+  ];
+  const buttons = [
+    { id: "sort-btn-asc", value: "price-asc" },
+    { id: "sort-btn-desc", value: "price-desc" },
+  ];
+
+  buttons.forEach(({ id, value }) => {
+    const button = document.getElementById(id);
+    if (!button) return;
+
+    const isActive = currentSort === value;
+    button.classList.remove(...(isActive ? inactiveClasses : activeClasses));
+    button.classList.add(...(isActive ? activeClasses : inactiveClasses));
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 function applySort(list) {
@@ -731,50 +759,138 @@ function applySort(list) {
 
 function resetAll() {
   document.getElementById("public-search").value = "";
-  activeFilters = {};
   activePromoId = null;
   changeView("HOME");
 }
 
-function renderQuickNav() {
-  const nav = document.getElementById("quick-nav");
-  if (!nav || !activeStore) return;
+function renderCategoriesDrawer() {
+  const nav = document.getElementById("categories-list");
+  if (!nav) return;
 
   const isHomeActive = currentView === "HOME" || (!activeCat && !activePromoId);
-  const styleInactive = "botao-filtro hover:bg-[#0a0f1a] hover:border-accent/30 hover:text-[#fefefe] transition-all";
-  const styleActive = "bg-cor-azul-escuro border border-white text-white font-black shadow-lg shadow-accent/20";
+  const isActive = "border-amber-400 bg-amber-50 text-[#0a0f1a]";
+  const isInactive = "border-gray-200 bg-white text-[#0a0f1a] hover:bg-gray-50";
+  const categoryList = Array.isArray(categories) ? categories : [];
 
-  let html = `<button onclick="resetAll()" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${isHomeActive ? styleActive : styleInactive}">Tudo</button>`;
+  let html = `<button type="button" data-view-home="true" class="w-full text-left px-4 py-3 rounded-xl border text-xs uppercase font-bold transition-all active:scale-[0.98] ${isHomeActive ? isActive : isInactive}">Tudo</button>`;
 
-  (Array.isArray(categories) ? categories : []).forEach((cat) => {
+  categoryList.forEach((cat, index) => {
     const name = typeof cat === "object" ? cat.name || cat.categoria || "" : cat;
     if (!name) return;
 
-    const hasProducts = allProducts.some((p) => {
-      if (!p.category || p.category.trim().toLowerCase() !== name.trim().toLowerCase()) return false;
-      if (p.hasVariations && p.variations) return p.variations.some((v) => getVariationStock(v) > 0);
-      return getProductStock(p) > 0;
-    });
-    if (!hasProducts) return;
+    const categoryName = String(name);
+    const isActiveCategory = activeCat && activeCat.trim().toLowerCase() === categoryName.trim().toLowerCase();
+    const isExpanded = Boolean(isActiveCategory);
+    const panelId = `category-subcategories-${index}`;
+    const subcategories = Array.isArray(cat.subcategories) ? cat.subcategories : [];
+    const subcategoryButtons = subcategories.map((subcategory) => {
+      const subcategoryName = typeof subcategory === "object"
+        ? subcategory.name || subcategory.categoria || ""
+        : subcategory;
+      if (!subcategoryName) return "";
 
-    const isActive = !isHomeActive && activeCat && activeCat.trim().toLowerCase() === name.trim().toLowerCase();
-    html += `<button onclick="changeView('CATEGORY','${name}')" class="whitespace-nowrap px-4 py-2 rounded-xl text-[10px] uppercase font-bold transition-all active:scale-95 ${isActive ? styleActive : styleInactive}">${name}</button>`;
+      const label = String(subcategoryName);
+      const isActiveSubcategory = isActiveCategory && activeSub && activeSub.toLowerCase() === label.toLowerCase();
+      return `<button type="button" data-view-subcategory="${escapeHTML(label)}" class="flex w-full items-center justify-between border-b border-gray-200 px-3 py-3 text-left text-xs font-medium transition-colors ${isActiveSubcategory ? "bg-amber-50 text-[#0a0f1a]" : "text-gray-700 hover:bg-gray-100"}"><span>${escapeHTML(label)}</span><svg class="h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" /></svg></button>`;
+    }).join("");
+
+    html += `
+      <section data-category-group="${escapeHTML(categoryName)}" class="overflow-hidden rounded-xl border ${isActiveCategory ? "border-amber-300" : "border-gray-200"}">
+        <div class="p-1">
+          <button type="button" data-category-toggle aria-expanded="${isExpanded}" aria-controls="${panelId}" class="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-3 text-left text-xs font-black uppercase text-[#0a0f1a] transition-colors hover:bg-gray-50">
+            <span class="min-w-0 flex-1">${escapeHTML(categoryName)}</span>
+            <svg data-category-chevron class="h-4 w-4 shrink-0 text-gray-500 transition-transform duration-300 ${isExpanded ? "rotate-90" : ""}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+        <div id="${panelId}" data-category-content class="grid transition-[grid-template-rows] duration-300 ease-in-out ${isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}">
+          <div class="min-h-0 overflow-hidden bg-gray-50/50">
+            <div class="border-y border-gray-200 px-3">
+              ${subcategoryButtons}
+              <button type="button" data-view-category class="flex w-full items-center justify-between border-b border-gray-200 px-3 py-3 text-left text-xs font-bold text-amber-700 transition-colors hover:bg-amber-50">
+                <span>Ver tudo</span>
+                <svg class="h-3.5 w-3.5 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>`;
   });
 
   nav.innerHTML = html;
+  nav.querySelector("[data-view-home]").addEventListener("click", resetAll);
+  nav.querySelectorAll("[data-category-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const isExpanded = button.getAttribute("aria-expanded") === "true";
+      const content = document.getElementById(button.getAttribute("aria-controls"));
+      const group = button.closest("[data-category-group]");
+      const chevron = button.querySelector("[data-category-chevron]");
+
+      button.setAttribute("aria-expanded", String(!isExpanded));
+      content?.classList.toggle("grid-rows-[1fr]", !isExpanded);
+      content?.classList.toggle("grid-rows-[0fr]", isExpanded);
+      group?.classList.toggle("border-amber-300", !isExpanded);
+      group?.classList.toggle("border-gray-200", isExpanded);
+      chevron?.classList.toggle("rotate-90", !isExpanded);
+    });
+  });
+  nav.querySelectorAll("[data-view-category]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const category = button.closest("[data-category-group]")?.dataset.categoryGroup;
+      if (category) changeView("CATEGORY", category);
+    });
+  });
+  nav.querySelectorAll("[data-view-subcategory]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const category = button.closest("[data-category-group]")?.dataset.categoryGroup;
+      if (category) changeView("SUBCATEGORY", category, button.dataset.viewSubcategory);
+    });
+  });
+}
+
+function toggleCategoriesPanel() {
+  const panel = document.getElementById("categories-panel");
+  const backdrop = document.getElementById("categories-backdrop");
+  const menuButton = document.querySelector('[aria-controls="categories-panel"]');
+  if (!panel) return;
+
+  const isOpen = !panel.classList.contains("-translate-x-full");
+
+  if (isOpen) {
+    panel.classList.add("-translate-x-full");
+    panel.setAttribute("aria-hidden", "true");
+    if (menuButton) menuButton.setAttribute("aria-expanded", "false");
+    if (backdrop) {
+      backdrop.classList.add("opacity-0");
+      setTimeout(() => backdrop.classList.add("hidden"), 300);
+    }
+    return;
+  }
+
+  renderCategoriesDrawer();
+  if (backdrop) {
+    backdrop.classList.remove("hidden");
+    setTimeout(() => backdrop.classList.remove("opacity-0"), 10);
+  }
+  panel.classList.remove("-translate-x-full");
+  panel.setAttribute("aria-hidden", "false");
+  if (menuButton) menuButton.setAttribute("aria-expanded", "true");
 }
 
 function changeView(view, cat = null, sub = null, promoId = null) {
+  const panel = document.getElementById("categories-panel");
+  if (panel && !panel.classList.contains("-translate-x-full")) toggleCategoriesPanel();
+
   showLocalLoading();
   setTimeout(() => {
     currentView = view;
     activeCat = cat;
     activeSub = sub;
     activePromoId = promoId;
-    if (view === "HOME") activeFilters = {};
     currentPage = 1;
     render();
-    renderQuickNav();
+    renderCategoriesDrawer();
     if (view !== "HOME") window.scrollTo({ top: 320, behavior: "smooth" });
   }, 50);
 }
@@ -790,25 +906,6 @@ function handleSearch() {
   }, 400);
 }
 
-function handleSubFilter(sub) {
-  if (sub === "") changeView("CATEGORY", activeCat);
-  else changeView("SUBCATEGORY", activeCat, sub);
-}
-
-function setAttrFilter(key, val) {
-  if (val === "") delete activeFilters[key];
-  else activeFilters[key] = val;
-  currentPage = 1;
-  render();
-}
-
-function toggleFilters() {
-  const extra = document.getElementById("extra-filters");
-  extra.classList.toggle("hidden");
-  if (!extra.classList.contains("hidden"))
-    extra.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
 function showLocalLoading() {
   const container = document.getElementById("catalog-content");
   if (!container) return;
@@ -817,23 +914,6 @@ function showLocalLoading() {
             <span class="loader"></span>
             <p class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mt-6 animate-pulse">Sincronizando Unidade...</p>
         </div>`;
-}
-
-function getSortDropdownHTML() {
-  return `
-    <div class="inline-flex items-center relative">
-      <select onchange="updateSort(this.value)" class="bg-white text-[#0a0f1a] py-1.5 pl-3 pr-8 rounded-xl text-[10px] uppercase font-black cursor-pointer border border-gray-300 hover:border-gray-800 outline-none appearance-none transition-all shadow-sm">
-        <option value="default" ${currentSort === 'default' ? 'selected' : ''}>Ordenar por</option>
-        <option value="price-asc" ${currentSort === 'price-asc' ? 'selected' : ''}>Preço: Menor p/ Maior</option>
-        <option value="price-desc" ${currentSort === 'price-desc' ? 'selected' : ''}>Preço: Maior p/ Menor</option>
-      </select>
-      <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#0a0f1a]">
-        <svg class="fill-current h-3 w-3 opacity-70" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-        </svg>
-      </div>
-    </div>
-  `;
 }
 
 /* ──────────────────────────────────────────
@@ -1070,11 +1150,9 @@ function render() {
   const container = document.getElementById("catalog-content");
   const header = document.getElementById("view-header");
   const footer = document.getElementById("catalog-footer");
-  const attrBox = document.getElementById("attribute-filters");
-  const brandBox = document.getElementById("brand-filter-container");
   const searchInput = document.getElementById("public-search");
-  const headerSortContainer = document.getElementById("header-sort-container");
 
+  updateSortButtons();
   if (!container || !activeStore) return;
 
   pruneExpiredPromotions();
@@ -1084,8 +1162,6 @@ function render() {
 
   let htmlOutput = "";
   footer.innerHTML = "";
-  attrBox.innerHTML = "";
-  if (headerSortContainer) headerSortContainer.innerHTML = "";
 
   const isPromoView = currentView === "PROMOTION" && !!activePromoId;
   const promoObj = isPromoView ? findPromoById(activePromoId) : null;
@@ -1112,22 +1188,9 @@ function render() {
     return matchesSearch && matchesCat && matchesSub;
   });
 
-  Object.keys(activeFilters).forEach((key) => {
-    filtered = filtered.filter((p) => p.attributes && p.attributes[key] === activeFilters[key]);
-  });
-
   filtered = applySort(filtered);
 
-  if (activeCat && currentView !== "HOME" && currentView !== "PROMOTION")
-    renderAttributeSelectors(filtered, attrBox);
-  else attrBox.innerHTML = "";
-
-  if (activeCat && currentView !== "PROMOTION") {
-    brandBox.classList.remove("hidden");
-    setupBrandSelect();
-  } else brandBox.classList.add("hidden");
-
-  const isFiltering = Object.keys(activeFilters).length > 0 || searchRaw.length > 0;
+  const isFiltering = searchRaw.length > 0;
 
   const clampPage = (totalPages) => {
     currentPage = Math.min(Math.max(1, currentPage), Math.max(1, totalPages));
@@ -1149,8 +1212,6 @@ function render() {
           <button onclick="resetAll()" class="bg-cor-amarelo text-[#0a0f1a] font-black text-[10px] uppercase tracking-widest px-6 py-2.5 rounded-xl active:scale-95 transition-all">Voltar ao início</button>
         </div>`;
     } else {
-      if (headerSortContainer) headerSortContainer.innerHTML = getSortDropdownHTML();
-
       if (filtered.length === 0) {
         htmlOutput = `<div class="animate-in">${renderPromoFrame(
           promoObj,
@@ -1168,11 +1229,11 @@ function render() {
       }
     }
   } else if (currentView === "HOME" && !isFiltering) {
-    header.classList.add("hidden");
+    header.classList.remove("hidden");
+    document.getElementById("active-title").innerText = "Catálogo";
 
     htmlOutput += renderPromotionsHeaderSection(isMobile);
 
-    let isFirstCategory = true;
     categories.forEach((cat) => {
       const catProducts = filtered.filter((p) => p.category === cat.name);
       if (catProducts.length > 0) {
@@ -1180,20 +1241,15 @@ function render() {
           cat.name,
           catProducts.slice(0, isMobile ? 6 : 8),
           "CATEGORY",
-          cat.name,
-          null,
-          isFirstCategory
+          cat.name
         );
-        isFirstCategory = false;
       }
     });
   } else if (currentView === "CATEGORY" && !isFiltering) {
     header.classList.remove("hidden");
     document.getElementById("active-title").innerText = activeCat;
-    if (headerSortContainer) headerSortContainer.innerHTML = "";
 
     const catData = categories.find((c) => c.name === activeCat);
-    let isFirstSubcategory = true;
 
     catData?.subcategories.forEach((sub) => {
       const products = filtered.filter(
@@ -1205,10 +1261,8 @@ function render() {
           products.slice(0, isMobile ? 6 : 8),
           "SUBCATEGORY",
           activeCat,
-          sub,
-          isFirstSubcategory
+          sub
         );
-        isFirstSubcategory = false;
       }
     });
   } else {
@@ -1216,8 +1270,6 @@ function render() {
     document.getElementById("active-title").innerText = activeSub
       ? `${activeCat} > ${activeSub}`
       : activeCat || "Busca";
-
-    if (headerSortContainer) headerSortContainer.innerHTML = getSortDropdownHTML();
 
     if (filtered.length === 0) {
       htmlOutput = `<div class="py-20 text-center w-full"><p class="text-gray-500 font-black uppercase text-xs">Sem resultados para esta unidade.</p></div>`;
@@ -1572,66 +1624,15 @@ function toggleDropdown(headerEl, productId) {
   }
 }
 
-function createSectionHTML(title, products, targetView, cat, sub = null, showSort = false) {
+function createSectionHTML(title, products, targetView, cat, sub = null) {
   return `
         <div class="animate-in mb-10">
             <div class="flex items-center justify-between mb-4 px-1 gap-2">
                 <h3 class="text-xs font-black uppercase tracking-[0.3em] text-gray-500">${title}</h3>
-                <div class="flex items-center gap-2">
-                    ${showSort ? getSortDropdownHTML() : ""}
-                    <button onclick="changeView('${targetView}','${cat}','${sub || ""}')" class="text-[9px] bg-cor-azul-escuro hover:bg-[#FFC107] text-white hover:text-[#0a0f1a] font-black border border-accent/20 px-4 py-1.5 rounded-full uppercase transition-all whitespace-nowrap">Ver Tudo</button>
-                </div>
+                <button onclick="changeView('${targetView}','${cat}','${sub || ""}')" class="text-[9px] bg-cor-azul-escuro hover:bg-[#FFC107] text-white hover:text-[#0a0f1a] font-black border border-accent/20 px-4 py-1.5 rounded-full uppercase transition-all whitespace-nowrap">Ver Tudo</button>
             </div>
             ${renderProductColumns(products)}
         </div>`;
-}
-
-function renderAttributeSelectors(products, container) {
-  if (!container) return;
-  const attrOptions = {};
-  products.forEach((p) => {
-    if (p.attributes)
-      Object.entries(p.attributes).forEach(([k, v]) => {
-        if (!attrOptions[k]) attrOptions[k] = new Set();
-        attrOptions[k].add(v);
-      });
-  });
-  container.innerHTML = "";
-  Object.entries(attrOptions).forEach(([key, values]) => {
-    const select = document.createElement("select");
-    select.className = `botao-filtro hover:bg-[#0a0f1a] hover:text-white rounded-lg px-3 py-2 pr-8 text-[10px] font-black uppercase outline-none focus:border-accent transition-all ${activeFilters[key] ? "bg-[#0a0f1a] border-white text-white hover:border-[#0a0f1a]" : "text-[#0a0f1a]"}`;
-    select.onchange = (e) => setAttrFilter(key, e.target.value);
-    select.innerHTML =
-      `<option value="">${key}</option>` +
-      Array.from(values)
-        .sort()
-        .map((v) => `<option value="${v}" ${activeFilters[key] === v ? "selected" : ""}>${v}</option>`)
-        .join("");
-    container.appendChild(select);
-  });
-}
-
-function setupBrandSelect() {
-  const subSelect = document.getElementById("sub-filter");
-  if (!subSelect) return;
-
-  const subs = [
-    ...new Set(
-      allProducts
-        .filter((p) => p.category && p.category.trim().toLowerCase() === activeCat.trim().toLowerCase() && p.subcategory)
-        .map((p) => p.subcategory),
-    ),
-  ];
-
-  subSelect.innerHTML =
-    `<option value="">Subcategoria</option>` +
-    subs.sort().map((s) => `<option value="${s}" ${activeSub === s ? "selected" : ""}>${s}</option>`).join("");
-
-  if (activeSub && activeSub !== "") {
-    subSelect.className = "bg-cor-azul-escuro border border-white hover:text-gray-500 rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none text-white min-w-[100px]";
-  } else {
-    subSelect.className = "botao-filtro border-gray-700 hover:bg-[#0a0f1a] hover:text-white rounded-lg px-3 py-2 text-[10px] font-black uppercase outline-none focus:border-accent min-w-[100px]";
-  }
 }
 
 function renderPager(current, total, totalItems, footer) {
