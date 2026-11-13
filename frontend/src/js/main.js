@@ -1568,9 +1568,9 @@ function renderCard(p, targetPromo = null) {
                     </div>
                 </div>
                 <button type="button" aria-controls="dropdown-${productId}" onclick="toggleDropdown(this, '${productId}')"
-                    class="w-full min-h-12 relative flex items-center justify-center px-11 py-3 rounded-xl border ${arrowClasses} font-black text-[9px] sm:text-xs uppercase tracking-wider text-center transition-all duration-200 hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
+                    class="mx-auto relative flex items-center justify-center px-8 sm:px-10 py-2.5 sm:py-3 rounded-xl border ${arrowClasses} font-black text-[10px] sm:text-xs uppercase tracking-wider text-center transition-all duration-200 hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
                     <span class="leading-snug">SELECIONE A OPÇÃO DESEJADA</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="absolute right-4 h-4 w-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="absolute right-3.5 h-4 w-4 transform transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                     </svg>
                 </button>
@@ -1719,12 +1719,27 @@ function toggleCartPanel() {
 
 function addToCart(id, name, price, store, maxStock) {
   const decodedName = decodeURIComponent(name);
+  const identity = getCartItemIdentity(id);
+  const catalogPrice = identity.variation
+    ? Number(identity.variation.price || identity.product.price) || Number(price)
+    : identity.variantBlingId
+      ? Number(price)
+      : Number(identity.product?.price) || Number(price);
+  const promoInfo = getPromotionalInfo(
+    identity.productId,
+    identity.variantBlingId,
+    catalogPrice
+  );
+  const finalPrice = promoInfo ? promoInfo.promoPrice : Number(price);
+  const originalPrice = promoInfo ? promoInfo.originalPrice : catalogPrice;
   const existingItem = cart.find((item) => item.id === id && item.store === store);
 
   if (existingItem) {
     if (existingItem.quantity < maxStock) {
       existingItem.quantity += 1;
       existingItem.stockWarning = null;
+      existingItem.price = finalPrice;
+      existingItem.originalPrice = originalPrice;
     } else {
       existingItem.stockWarning = `Apenas ${maxStock} unidade(s) em estoque.`;
       const panel = document.getElementById("cart-panel");
@@ -1744,7 +1759,8 @@ function addToCart(id, name, price, store, maxStock) {
       cart.push({
         id,
         name: decodedName,
-        price: Number(price),
+        price: finalPrice,
+        originalPrice,
         store,
         quantity: 1,
         maxStock,
@@ -1754,6 +1770,35 @@ function addToCart(id, name, price, store, maxStock) {
 
   updateCartUI();
   render();
+}
+
+function getCartItemIdentity(itemId) {
+  const normalizedId = String(itemId);
+  const product = allProducts
+    .filter((candidate) => {
+      const productId = String(candidate._id || candidate.id);
+      return normalizedId === productId || normalizedId.startsWith(`${productId}-`);
+    })
+    .sort((a, b) => String(b._id || b.id).length - String(a._id || a.id).length)[0];
+
+  if (product) {
+    const productId = String(product._id || product.id);
+    const variantBlingId = normalizedId === productId
+      ? null
+      : normalizedId.slice(productId.length + 1);
+    const variation = variantBlingId
+      ? product.variations?.find((candidate) => String(candidate.blingId) === variantBlingId)
+      : null;
+    return { productId, variantBlingId, product, variation };
+  }
+
+  const [productId, ...variantParts] = normalizedId.split("-");
+  return {
+    productId,
+    variantBlingId: variantParts.length ? variantParts.join("-") : null,
+    product: null,
+    variation: null,
+  };
 }
 
 function updateQuantity(id, store, change) {
@@ -1790,14 +1835,32 @@ function clearCart() {
   render();
 }
 
+function removeFromCart(id, store) {
+  cart = cart.filter((item) => !(item.id === id && item.store === store));
+  updateCartUI();
+  render();
+}
+
+function getCartItemPromoInfo(item) {
+  const { productId, variantBlingId, product, variation } = getCartItemIdentity(item.id);
+  const originalPrice = variation
+    ? Number(variation.price || product.price) || Number(item.originalPrice) || item.price
+    : variantBlingId
+      ? Number(item.originalPrice) || item.price
+      : Number(product?.price) || Number(item.originalPrice) || item.price;
+  return getPromotionalInfo(productId, variantBlingId, originalPrice);
+}
+
 function updateCartUI() {
   const badge = document.getElementById("cart-badge");
   const listContainer = document.getElementById("cart-items-list");
   const totalQtyLabel = document.getElementById("cart-total-qty");
   const totalPriceLabel = document.getElementById("cart-total-price");
+  const totalSavingsLabel = document.getElementById("cart-total-savings");
 
   let totalItems = 0;
   let totalPrice = 0;
+  let totalSavings = 0;
 
   if (cart.length === 0) {
     if (badge) badge.classList.add("hidden");
@@ -1809,12 +1872,31 @@ function updateCartUI() {
     }
     if (totalQtyLabel) totalQtyLabel.innerText = "0";
     if (totalPriceLabel) totalPriceLabel.innerText = "R$ 0,00";
+    if (totalSavingsLabel) {
+      totalSavingsLabel.innerText = "R$ 0,00";
+      totalSavingsLabel.parentElement?.classList.add("hidden");
+    }
     return;
   }
 
-  cart.forEach((item) => {
+  const cartItems = cart.map((item) => {
+    const promoInfo = getCartItemPromoInfo(item);
+    const unitPrice = promoInfo ? promoInfo.promoPrice : item.price;
+    const itemSavings = promoInfo
+      ? Math.max(0, promoInfo.originalPrice - unitPrice) * item.quantity
+      : 0;
+    return {
+      item,
+      promoInfo,
+      unitPrice,
+      itemSavings,
+    };
+  });
+
+  cartItems.forEach(({ item, unitPrice, itemSavings }) => {
     totalItems += item.quantity;
-    totalPrice += item.price * item.quantity;
+    totalPrice += unitPrice * item.quantity;
+    totalSavings += itemSavings;
   });
 
   if (badge) {
@@ -1830,11 +1912,34 @@ function updateCartUI() {
       style: "currency",
       currency: "BRL",
     });
+  if (totalSavingsLabel) {
+    totalSavingsLabel.innerText = totalSavings.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+    totalSavingsLabel.parentElement?.classList.toggle("hidden", totalSavings <= 0);
+  }
 
   if (listContainer) {
-    listContainer.innerHTML = cart
-      .map((item) => {
-        const itemTotal = item.price * item.quantity;
+    listContainer.innerHTML = cartItems
+      .map(({ item, promoInfo, unitPrice, itemSavings }) => {
+        const itemTotal = unitPrice * item.quantity;
+        const unitPriceHTML = promoInfo
+          ? `<div class="flex flex-col items-end gap-1">
+                <div class="flex flex-wrap items-center justify-end gap-1.5">
+                    <span class="text-[10px] text-gray-400 line-through">De: R$ ${formatBRL(promoInfo.originalPrice)}</span>
+                    <span class="rounded-md ${promoInfo.promoType === "flash" ? "bg-orange-600" : "bg-[rgb(3,7,204)]"} px-1.5 py-0.5 text-[9px] font-black text-white">${promoInfo.discountPct}% OFF</span>
+                </div>
+                <span class="text-xs font-black ${promoInfo.promoType === "flash" ? "text-orange-600" : "text-blue-700"} font-mono">
+                    R$ ${formatBRL(unitPrice)}
+                </span>
+                <span class="text-[10px] font-bold text-emerald-700">
+                    Economizando ${itemSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} neste item
+                </span>
+            </div>`
+          : `<span class="text-xs font-black text-cor-azul font-mono shrink-0">
+                    ${unitPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </span>`;
         return `
                 <div class="p-4 bg-white border border-gray-800 rounded-xl flex flex-col gap-3">
                     <div class="flex items-start justify-between gap-2">
@@ -1844,19 +1949,26 @@ function updateCartUI() {
                                 Filial: ${item.store}
                             </span>
                         </div>
-                        <span class="text-xs font-black text-cor-azul font-mono shrink-0">
-                            ${item.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                        </span>
+                        ${unitPriceHTML}
                     </div>
                     
                     <div class="flex flex-col gap-1 pt-2 border-t border-gray-800/50">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center bg-cor-amarelo border border-gray-800 rounded-lg p-0.5">
-                                <button onclick="updateQuantity('${item.id}','${item.store}',-1)"
-                                    class="w-7 h-7 flex items-center justify-center text-[#D32F2F] hover:text-[#B71C1C] rounded-md transition-colors active:scale-90 font-black text-sm">−</button>
-                                <span class="w-8 text-center text-xs font-black font-mono text-white">${item.quantity}</span>
-                                <button onclick="updateQuantity('${item.id}','${item.store}',1)"
-                                    class="w-7 h-7 flex items-center justify-center text-[#008b00] hover:text-[#09af00] rounded-md transition-colors active:scale-90 font-black text-sm">+</button>
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2">
+                                <div class="flex items-center bg-cor-amarelo border border-gray-800 rounded-lg p-0.5">
+                                    <button onclick="updateQuantity('${item.id}','${item.store}',-1)"
+                                        class="w-7 h-7 flex items-center justify-center text-[#D32F2F] hover:text-[#B71C1C] rounded-md transition-colors active:scale-90 font-black text-sm">−</button>
+                                    <span class="w-8 text-center text-xs font-black font-mono text-white">${item.quantity}</span>
+                                    <button onclick="updateQuantity('${item.id}','${item.store}',1)"
+                                        class="w-7 h-7 flex items-center justify-center text-[#008b00] hover:text-[#09af00] rounded-md transition-colors active:scale-90 font-black text-sm">+</button>
+                                </div>
+                                <button onclick="removeFromCart('${item.id}','${item.store}')"
+                                    class="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white transition-all active:scale-95 shadow-sm"
+                                    title="Remover item do carrinho" aria-label="Remover ${escapeHTML(item.name)} do carrinho">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
                             </div>
                             <span class="text-lg font-black text-cor-verde font-mono">
                                 ${itemTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -1879,20 +1991,35 @@ function checkoutCart() {
   const phoneNumber = STORE_CONTACTS[activeStore] || STORE_CONTACTS["São Roque"];
 
   let totalGeral = 0;
+  let totalSavings = 0;
   let message = `*NOVO PEDIDO - JACK PEÇAS*\n`;
   message += `*Unidade:* Loja ${activeStore}\n`;
   message += `───────────────────────────\n\n`;
 
   cart.forEach((item) => {
-    const subtotal = item.price * item.quantity;
+    const promoInfo = getCartItemPromoInfo(item);
+    const unitPrice = promoInfo ? promoInfo.promoPrice : item.price;
+    const subtotal = unitPrice * item.quantity;
+    const itemSavings = promoInfo
+      ? Math.max(0, promoInfo.originalPrice - unitPrice) * item.quantity
+      : 0;
+    if (promoInfo) totalSavings += itemSavings;
     totalGeral += subtotal;
     message += `*${item.quantity}x* ${item.name}\n`;
-    message += `Preço Unitário: ${item.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n`;
+    if (promoInfo) {
+      message += `De: ${promoInfo.originalPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} | Por: ${unitPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${promoInfo.discountPct}% OFF)\n`;
+      message += `Economia neste item: ${itemSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n`;
+    } else {
+      message += `Preço Unitário: ${unitPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n`;
+    }
     message += `Subtotal: *${subtotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}*\n\n`;
   });
 
   message += `───────────────────────────\n`;
-  message += `*TOTAL: ${totalGeral.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}*\n\n`;
+  if (totalSavings > 0) {
+    message += `*DESCONTO TOTAL:* ${totalSavings.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n`;
+  }
+  message += `*TOTAL A PAGAR:* ${totalGeral.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n\n`;
   message += `Gostaria de verificar disponibilidade e finalizar este pedido.`;
 
   window.open(
