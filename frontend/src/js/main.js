@@ -1458,6 +1458,17 @@ function renderCard(p, targetPromo = null) {
     };
   });
 
+  const inStockPromoRows = rows.filter((row) => row.stock > 0 && row.promo);
+  const badgeDiscounts = inStockPromoRows.map((row) => row.promo.discountPct);
+  const badgeDiscount = badgeDiscounts.length
+    ? Math.max(...badgeDiscounts) === Math.min(...badgeDiscounts)
+      ? `${badgeDiscounts[0]}% OFF`
+      : `Até ${Math.max(...badgeDiscounts)}% OFF`
+    : "";
+  const badgePromoType = inStockPromoRows.some((row) => row.promo.promoType === "flash")
+    ? "flash"
+    : "standard";
+
   const sortedRows = [...rows].sort((a, b) => {
     if (a.stock > 0 !== b.stock > 0) return a.stock > 0 ? -1 : 1;
     return (b.promo ? 1 : 0) - (a.promo ? 1 : 0);
@@ -1530,7 +1541,8 @@ function renderCard(p, targetPromo = null) {
     : "hover:border-gray-300";
 
   return `
-        <div class="self-start w-full border ${parentBorder} bg-white rounded-2xl shadow-sm hover:shadow-md ${parentHoverBorder} transition-all duration-300 overflow-hidden ${isParentOutOfStock ? "opacity-50" : ""}">
+        <div class="self-start w-full border ${parentBorder} bg-white rounded-2xl shadow-sm hover:shadow-md ${parentHoverBorder} transition-all duration-300 overflow-hidden relative ${isParentOutOfStock ? "opacity-50" : ""}">
+            ${badgeDiscount ? `<div class="variation-promo-badge absolute top-0 right-0 z-10 overflow-hidden rounded-tr-2xl variation-promo-badge--${badgePromoType}">${badgeDiscount}</div>` : ""}
             <div class="p-5 flex flex-col gap-4 w-full relative">
                 ${isParentOutOfStock ? `<div class="absolute top-3 right-3 bg-red-600 text-white font-black uppercase text-[8px] tracking-widest px-2.5 py-1 rounded-lg">ESGOTADO</div>` : ""}
                 <div class="w-full space-y-2.5">

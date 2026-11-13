@@ -28,6 +28,25 @@ body {
     text-shadow: 0 0 40px rgba(251, 191, 36, 0.3);
 }
 
+.variation-promo-badge {
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    padding: 0.25rem 0.75rem;
+    white-space: nowrap;
+    border-bottom-left-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.variation-promo-badge--flash {
+    background-color: #ea580c;
+}
+
+.variation-promo-badge--standard {
+    background-color: #0307cc;
+}
+
 select {
     appearance: none;
     background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
