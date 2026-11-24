@@ -8,6 +8,15 @@ let isViewMode = false; // Indica se estamos apenas visualizando detalhes (promo
 
 const API_BASE_URL = "https://api.jackpecas.com.br";
 
+function getVariationOriginalPrice(variation, parent) {
+    if (variation && variation.price !== null && variation.price !== undefined && variation.price !== '') {
+        const ownPrice = Number(variation.price);
+        if (Number.isFinite(ownPrice)) return ownPrice;
+    }
+    const parentPrice = Number(parent?.price);
+    return Number.isFinite(parentPrice) ? parentPrice : 0;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     await loadInitialData();
 });
@@ -424,7 +433,7 @@ function renderModalProductsList() {
                             variantBlingId: v.blingId,
                             name: `${p.name} (${v.type}: ${v.value})`,
                             sku: v.sku || p.sku,
-                            originalPrice: v.price || p.price,
+                            originalPrice: getVariationOriginalPrice(v, p),
                             isVariation: true
                         }).replace(/"/g, '&quot;')})" ${isChecked ? 'checked' : ''} class="w-4 h-4 accent-accent cursor-pointer">
                         <div>
@@ -439,7 +448,7 @@ function renderModalProductsList() {
                             <span class="text-sky-400 font-bold">CO: ${co}</span>
                             <span class="text-purple-400 font-bold">IB: ${ib}</span>
                         </div>
-                        <span class="text-xs font-bold text-white">R$ ${parseFloat(v.price || p.price || 0).toFixed(2)}</span>
+                        <span class="text-xs font-bold text-white">R$ ${getVariationOriginalPrice(v, p).toFixed(2)}</span>
                     </div>
                 </div>`;
             }).join('');

@@ -446,6 +446,19 @@ async function syncProductsFromBling() {
         const operations          = [];
         const ignoredProducts     = [];
         const idsBlingProcessados = [];
+        const activePromotions = await Promotion.find({
+            status: 'ativa',
+            startDate: { $lte: new Date() },
+            endDate: { $gte: new Date() }
+        }).lean();
+        const activeVariationOriginalPrices = new Map();
+        activePromotions.forEach(promo => {
+            (promo.items || []).forEach(item => {
+                if (item.isVariation && item.variantBlingId && Number.isFinite(Number(item.originalPrice))) {
+                    activeVariationOriginalPrices.set(String(item.variantBlingId), Number(item.originalPrice));
+                }
+            });
+        });
         
         let processadosCounter = 0;
 
@@ -501,7 +514,9 @@ async function syncProductsFromBling() {
                                 blingId: fId,
                                 sku:     String(f.codigo || "").trim() || `FILHO-${fId}`,
                                 name:    f.nome,
-                                price:   parseFloat(f.preco) || 0,
+                                price:   activeVariationOriginalPrices.has(fId)
+                                    ? activeVariationOriginalPrices.get(fId)
+                                    : (parseFloat(f.preco) || 0),
                                 stock_by_store: itemStocks,
                                 type:    tipoVariacao,
                                 value:   valorVariacao
@@ -587,6 +602,29 @@ cron.schedule('0 3 * * *', () => {
 }, { timezone: "America/Sao_Paulo" });
 
 console.log("✅ Cron de backup diário agendado para as 03:00 (America/Sao_Paulo).");
+
+// Finaliza promoções expiradas e restaura os preços originais das variações.
+cron.schedule('* * * * *', async () => {
+    try {
+        const now = new Date();
+        const expired = await Promotion.find({
+            status: { $in: ['ativa', 'agendada'] },
+            endDate: { $lt: now }
+        });
+
+        for (const promo of expired) {
+            promo.status = 'finalizada';
+            await promo.save();
+            await restorePromotionPrices(promo);
+        }
+
+        if (expired.length > 0 && typeof global.io !== 'undefined') {
+            global.io.emit('promotions_updated', { status: 'finalizada', count: expired.length });
+        }
+    } catch (error) {
+        console.error('❌ Erro ao finalizar promoções expiradas:', error.message);
+    }
+}, { timezone: "America/Sao_Paulo" });
 
 // ============================================================
 // WEBHOOKS — CORREÇÃO 3 & 4: busca em duas etapas (Pai → Filho)
@@ -999,15 +1037,10 @@ async function processProductWebhook(data) {
             { new: true, upsert: true }
         );
 
-        // 🎯 2. PROPAGAÇÃO DE PREÇO ATÔMICA (APENAS SE NÃO ESTIVER EM PROMOÇÃO)
-        if (produtoAtualizado.hasVariations && updateFields.price !== undefined && !promoAtivaProduto) {
-            await Product.updateOne(
-                { blingId },
-                { $set: { "variations.$[].price": updateFields.price } }
-            );
-        }
+        // O preço do produto pai não é propagado para as variações.
+        // Cada variação mantém seu próprio preço original no MongoDB.
 
-        // 🎯 3. SINCRONIA E LIMPEZA DE ÓRFÃOS ATÔMICA
+        // 🎯 2. SINCRONIA E LIMPEZA DE ÓRFÃOS ATÔMICA
         if (produtoAtualizado.hasVariations && data.variacoes && Array.isArray(data.variacoes)) {
             const idsVariacoesNoBling = data.variacoes.map(v => String(v.id));
             
@@ -1133,6 +1166,49 @@ app.post('/api/trigger-sync', verifyToken, async (req, res) => {
 });
 
 // ROTAS PROMOÇÕES
+async function restorePromotionPrices(promo) {
+    if (!promo?.items?.length) return;
+
+    for (const item of promo.items) {
+        const originalPrice = Number(item.originalPrice);
+        if (!Number.isFinite(originalPrice)) continue;
+
+        const now = new Date();
+        const overlapConditions = [];
+        if (item.variantBlingId) overlapConditions.push({ 'items.variantBlingId': String(item.variantBlingId) });
+        if (item.blingId) overlapConditions.push({ 'items.blingId': String(item.blingId) });
+        if (item.productId) overlapConditions.push({ 'items.productId': String(item.productId) });
+        if (overlapConditions.length === 0) continue;
+
+        const overlapping = await Promotion.findOne({
+            _id: { $ne: promo._id },
+            status: 'ativa',
+            startDate: { $lte: now },
+            endDate: { $gte: now },
+            $or: overlapConditions
+        });
+        if (overlapping) continue;
+
+        if (item.isVariation && item.variantBlingId) {
+            const filters = [{ "variations.blingId": String(item.variantBlingId) }];
+            if (item.blingId) filters.push({ blingId: String(item.blingId), "variations.blingId": String(item.variantBlingId) });
+            for (const filter of filters) {
+                await Product.updateOne(
+                    filter,
+                    { $set: { "variations.$.price": originalPrice, updatedAt: new Date() } }
+                );
+            }
+        } else {
+            const filters = [];
+            if (item.productId) filters.push({ _id: item.productId });
+            if (item.blingId) filters.push({ blingId: String(item.blingId) });
+            for (const filter of filters) {
+                await Product.updateOne(filter, { $set: { price: originalPrice, updatedAt: new Date() } });
+            }
+        }
+    }
+}
+
 app.get('/api/promotions', async (req, res) => {
     try {
         const promos = await Promotion.find().sort({ createdAt: -1 });
@@ -1146,6 +1222,7 @@ app.post('/api/promotions', verifyToken, async (req, res) => {
     try {
         const promo = new Promotion(req.body);
         await promo.save();
+        if (typeof global.io !== 'undefined') global.io.emit('promotions_updated', { promotionId: String(promo._id), status: promo.status });
         res.status(201).json(promo);
     } catch (err) {
         res.status(400).json({ error: err.message });
@@ -1155,6 +1232,10 @@ app.post('/api/promotions', verifyToken, async (req, res) => {
 app.put('/api/promotions/:id', verifyToken, async (req, res) => {
     try {
         const updated = await Promotion.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (req.body.status === 'finalizada' || req.body.status === 'cancelada') {
+            await restorePromotionPrices(updated);
+        }
+        if (typeof global.io !== 'undefined') global.io.emit('promotions_updated', { promotionId: String(updated?._id || req.params.id), status: updated?.status });
         res.json(updated);
     } catch (err) {
         res.status(400).json({ error: err.message });
@@ -1164,6 +1245,10 @@ app.put('/api/promotions/:id', verifyToken, async (req, res) => {
 app.patch('/api/promotions/:id/cancel', verifyToken, async (req, res) => {
     try {
         const promo = await Promotion.findByIdAndUpdate(req.params.id, { status: 'cancelada' }, { new: true });
+        if (promo) await restorePromotionPrices(promo);
+        if (typeof global.io !== 'undefined') {
+            global.io.emit('promotions_updated', { promotionId: String(promo?._id || req.params.id), status: 'cancelada' });
+        }
         res.json(promo);
     } catch (err) {
         res.status(400).json({ error: err.message });

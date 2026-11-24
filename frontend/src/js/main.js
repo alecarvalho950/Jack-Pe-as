@@ -94,6 +94,15 @@ function escapeHTML(str) {
 
 const getPromoId = (promo) => String(promo._id || promo.id);
 
+function getVariationCatalogPrice(variation, parent) {
+  if (variation && variation.price !== null && variation.price !== undefined && variation.price !== "") {
+    const ownPrice = Number(variation.price);
+    if (Number.isFinite(ownPrice)) return ownPrice;
+  }
+  const parentPrice = Number(parent?.price);
+  return Number.isFinite(parentPrice) ? parentPrice : 0;
+}
+
 function findPromoById(id) {
   return activePromotions.find((pr) => getPromoId(pr) === String(id)) || null;
 }
@@ -212,7 +221,7 @@ function getProductParentPromoInfo(p, preferredPromo = null) {
   const productId = p._id || p.id;
 
   const rows = p.variations.map((v) => {
-    const price = parseFloat(v.price || p.price) || 0;
+    const price = getVariationCatalogPrice(v, p);
     return {
       price,
       stock: getVariationStock(v),
@@ -362,6 +371,25 @@ async function init() {
       socket.on("product_deleted", (data) => {
         handleSocketProductDelete(data.blingId);
       });
+
+      socket.on("promotions_updated", async () => {
+        try {
+          const resPromo = await fetch(`${API_BASE_URL}/api/promotions`, { method: "GET" });
+          if (!resPromo.ok) return;
+          const allPromos = await resPromo.json();
+          activePromotions = allPromos.filter(p => {
+            if (p.status === "cancelada" || p.status === "finalizada") return false;
+            const start = new Date(p.startDate).getTime();
+            const end = new Date(p.endDate).getTime();
+            const now = Date.now();
+            return now >= start && now <= end;
+          });
+          activePromotions.sort((a, b) => (b.type === "flash" ? 1 : 0) - (a.type === "flash" ? 1 : 0));
+          render();
+        } catch (error) {
+          console.error("Erro ao atualizar promoções em tempo real:", error);
+        }
+      });
     }
 
     const savedStore = localStorage.getItem("jack_pecas_preferred_store");
@@ -504,7 +532,8 @@ function atualizarDadosCarrinhoRealTime(productId, updatedProduct) {
         const matchedVar = updatedProduct.variations.find(v => String(v.blingId) === String(varBlingId));
         if (matchedVar) {
           item.name = matchedVar.name;
-          item.price = matchedVar.price;
+          item.price = getVariationCatalogPrice(matchedVar, updatedProduct);
+          item.originalPrice = item.price;
           newStock = matchedVar.stock_by_store ? (matchedVar.stock_by_store[storeKey] || 0) : 0;
           itemName = item.name;
         } else {
@@ -732,8 +761,9 @@ function applySort(list) {
     const getMinPrice = (prod) => {
       if (prod.hasVariations && prod.variations?.length > 0) {
         return Math.min(...prod.variations.map(v => {
-          const promoInfo = getPromotionalInfo(prod._id || prod.id, v.blingId, v.price || prod.price || 0);
-          return promoInfo ? promoInfo.promoPrice : (v.price || prod.price || 0);
+          const variationPrice = getVariationCatalogPrice(v, prod);
+          const promoInfo = getPromotionalInfo(prod._id || prod.id, v.blingId, variationPrice);
+          return promoInfo ? promoInfo.promoPrice : variationPrice;
         }));
       }
       const promoInfo = getPromotionalInfo(prod._id || prod.id, null, prod.price || 0);
@@ -1449,7 +1479,7 @@ function renderCard(p, targetPromo = null) {
       : "text-[#0a0f1a] bg-cor-amarelo border-amber-300 hover:bg-yellow-500 hover:border-yellow-500";
 
   const rows = p.variations.map((v) => {
-    const basePrice = v.price || p.price;
+    const basePrice = getVariationCatalogPrice(v, p);
     return {
       v,
       basePrice,
@@ -1721,7 +1751,7 @@ function addToCart(id, name, price, store, maxStock) {
   const decodedName = decodeURIComponent(name);
   const identity = getCartItemIdentity(id);
   const catalogPrice = identity.variation
-    ? Number(identity.variation.price || identity.product.price) || Number(price)
+    ? getVariationCatalogPrice(identity.variation, identity.product)
     : identity.variantBlingId
       ? Number(price)
       : Number(identity.product?.price) || Number(price);
@@ -1844,7 +1874,7 @@ function removeFromCart(id, store) {
 function getCartItemPromoInfo(item) {
   const { productId, variantBlingId, product, variation } = getCartItemIdentity(item.id);
   const originalPrice = variation
-    ? Number(variation.price || product.price) || Number(item.originalPrice) || item.price
+    ? getVariationCatalogPrice(variation, product)
     : variantBlingId
       ? Number(item.originalPrice) || item.price
       : Number(product?.price) || Number(item.originalPrice) || item.price;
