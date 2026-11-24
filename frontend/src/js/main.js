@@ -260,12 +260,40 @@ function getProductParentPromoInfo(p, preferredPromo = null) {
    INIT & FETCH
 ────────────────────────────────────────── */
 
+const BLACK_FRIDAY_START = new Date("2026-11-27T00:00:00").getTime();
+
+function updateBlackFridayHeader(now = Date.now()) {
+  const heroHeader = document.getElementById("hero-banner");
+  const blackFridayHeader = document.getElementById("hero-banner-black-friday");
+  if (!heroHeader || !blackFridayHeader) return;
+
+  const showBlackFriday = now >= BLACK_FRIDAY_START;
+  const isBlackFridayVisible = !blackFridayHeader.classList.contains("hidden");
+  if (showBlackFriday === isBlackFridayVisible) return;
+
+  const currentSearch = document.getElementById("public-search");
+  const nextHeader = showBlackFriday ? blackFridayHeader : heroHeader;
+  const nextSearch = nextHeader.querySelector('input[type="text"]');
+  if (currentSearch && nextSearch && currentSearch !== nextSearch) {
+    const searchValue = currentSearch.value;
+    currentSearch.id = "inactive-public-search";
+    nextSearch.id = "public-search";
+    currentSearch.id = "legacy-public-search";
+    nextSearch.value = searchValue;
+  }
+
+  heroHeader.classList.toggle("hidden", showBlackFriday);
+  blackFridayHeader.classList.toggle("hidden", !showBlackFriday);
+}
+
 function startBlackFridayCountdown() {
-  const targetDate = new Date("2026-11-27T00:00:00").getTime();
+  const targetDate = BLACK_FRIDAY_START;
   let countdownInterval = null;
 
   const updateTimer = () => {
-    const difference = targetDate - Date.now();
+    const now = Date.now();
+    updateBlackFridayHeader(now);
+    const difference = targetDate - now;
     const elements = {
       days: document.getElementById("cd-days"),
       hours: document.getElementById("cd-hours"),
@@ -301,6 +329,7 @@ function startBlackFridayCountdown() {
 }
 
 async function init() {
+  updateBlackFridayHeader();
   startBlackFridayCountdown();
 
   const API_BASE_URL = "https://api.jackpecas.com.br";

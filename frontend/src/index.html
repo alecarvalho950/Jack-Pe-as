@@ -160,6 +160,53 @@
         </div>
     </header>
 
+    <header id="hero-banner-black-friday" class="hidden bf-test-hero relative isolate overflow-hidden px-4 py-3 md:py-5">
+        <div class="pointer-events-none absolute inset-0 z-0 flex items-center justify-center" aria-hidden="true">
+            <svg class="h-72 w-56 opacity-20 sm:h-80 sm:w-64 md:h-96 md:w-72" viewBox="0 0 120 160" fill="none">
+                <defs>
+                    <linearGradient id="black-friday-bolt-gradient" x1="20" y1="10" x2="105" y2="145" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#FFF1B8" />
+                        <stop offset=".48" stop-color="#FBBF24" />
+                        <stop offset="1" stop-color="#F59E0B" />
+                    </linearGradient>
+                    <filter id="black-friday-bolt-glow" x="0" y="0" width="120" height="160" filterUnits="userSpaceOnUse">
+                        <feGaussianBlur stdDeviation="7" />
+                    </filter>
+                </defs>
+                <path class="bf-lightning-glow" d="M75 5 19 83h34l-7 72 57-91H68L75 5Z" fill="url(#black-friday-bolt-gradient)" filter="url(#black-friday-bolt-glow)" />
+                <path d="M75 5 19 83h34l-7 72 57-91H68L75 5Z" fill="url(#black-friday-bolt-gradient)" />
+            </svg>
+        </div>
+        <div class="relative z-10 mx-auto flex max-w-5xl flex-col items-center gap-2.5 text-center md:gap-3.5">
+            <button type="button" onclick="resetAll()" aria-label="Voltar ao início" class="mx-auto block">
+                <img src="./assets/jack-pecas-logo.png" alt="Logo Jack Peças"
+                    class="mx-auto h-auto w-44 max-w-full drop-shadow-[0_0_12px_rgba(255,255,255,0.3)] sm:w-56 md:w-[260px]">
+            </button>
+
+            <p class="bf-start-label text-sm font-black uppercase tracking-[0.2em] text-amber-300 sm:text-base">Começou</p>
+            <h1 class="relative z-10 text-2xl font-black uppercase leading-none tracking-tight sm:text-4xl md:text-5xl">
+                <span class="bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-400 bg-clip-text text-transparent">Black Friday</span>
+                <span class="text-white"> na Jack</span>
+            </h1>
+            <p class="max-w-[34rem] text-[9px] font-black uppercase leading-tight tracking-wide text-amber-100/90 sm:text-xs">
+                O dia mais esperado do ano <span class="text-amber-300">· Ofertas liberadas</span>
+            </p>
+
+            <div class="relative mx-auto mt-1 w-full max-w-2xl shrink-0 md:mt-2">
+                <label class="sr-only" for="public-search">Buscar produtos no catálogo</label>
+                <input type="text" id="legacy-public-search" oninput="handleSearch()" placeholder="O QUE VOCÊ PROCURA HOJE?"
+                    class="w-full rounded-2xl border-2 border-amber-300/80 bg-white px-14 py-3 text-xs font-bold text-[#0a0f1a] shadow-[0_8px_24px_rgba(0,0,0,0.3)] outline-none transition-all placeholder:text-gray-500 focus:border-amber-300 focus:ring-4 focus:ring-amber-300/20 sm:py-3.5 sm:text-sm">
+                <div class="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-[#0307cc]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </header>
+
     <div id="sort-bar" class="w-full bg-cor-amarelo border-b border-gray-800/30 px-4 py-2.5 mb-6">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
             <span class="text-[10px] sm:text-xs font-black text-[#0a0f1a] uppercase tracking-wider shrink-0">Ordenar por:</span>
