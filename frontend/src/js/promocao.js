@@ -94,7 +94,7 @@ function renderPromotionsList() {
         const canEdit = calculatedStatus !== 'cancelada' && calculatedStatus !== 'finalizada';
         const promotionId = String(p._id || p.id);
         const promotionIdForHandler = JSON.stringify(promotionId).replace(/"/g, '&quot;');
-        const exportButton = calculatedStatus === 'ativa'
+        const exportButton = calculatedStatus === 'ativa' || calculatedStatus === 'agendada'
             ? `<button type="button" onclick="exportPromotionPDF(${promotionIdForHandler})" class="px-2.5 py-2 bg-emerald-950/40 border border-emerald-700/40 hover:bg-emerald-900 text-emerald-300 rounded-lg transition text-[10px] font-bold uppercase whitespace-nowrap" title="Exportar campanha para PDF">EXPORTAR PDF</button>`
             : (calculatedStatus === 'finalizada' || calculatedStatus === 'cancelada')
                 ? `<button type="button" disabled class="px-2.5 py-2 bg-gray-800/50 border border-gray-700/50 text-gray-500 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap opacity-60 cursor-not-allowed" title="Campanhas finalizadas ou canceladas não podem ser exportadas">EXPORTAR PDF</button>`
@@ -161,8 +161,9 @@ function exportPromotionPDF(promotionId) {
         return;
     }
 
-    if (getCalculatedPromotionStatus(promotion) !== 'ativa') {
-        showNotification("Somente campanhas ativas podem ser exportadas.", "error");
+    const calculatedStatus = getCalculatedPromotionStatus(promotion);
+    if (calculatedStatus !== 'ativa' && calculatedStatus !== 'agendada') {
+        showNotification("Somente campanhas ativas ou agendadas podem ser exportadas.", "error");
         return;
     }
 
